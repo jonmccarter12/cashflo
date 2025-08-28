@@ -1,0 +1,27 @@
+# The default model for Aider. This is the model group defined in litellm.yml
+model: gpt-4o-mini_fallbacks
+
+# This tells Aider to automatically load your .env file
+env-file: .env
+
+# Critical cost-saving setting: limits chat history tokens.
+max-chat-history-tokens: 2048
+
+# Use a cheaper model for repo-map summaries
+weak-model: gpt-4o-mini
+
+# Commit settings: set to false for manual review
+auto-commits: false
+
+# Linter and test commands
+lint: true
+test: false
+
+# UI settings
+pretty: true
+stream: true
+dark-mode: true
+
+# Files to always include as read-only context
+read:
+ - README.md
