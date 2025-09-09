@@ -1,7 +1,0 @@
-Flask
-gunicorn
-aider-chat
-google-auth
-google-api-python-client
-litellm
-python-dotenv
