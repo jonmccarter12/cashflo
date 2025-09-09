@@ -12,17 +12,39 @@
   gap: 1.5rem;
 }
 
-.header { text-align: center; }
-.title { font-size: 1.875rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.75rem; color: #1f2937; margin-bottom: 0.5rem; }
-.subtitle { color: #4b5563; }
-.totalCard { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; padding: 1.5rem; border-radius: 0.5rem; text-align: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-.totalAmount { font-size: 2.25rem; font-weight: 700; margin: 0.5rem 0; }
-.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.card { background: white; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 1rem; transition: all 0.2s; }
-.card:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transform: translateY(-2px); }
-.cardHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-.accountName { font-weight: 600; color: #1f2937; font-size: 1.125rem; }
-.accountType { font-size: 0.875rem; color: #6b7280; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 9999px; }
-.balanceSection { text-align: center; background: #f9fafb; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; }
-.balance { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem; }
-.balanceInput { width: 100%; padding: 0.5rem 0.75rem; font-size: 0.875rem; border: 1px solid #d1d5db; border-radius: 0.375rem; text-align: cente
+.card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+}
+
+.totalCard {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
