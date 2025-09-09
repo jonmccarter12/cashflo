@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2 } from "lucide-react";
 import styles from '../styles/dashboard.module.css';
 
+// Types
 interface Account {
   id: string;
   name: string;
@@ -12,7 +13,29 @@ interface Account {
   lastSyncTs?: number;
 }
 
+// Helpers
+const storageKey = "bills_balance_dashboard_v2";
 const fmt = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function usePersistentState<T>(key: string, initial: T) {
+  const [state, setState] = useState<T>(() => {
+    if (typeof window === 'undefined') return initial;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) as T : initial;
+    } catch {
+      return initial;
+    }
+  });
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(state));
+    }
+  }, [key, state]);
+  
+  return [state, setState] as const;
+}
 
 function notify(msg: string) {
   const toast = document.createElement('div');
@@ -35,9 +58,9 @@ function notify(msg: string) {
 }
 
 export default function Dashboard() {
-  const [accounts, setAccounts] = useState<Account[]>([
-    { id: 'cash', name: 'Cash on Hand', type: 'Cash', balance: 250.50 },
-    { id: 'bank', name: 'Checking Account', type: 'Bank', balance: 1847.25 }
+  const [accounts, setAccounts] = usePersistentState<Account[]>(`${storageKey}:accounts`, [
+    { id: 'cash', name: 'Cash on Hand', type: 'Cash', balance: 0 },
+    { id: 'bank', name: 'Checking', type: 'Bank', balance: 0 }
   ]);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
@@ -45,51 +68,143 @@ export default function Dashboard() {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
+  async function ensurePlaidScript() {
+    if ((window as any).Plaid?.create) return true;
+    const existing = document.querySelector('script[src*="plaid.com/link"]');
+    if (!existing) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+      s.async = true;
+      document.head.appendChild(s);
+    }
+    return await new Promise<boolean>((resolve) => {
+      let tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        if ((window as any).Plaid?.create) {
+          clearInterval(iv);
+          resolve(true);
+        }
+        if (tries > 50) {
+          clearInterval(iv);
+          resolve(false);
+        }
+      }, 100);
+    });
+  }
+
   async function openPlaidLink(accountId: string) {
     setLinkingId(accountId);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setAccounts(prev =>
-      prev.map(a =>
-        a.id === accountId
-          ? {
-              ...a,
-              plaidLinked: true,
-              institution: 'Demo Bank',
-              lastSyncTs: Date.now(),
-              balance: Math.round((Math.random() * 5000 + 500) * 100) / 100
+    try {
+      const scriptOk = await ensurePlaidScript();
+
+      async function fetchLinkToken(): Promise<string | null> {
+        try {
+          const res1 = await fetch('/api/plaid/create-link-token', { method: 'POST' });
+          if (res1.ok) {
+            const d = await res1.json();
+            return d.link_token;
+          }
+          const res2 = await fetch('/api/plaid/create_link_token', { method: 'POST' });
+          if (res2.ok) {
+            const d = await res2.json();
+            return d.link_token;
+          }
+        } catch (e) {
+          console.warn('create_link_token failed', e);
+        }
+        return null;
+      }
+
+      const linkToken = await fetchLinkToken();
+
+      if (scriptOk && linkToken && (window as any).Plaid?.create) {
+        const handler = (window as any).Plaid.create({
+          token: linkToken,
+          onSuccess: async (public_token: string, metadata: any) => {
+            try {
+              const payload = { public_token, accountId };
+              const ex1 = await fetch('/api/plaid/exchange', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (!ex1.ok) {
+                const ex2 = await fetch('/api/plaid/exchange_public_token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+                if (!ex2.ok) throw new Error(await ex2.text());
+              }
+              setAccounts(prev => prev.map(a => a.id === accountId ? {
+                ...a,
+                plaidLinked: true,
+                institution: metadata?.institution?.name || 'Linked',
+                lastSyncTs: Date.now()
+              } : a));
+              await refreshPlaid(accountId);
+              notify('Plaid linked');
+            } catch (err: any) {
+              notify('Exchange failed: ' + (err?.message || String(err)));
             }
-          : a
-      )
-    );
-    notify('✅ Bank linked successfully!');
-    setLinkingId(null);
+          },
+          onExit: (err: any) => {
+            if (err) console.warn('Plaid exit', err);
+          }
+        });
+        handler.open();
+        return;
+      }
+      
+      // Demo fallback
+      setAccounts(prev => prev.map(a => a.id === accountId ? {
+        ...a,
+        plaidLinked: true,
+        institution: 'Demo Bank',
+        lastSyncTs: Date.now(),
+        balance: Math.round((Math.random() * 5000 + 500) * 100) / 100
+      } : a));
+      notify('Plaid linked (demo)');
+    } catch (e: any) {
+      notify('Plaid error: ' + (e?.message || e));
+    } finally {
+      setLinkingId(null);
+    }
   }
 
   async function refreshPlaid(accountId: string) {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setAccounts(prev =>
-      prev.map(a =>
-        a.id === accountId
-          ? {
-              ...a,
-              balance: Math.round((a.balance + Math.random() * 200 - 100) * 100) / 100,
-              lastSyncTs: Date.now()
-            }
-          : a
-      )
-    );
-    notify('✅ Balance refreshed!');
+    try {
+      const res = await fetch(`/api/plaid/balances?clientAccountId=${encodeURIComponent(accountId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const rec = (data.accounts || [])[0];
+        setAccounts(prev => prev.map(a => a.id === accountId ? {
+          ...a,
+          balance: rec?.available || rec?.current || a.balance,
+          lastSyncTs: Date.now()
+        } : a));
+        notify('Balance refreshed');
+        return;
+      }
+    } catch { }
+    
+    // demo fallback
+    setAccounts(prev => prev.map(a => a.id === accountId ? {
+      ...a,
+      balance: a.balance + Math.round(Math.random() * 100 - 50),
+      lastSyncTs: Date.now()
+    } : a));
+    notify('Balance refreshed (demo)');
   }
 
   function unlinkPlaid(accountId: string) {
-    setAccounts(prev =>
-      prev.map(a =>
-        a.id === accountId
-          ? { ...a, plaidLinked: false, institution: undefined, lastSyncTs: undefined }
-          : a
-      )
-    );
-    notify('🔗 Account unlinked');
+    setAccounts(prev => prev.map(a => a.id === accountId ? {
+      ...a,
+      plaidLinked: false,
+      institution: undefined
+    } : a));
+    notify('Account unlinked');
   }
 
   function addAccount() {
@@ -105,17 +220,17 @@ export default function Dashboard() {
     setAccounts(prev => [...prev, newAccount]);
     setNewAccountName('');
     setShowAddForm(false);
-    notify('✅ Account added!');
+    notify('Account added');
   }
 
   function removeAccount(accountId: string) {
     if (accounts.length <= 1) {
-      notify('❌ Cannot remove last account');
+      notify('Cannot remove last account');
       return;
     }
     
     setAccounts(prev => prev.filter(a => a.id !== accountId));
-    notify('🗑️ Account removed');
+    notify('Account removed');
   }
 
   function updateBalance(accountId: string, newBalance: number) {
@@ -208,7 +323,7 @@ export default function Dashboard() {
                     ) : (
                       <>
                         <LinkIcon size={16} style={{ marginRight: '0.25rem' }} />
-                        Link Bank Account
+                        Link Plaid
                       </>
                     )}
                   </button>
@@ -217,10 +332,10 @@ export default function Dashboard() {
 
               {account.institution && (
                 <div className={styles.institutionInfo}>
-                  <div>🏦 {account.institution}</div>
+                  <div>{account.institution}</div>
                   {account.lastSyncTs && (
                     <div style={{ marginTop: '0.25rem' }}>
-                      Last synced: {new Date(account.lastSyncTs).toLocaleString()}
+                      {new Date(account.lastSyncTs).toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -233,20 +348,18 @@ export default function Dashboard() {
               <div className={styles.addForm}>
                 <input
                   type="text"
-                  placeholder="Enter account name"
+                  placeholder="Account name"
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
                   className={styles.addInput}
                   onKeyPress={(e) => e.key === 'Enter' && addAccount()}
-                  autoFocus
                 />
                 <div className={styles.addButtons}>
                   <button 
                     className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonFlex}`}
                     onClick={addAccount}
                   >
-                    <Plus size={16} style={{ marginRight: '0.25rem' }} />
-                    Add Account
+                    Add
                   </button>
                   <button 
                     className={styles.button}
@@ -262,12 +375,7 @@ export default function Dashboard() {
             ) : (
               <div>
                 <Plus className={styles.addIcon} />
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.25rem' }}>
-                  Add New Account
-                </h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-                  Track another bank account or cash
-                </p>
+                <h3>Add Account</h3>
                 <button
                   className={`${styles.button} ${styles.buttonBlue}`}
                   onClick={() => setShowAddForm(true)}
@@ -281,7 +389,7 @@ export default function Dashboard() {
         </div>
 
         <div className={styles.footer}>
-          <p>💡 <strong>Demo Mode:</strong> Click "Link Bank Account" to simulate connecting to your real bank!</p>
+          <p>Demo mode - Click "Link Plaid" to simulate connecting your bank</p>
         </div>
       </div>
     </div>
