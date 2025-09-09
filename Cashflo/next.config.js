@@ -1,9 +1,11 @@
- @type {import('next').NextConfig} 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  pageExtensions ['js', 'jsx', 'ts', 'tsx'],
-  experimental {
-    appDir false
-  }
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+}
+
+module.exports = nextConfig/** @type {import('next').NextConfig} */
+const nextConfig = {
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
 }
 
 module.exports = nextConfig
