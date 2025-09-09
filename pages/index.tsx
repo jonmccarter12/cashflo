@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2 } from "lucide-react";
-import styles from '../src/styles/dashboard.module.css';
+import styles from '../styles/dashboard.module.css';
 
 // Types
 interface Account {
