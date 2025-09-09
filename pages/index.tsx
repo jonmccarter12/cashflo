@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2 } from "lucide-react";
-import styles from '../styles/dashboard.module.css';
 
 interface Account {
   id: string;
@@ -15,215 +14,92 @@ interface Account {
 const storageKey = "bills_balance_dashboard_v2";
 const fmt = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function usePersistentState<T>(key: string, initial: T) {
-  const [state, setState] = useState<T>(initial);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          setState(JSON.parse(raw));
-        }
-      } catch (e) {
-        console.warn('Failed to load from localStorage:', e);
-      }
-      setIsLoaded(true);
-    }
-  }, [key]);
-
-  useEffect(() => {
-    if (isLoaded && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(key, JSON.stringify(state));
-      } catch (e) {
-        console.warn('Failed to save to localStorage:', e);
-      }
-    }
-  }, [key, state, isLoaded]);
-
-  return [state, setState] as const;
-}
-
 function notify(msg: string) {
-  const toast = document.createElement('div');
-  toast.style.cssText = `
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    background: #10b981;
-    color: white;
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-  `;
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.transform = 'translateX(0)';
-  }, 10);
-  
-  setTimeout(() => {
-    toast.style.transform = 'translateX(100%)';
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 300);
-  }, 3000);
+  alert(msg);
 }
 
 export default function Dashboard() {
-  const [accounts, setAccounts] = usePersistentState<Account[]>(`${storageKey}:accounts`, [
-    { id: 'cash', name: 'Cash on Hand', type: 'Cash', balance: 0 },
-    { id: 'bank', name: 'Checking', type: 'Bank', balance: 0 }
+  const [accounts, setAccounts] = useState<Account[]>([
+    { id: 'cash', name: 'Cash on Hand', type: 'Cash', balance: 250 },
+    { id: 'bank', name: 'Checking', type: 'Bank', balance: 1847 }
   ]);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(storageKey + ':accounts');
+        if (saved) {
+          setAccounts(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.warn('Failed to load accounts');
+      }
+    }
+  }, []);
+
+  // Save to localStorage when accounts change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(storageKey + ':accounts', JSON.stringify(accounts));
+      } catch (e) {
+        console.warn('Failed to save accounts');
+      }
+    }
+  }, [accounts]);
+
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
-
-  const ensurePlaidScript = async (): Promise<boolean> => {
-    if ((window as any).Plaid?.create) return true;
-    const existing = document.querySelector('script[src*="plaid.com/link"]');
-    if (!existing) {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-      s.async = true;
-      document.head.appendChild(s);
-    }
-    return await new Promise<boolean>((resolve) => {
-      let tries = 0;
-      const iv = setInterval(() => {
-        tries++;
-        if ((window as any).Plaid?.create) {
-          clearInterval(iv);
-          resolve(true);
-        }
-        if (tries > 50) {
-          clearInterval(iv);
-          resolve(false);
-        }
-      }, 100);
-    });
-  };
-
-  const fetchLinkToken = async (): Promise<string | null> => {
-    try {
-      const res1 = await fetch('/api/plaid/create-link-token', { method: 'POST' });
-      if (res1.ok) {
-        const d = await res1.json();
-        return d.link_token;
-      }
-      const res2 = await fetch('/api/plaid/create_link_token', { method: 'POST' });
-      if (res2.ok) {
-        const d = await res2.json();
-        return d.link_token;
-      }
-    } catch (e) {
-      console.warn('create_link_token failed', e);
-    }
-    return null;
-  };
 
   async function openPlaidLink(accountId: string) {
     setLinkingId(accountId);
-    try {
-      const scriptOk = await ensurePlaidScript();
-      const linkToken = await fetchLinkToken();
-
-      if (scriptOk && linkToken && (window as any).Plaid?.create) {
-        const handler = (window as any).Plaid.create({
-          token: linkToken,
-          onSuccess: async (public_token: string, metadata: any) => {
-            try {
-              const payload = { public_token, accountId };
-              const ex1 = await fetch('/api/plaid/exchange', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-              if (!ex1.ok) {
-                const ex2 = await fetch('/api/plaid/exchange_public_token', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-                if (!ex2.ok) throw new Error(await ex2.text());
-              }
-              setAccounts(prev => prev.map(a => a.id === accountId ? {
+    
+    // Simulate linking process
+    setTimeout(() => {
+      setAccounts(prev =>
+        prev.map(a =>
+          a.id === accountId
+            ? {
                 ...a,
                 plaidLinked: true,
-                institution: metadata?.institution?.name || 'Linked',
-                lastSyncTs: Date.now()
-              } : a));
-              await refreshPlaid(accountId);
-              notify('Plaid linked');
-            } catch (err: any) {
-              notify('Exchange failed: ' + (err?.message || String(err)));
-            }
-          },
-          onExit: (err: any) => {
-            if (err) console.warn('Plaid exit', err);
-          }
-        });
-        handler.open();
-        return;
-      }
-      
-      // Demo fallback
-      setAccounts(prev => prev.map(a => a.id === accountId ? {
-        ...a,
-        plaidLinked: true,
-        institution: 'Demo Bank',
-        lastSyncTs: Date.now(),
-        balance: Math.round((Math.random() * 5000 + 500) * 100) / 100
-      } : a));
-      notify('Plaid linked (demo)');
-    } catch (e: any) {
-      notify('Plaid error: ' + (e?.message || e));
-    } finally {
+                institution: 'Demo Bank',
+                lastSyncTs: Date.now(),
+                balance: Math.round((Math.random() * 5000 + 500) * 100) / 100
+              }
+            : a
+        )
+      );
+      notify('Bank linked successfully!');
       setLinkingId(null);
-    }
+    }, 2000);
   }
 
   async function refreshPlaid(accountId: string) {
-    try {
-      const res = await fetch(`/api/plaid/balances?clientAccountId=${encodeURIComponent(accountId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const rec = (data.accounts || [])[0];
-        setAccounts(prev => prev.map(a => a.id === accountId ? {
-          ...a,
-          balance: rec?.available || rec?.current || a.balance,
-          lastSyncTs: Date.now()
-        } : a));
-        notify('Balance refreshed');
-        return;
-      }
-    } catch { }
-    
-    // demo fallback
-    setAccounts(prev => prev.map(a => a.id === accountId ? {
-      ...a,
-      balance: a.balance + Math.round(Math.random() * 100 - 50),
-      lastSyncTs: Date.now()
-    } : a));
-    notify('Balance refreshed (demo)');
+    setAccounts(prev =>
+      prev.map(a =>
+        a.id === accountId
+          ? {
+              ...a,
+              balance: Math.round((a.balance + Math.random() * 200 - 100) * 100) / 100,
+              lastSyncTs: Date.now()
+            }
+          : a
+      )
+    );
+    notify('Balance refreshed!');
   }
 
   function unlinkPlaid(accountId: string) {
-    setAccounts(prev => prev.map(a => a.id === accountId ? {
-      ...a,
-      plaidLinked: false,
-      institution: undefined
-    } : a));
+    setAccounts(prev =>
+      prev.map(a =>
+        a.id === accountId
+          ? { ...a, plaidLinked: false, institution: undefined, lastSyncTs: undefined }
+          : a
+      )
+    );
     notify('Account unlinked');
   }
 
@@ -240,12 +116,12 @@ export default function Dashboard() {
     setAccounts(prev => [...prev, newAccount]);
     setNewAccountName('');
     setShowAddForm(false);
-    notify('Account added');
+    notify('Account added!');
   }
 
   function removeAccount(accountId: string) {
     if (accounts.length <= 1) {
-      notify('Cannot remove last account');
+      notify('Cannot remove the last account');
       return;
     }
     
@@ -262,9 +138,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.wrapper}>
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1rem' }}>
+      <div style={{ maxWidth: '72rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Header */}
+        <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.875rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
             <PiggyBank size={36} style={{ color: '#2563eb' }} />
             Financial Dashboard
@@ -272,7 +150,8 @@ export default function Dashboard() {
           <p style={{ color: '#4b5563' }}>Manage your accounts and track your finances</p>
         </div>
 
-        <div className={styles.totalCard}>
+        {/* Total Balance Card */}
+        <div style={{ background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)', color: 'white', padding: '1.5rem', borderRadius: '0.5rem', textAlign: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.5rem', opacity: 0.9 }}>
             Total Balance
           </h2>
@@ -282,23 +161,26 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className={styles.grid}>
+        {/* Accounts Grid */}
+        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
           {accounts.map(account => (
-            <div key={account.id} className={styles.card}>
+            <div key={account.id} style={{ background: 'white', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', padding: '1rem', transition: 'all 0.2s' }}>
+              
+              {/* Account Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div>
                   <h3 style={{ fontWeight: '600', color: '#1f2937', fontSize: '1.125rem' }}>{account.name}</h3>
                   <span style={{ fontSize: '0.875rem', color: '#6b7280', background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '9999px' }}>{account.type}</span>
                 </div>
                 <button
-                  className={styles.button}
-                  style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: 'pointer' }}
                   onClick={() => removeAccount(account.id)}
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
 
+              {/* Balance Section */}
               <div style={{ textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', padding: '1rem', marginBottom: '1rem' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>{fmt(account.balance)}</div>
                 {!account.plaidLinked && (
@@ -313,20 +195,19 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {/* Action Buttons */}
               <div>
                 {account.plaidLinked ? (
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                     <button
-                      className={styles.button}
-                      style={{ flex: '1', color: '#059669', borderColor: '#a7f3d0' }}
+                      style={{ flex: '1', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #a7f3d0', background: 'white', color: '#059669', cursor: 'pointer' }}
                       onClick={() => refreshPlaid(account.id)}
                     >
                       <RefreshCcw size={16} style={{ marginRight: '0.25rem' }} />
                       Refresh
                     </button>
                     <button
-                      className={styles.button}
-                      style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: 'pointer' }}
                       onClick={() => unlinkPlaid(account.id)}
                     >
                       Unlink
@@ -334,8 +215,7 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <button
-                    className={styles.button}
-                    style={{ width: '100%', color: '#2563eb', borderColor: '#bfdbfe' }}
+                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #bfdbfe', background: 'white', color: '#2563eb', cursor: 'pointer', opacity: linkingId === account.id ? 0.5 : 1 }}
                     disabled={linkingId === account.id}
                     onClick={() => openPlaidLink(account.id)}
                   >
@@ -344,19 +224,20 @@ export default function Dashboard() {
                     ) : (
                       <>
                         <LinkIcon size={16} style={{ marginRight: '0.25rem' }} />
-                        Link Plaid
+                        Link Bank Account
                       </>
                     )}
                   </button>
                 )}
               </div>
 
+              {/* Institution Info */}
               {account.institution && (
                 <div style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', background: '#ecfdf5', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #a7f3d0' }}>
-                  <div>{account.institution}</div>
+                  <div>🏦 {account.institution}</div>
                   {account.lastSyncTs && (
                     <div style={{ marginTop: '0.25rem' }}>
-                      {new Date(account.lastSyncTs).toLocaleString()}
+                      Last synced: {new Date(account.lastSyncTs).toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -364,12 +245,13 @@ export default function Dashboard() {
             </div>
           ))}
 
-          <div className={styles.card} style={{ border: '2px dashed #d1d5db', textAlign: 'center', padding: '2rem 1rem' }}>
+          {/* Add Account Card */}
+          <div style={{ background: 'white', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', padding: '2rem 1rem', border: '2px dashed #d1d5db', textAlign: 'center' }}>
             {showAddForm ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <input
                   type="text"
-                  placeholder="Account name"
+                  placeholder="Enter account name"
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
                   style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
@@ -377,14 +259,14 @@ export default function Dashboard() {
                 />
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button 
-                    className={styles.button}
-                    style={{ flex: '1', background: '#2563eb', color: 'white', borderColor: '#2563eb' }}
+                    style={{ flex: '1', padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #2563eb', background: '#2563eb', color: 'white', cursor: 'pointer' }}
                     onClick={addAccount}
                   >
-                    Add
+                    <Plus size={16} style={{ marginRight: '0.25rem' }} />
+                    Add Account
                   </button>
                   <button 
-                    className={styles.button}
+                    style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}
                     onClick={() => {
                       setShowAddForm(false);
                       setNewAccountName('');
@@ -397,10 +279,10 @@ export default function Dashboard() {
             ) : (
               <div>
                 <Plus style={{ width: '4rem', height: '4rem', margin: '0 auto 0.75rem', opacity: 0.5, color: '#9ca3af' }} />
-                <h3>Add Account</h3>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.25rem' }}>Add New Account</h3>
+                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>Track another bank account or cash</p>
                 <button
-                  className={styles.button}
-                  style={{ color: '#2563eb', borderColor: '#bfdbfe' }}
+                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', borderRadius: '0.375rem', border: '1px solid #bfdbfe', background: 'white', color: '#2563eb', cursor: 'pointer' }}
                   onClick={() => setShowAddForm(true)}
                 >
                   <Plus size={16} style={{ marginRight: '0.25rem' }} />
@@ -411,8 +293,9 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Footer */}
         <div style={{ textAlign: 'center', fontSize: '0.875rem', color: '#6b7280', background: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-          <p>Demo mode - Click "Link Plaid" to simulate connecting your bank</p>
+          <p>💡 Demo mode - Click "Link Bank Account" to simulate connecting your bank!</p>
         </div>
       </div>
     </div>
