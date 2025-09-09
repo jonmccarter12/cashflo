@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2 } from "lucide-react";
 import styles from '../styles/dashboard.module.css';
 
-// Types
 interface Account {
   id: string;
   name: string;
@@ -13,7 +12,6 @@ interface Account {
   lastSyncTs?: number;
 }
 
-// Helpers
 const storageKey = "bills_balance_dashboard_v2";
 const fmt = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -50,7 +48,19 @@ function usePersistentState<T>(key: string, initial: T) {
 
 function notify(msg: string) {
   const toast = document.createElement('div');
-  toast.className = styles.toast;
+  toast.style.cssText = `
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: #10b981;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  `;
   toast.textContent = msg;
   document.body.appendChild(toast);
   
@@ -254,19 +264,19 @@ export default function Dashboard() {
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
             <PiggyBank size={36} style={{ color: '#2563eb' }} />
             Financial Dashboard
           </h1>
-          <p className={styles.subtitle}>Manage your accounts and track your finances</p>
+          <p style={{ color: '#4b5563' }}>Manage your accounts and track your finances</p>
         </div>
 
         <div className={styles.totalCard}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.5rem', opacity: 0.9 }}>
             Total Balance
           </h2>
-          <div className={styles.totalAmount}>{fmt(totalBalance)}</div>
+          <div style={{ fontSize: '2.25rem', fontWeight: '700', margin: '0.5rem 0' }}>{fmt(totalBalance)}</div>
           <p style={{ opacity: 0.8 }}>
             Across {accounts.length} account{accounts.length !== 1 ? 's' : ''}
           </p>
@@ -275,28 +285,29 @@ export default function Dashboard() {
         <div className={styles.grid}>
           {accounts.map(account => (
             <div key={account.id} className={styles.card}>
-              <div className={styles.cardHeader}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div>
-                  <h3 className={styles.accountName}>{account.name}</h3>
-                  <span className={styles.accountType}>{account.type}</span>
+                  <h3 style={{ fontWeight: '600', color: '#1f2937', fontSize: '1.125rem' }}>{account.name}</h3>
+                  <span style={{ fontSize: '0.875rem', color: '#6b7280', background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '9999px' }}>{account.type}</span>
                 </div>
                 <button
-                  className={`${styles.button} ${styles.buttonRed}`}
+                  className={styles.button}
+                  style={{ color: '#dc2626', borderColor: '#fca5a5' }}
                   onClick={() => removeAccount(account.id)}
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
 
-              <div className={styles.balanceSection}>
-                <div className={styles.balance}>{fmt(account.balance)}</div>
+              <div style={{ textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', padding: '1rem', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>{fmt(account.balance)}</div>
                 {!account.plaidLinked && (
                   <input
                     type="number"
                     step="0.01"
                     value={account.balance}
                     onChange={(e) => updateBalance(account.id, parseFloat(e.target.value) || 0)}
-                    className={styles.balanceInput}
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.875rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', textAlign: 'center' }}
                     placeholder="Enter balance"
                   />
                 )}
@@ -304,16 +315,18 @@ export default function Dashboard() {
 
               <div>
                 {account.plaidLinked ? (
-                  <div className={styles.buttonGroup}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                     <button
-                      className={`${styles.button} ${styles.buttonGreen} ${styles.buttonFlex}`}
+                      className={styles.button}
+                      style={{ flex: '1', color: '#059669', borderColor: '#a7f3d0' }}
                       onClick={() => refreshPlaid(account.id)}
                     >
                       <RefreshCcw size={16} style={{ marginRight: '0.25rem' }} />
                       Refresh
                     </button>
                     <button
-                      className={`${styles.button} ${styles.buttonRed}`}
+                      className={styles.button}
+                      style={{ color: '#dc2626', borderColor: '#fca5a5' }}
                       onClick={() => unlinkPlaid(account.id)}
                     >
                       Unlink
@@ -321,15 +334,13 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <button
-                    className={`${styles.button} ${styles.buttonBlue} ${styles.buttonFull}`}
+                    className={styles.button}
+                    style={{ width: '100%', color: '#2563eb', borderColor: '#bfdbfe' }}
                     disabled={linkingId === account.id}
                     onClick={() => openPlaidLink(account.id)}
                   >
                     {linkingId === account.id ? (
-                      <>
-                        <div className={styles.spinner}></div>
-                        Linking...
-                      </>
+                      'Linking...'
                     ) : (
                       <>
                         <LinkIcon size={16} style={{ marginRight: '0.25rem' }} />
@@ -341,7 +352,7 @@ export default function Dashboard() {
               </div>
 
               {account.institution && (
-                <div className={styles.institutionInfo}>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', background: '#ecfdf5', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #a7f3d0' }}>
                   <div>{account.institution}</div>
                   {account.lastSyncTs && (
                     <div style={{ marginTop: '0.25rem' }}>
@@ -353,20 +364,21 @@ export default function Dashboard() {
             </div>
           ))}
 
-          <div className={`${styles.card} ${styles.addCard}`}>
+          <div className={styles.card} style={{ border: '2px dashed #d1d5db', textAlign: 'center', padding: '2rem 1rem' }}>
             {showAddForm ? (
-              <div className={styles.addForm}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <input
                   type="text"
                   placeholder="Account name"
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
-                  className={styles.addInput}
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
                   onKeyPress={(e) => e.key === 'Enter' && addAccount()}
                 />
-                <div className={styles.addButtons}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button 
-                    className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonFlex}`}
+                    className={styles.button}
+                    style={{ flex: '1', background: '#2563eb', color: 'white', borderColor: '#2563eb' }}
                     onClick={addAccount}
                   >
                     Add
@@ -384,10 +396,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <div>
-                <Plus className={styles.addIcon} />
+                <Plus style={{ width: '4rem', height: '4rem', margin: '0 auto 0.75rem', opacity: 0.5, color: '#9ca3af' }} />
                 <h3>Add Account</h3>
                 <button
-                  className={`${styles.button} ${styles.buttonBlue}`}
+                  className={styles.button}
+                  style={{ color: '#2563eb', borderColor: '#bfdbfe' }}
                   onClick={() => setShowAddForm(true)}
                 >
                   <Plus size={16} style={{ marginRight: '0.25rem' }} />
@@ -398,7 +411,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className={styles.footer}>
+        <div style={{ textAlign: 'center', fontSize: '0.875rem', color: '#6b7280', background: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
           <p>Demo mode - Click "Link Plaid" to simulate connecting your bank</p>
         </div>
       </div>
