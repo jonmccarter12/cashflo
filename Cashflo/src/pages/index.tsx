@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2 } from "lucide-react";
 import styles from '../styles/dashboard.module.css';
 
@@ -18,22 +18,33 @@ const storageKey = "bills_balance_dashboard_v2";
 const fmt = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function usePersistentState<T>(key: string, initial: T) {
-  const [state, setState] = useState<T>(() => {
-    if (typeof window === 'undefined') return initial;
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) as T : initial;
-    } catch {
-      return initial;
-    }
-  });
-  
+  const [state, setState] = useState<T>(initial);
+  const [isLoaded, setIsLoaded] = useState(false);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(state));
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          setState(JSON.parse(raw));
+        }
+      } catch (e) {
+        console.warn('Failed to load from localStorage:', e);
+      }
+      setIsLoaded(true);
     }
-  }, [key, state]);
-  
+  }, [key]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(key, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+      }
+    }
+  }, [key, state, isLoaded]);
+
   return [state, setState] as const;
 }
 
@@ -68,7 +79,7 @@ export default function Dashboard() {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
-  async function ensurePlaidScript() {
+  const ensurePlaidScript = async (): Promise<boolean> => {
     if ((window as any).Plaid?.create) return true;
     const existing = document.querySelector('script[src*="plaid.com/link"]');
     if (!existing) {
@@ -91,31 +102,30 @@ export default function Dashboard() {
         }
       }, 100);
     });
-  }
+  };
+
+  const fetchLinkToken = async (): Promise<string | null> => {
+    try {
+      const res1 = await fetch('/api/plaid/create-link-token', { method: 'POST' });
+      if (res1.ok) {
+        const d = await res1.json();
+        return d.link_token;
+      }
+      const res2 = await fetch('/api/plaid/create_link_token', { method: 'POST' });
+      if (res2.ok) {
+        const d = await res2.json();
+        return d.link_token;
+      }
+    } catch (e) {
+      console.warn('create_link_token failed', e);
+    }
+    return null;
+  };
 
   async function openPlaidLink(accountId: string) {
     setLinkingId(accountId);
     try {
       const scriptOk = await ensurePlaidScript();
-
-      async function fetchLinkToken(): Promise<string | null> {
-        try {
-          const res1 = await fetch('/api/plaid/create-link-token', { method: 'POST' });
-          if (res1.ok) {
-            const d = await res1.json();
-            return d.link_token;
-          }
-          const res2 = await fetch('/api/plaid/create_link_token', { method: 'POST' });
-          if (res2.ok) {
-            const d = await res2.json();
-            return d.link_token;
-          }
-        } catch (e) {
-          console.warn('create_link_token failed', e);
-        }
-        return null;
-      }
-
       const linkToken = await fetchLinkToken();
 
       if (scriptOk && linkToken && (window as any).Plaid?.create) {
