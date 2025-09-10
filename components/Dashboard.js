@@ -256,6 +256,515 @@ function useCloudState(key, initial, user, supabase){
   return [state, setState, { syncing, lastSync }];
 }
 
+// BillForm component for adding/editing bills
+function BillForm({ bill, accounts, categories, onSave, onCancel }) {
+  const [name, setName] = useState(bill?.name || '');
+  const [amount, setAmount] = useState(bill?.amount || 0);
+  const [category, setCategory] = useState(bill?.category || categories[0] || '');
+  const [accountId, setAccountId] = useState(bill?.accountId || accounts[0]?.id || '');
+  const [frequency, setFrequency] = useState(bill?.frequency || 'monthly');
+  const [scheduleType, setScheduleType] = useState(bill?.scheduleType || 'specific_date');
+  const [dueDay, setDueDay] = useState(bill?.dueDay || 1);
+  const [weekday, setWeekday] = useState(bill?.weekday || 1);
+  const [weekPosition, setWeekPosition] = useState(bill?.weekPosition || 'first');
+  const [dayOfWeek, setDayOfWeek] = useState(bill?.dayOfWeek || 1);
+  const [startDate, setStartDate] = useState(bill?.startDate || new Date().toISOString().slice(0, 10));
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const positions = ['first', 'second', 'third', 'fourth', 'last'];
+
+  const handleSave = () => {
+    if (!name || !amount) {
+      notify('Please fill in all required fields', 'error');
+      return;
+    }
+
+    const billData = {
+      name,
+      amount: Number(amount),
+      category,
+      accountId,
+      frequency,
+      scheduleType: frequency === 'monthly' ? scheduleType : undefined,
+      dueDay: frequency === 'monthly' && scheduleType === 'specific_date' ? clampDue(dueDay) : undefined,
+      weekday: frequency === 'monthly' && scheduleType === 'nth_weekday' ? weekday : undefined,
+      weekPosition: frequency === 'monthly' && scheduleType === 'nth_weekday' ? weekPosition : undefined,
+      dayOfWeek: (frequency === 'weekly' || frequency === 'biweekly') ? dayOfWeek : undefined,
+      startDate: frequency === 'biweekly' ? startDate : undefined,
+      paidMonths: bill?.paidMonths || [],
+      paidPeriods: bill?.paidPeriods || [],
+      skipMonths: bill?.skipMonths || []
+    };
+
+    onSave(billData);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Basic Info */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: '1rem'
+      }}>
+        <div>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontWeight: '600' 
+          }}>
+            Bill Name *
+          </label>
+          <input 
+            type="text"
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '0.75rem', 
+              border: '2px solid #d1d5db', 
+              borderRadius: '0.5rem',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              minHeight: '44px',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontWeight: '600' 
+          }}>
+            Amount *
+          </label>
+          <input 
+            type="number" 
+            step="0.01"
+            value={amount} 
+            onChange={(e) => setAmount(Number(e.target.value))}
+            style={{ 
+              width: '100%', 
+              padding: '0.75rem', 
+              border: '2px solid #d1d5db', 
+              borderRadius: '0.5rem',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              minHeight: '44px',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontWeight: '600' 
+          }}>
+            Category
+          </label>
+          <select 
+            value={category} 
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '0.75rem', 
+              border: '2px solid #d1d5db', 
+              borderRadius: '0.5rem',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              minHeight: '44px',
+              boxSizing: 'border-box'
+            }}
+          >
+            {categories.sort().map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontWeight: '600' 
+          }}>
+            Account
+          </label>
+          <select 
+            value={accountId} 
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '0.75rem', 
+              border: '2px solid #d1d5db', 
+              borderRadius: '0.5rem',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              minHeight: '44px',
+              boxSizing: 'border-box'
+            }}
+          >
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Frequency Selection */}
+      <div>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '0.5rem', 
+          fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+          fontWeight: '600' 
+        }}>
+          Frequency
+        </label>
+        <select 
+          value={frequency} 
+          onChange={(e) => setFrequency(e.target.value)}
+          style={{ 
+            width: '100%', 
+            padding: '0.75rem', 
+            border: '2px solid #d1d5db', 
+            borderRadius: '0.5rem',
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            minHeight: '44px',
+            boxSizing: 'border-box',
+            maxWidth: '300px'
+          }}
+        >
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+        </select>
+      </div>
+
+      {/* Monthly Schedule Options */}
+      {frequency === 'monthly' && (
+        <div style={{ 
+          padding: '1rem', 
+          background: '#f9fafb', 
+          borderRadius: '0.5rem',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{ 
+            marginBottom: '1rem', 
+            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            margin: '0 0 1rem 0'
+          }}>
+            Monthly Schedule
+          </h4>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem', 
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+              fontWeight: '600' 
+            }}>
+              Schedule Type
+            </label>
+            <select 
+              value={scheduleType} 
+              onChange={(e) => setScheduleType(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem', 
+                border: '2px solid #d1d5db', 
+                borderRadius: '0.5rem',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                minHeight: '44px',
+                boxSizing: 'border-box',
+                maxWidth: '300px'
+              }}
+            >
+              <option value="specific_date">Specific Date (e.g., 15th)</option>
+              <option value="nth_weekday">Nth Weekday (e.g., First Friday)</option>
+            </select>
+          </div>
+
+          {scheduleType === 'specific_date' && (
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontWeight: '600' 
+              }}>
+                Day of Month (1-28)
+              </label>
+              <input 
+                type="number" 
+                min="1" 
+                max="28"
+                value={dueDay} 
+                onChange={(e) => setDueDay(Number(e.target.value))}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.75rem', 
+                  border: '2px solid #d1d5db', 
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box',
+                  maxWidth: '150px'
+                }}
+              />
+            </div>
+          )}
+
+          {scheduleType === 'nth_weekday' && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem'
+            }}>
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem', 
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                  fontWeight: '600' 
+                }}>
+                  Position
+                </label>
+                <select 
+                  value={weekPosition} 
+                  onChange={(e) => setWeekPosition(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.75rem', 
+                    border: '2px solid #d1d5db', 
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {positions.map(pos => (
+                    <option key={pos} value={pos}>
+                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem', 
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                  fontWeight: '600' 
+                }}>
+                  Day of Week
+                </label>
+                <select 
+                  value={weekday} 
+                  onChange={(e) => setWeekday(Number(e.target.value))}
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.75rem', 
+                    border: '2px solid #d1d5db', 
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {dayNames.map((day, idx) => (
+                    <option key={idx} value={idx}>{day}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Weekly Schedule Options */}
+      {frequency === 'weekly' && (
+        <div style={{ 
+          padding: '1rem', 
+          background: '#f9fafb', 
+          borderRadius: '0.5rem',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{ 
+            marginBottom: '1rem', 
+            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            margin: '0 0 1rem 0'
+          }}>
+            Weekly Schedule
+          </h4>
+          
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem', 
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+              fontWeight: '600' 
+            }}>
+              Day of Week
+            </label>
+            <select 
+              value={dayOfWeek} 
+              onChange={(e) => setDayOfWeek(Number(e.target.value))}
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem', 
+                border: '2px solid #d1d5db', 
+                borderRadius: '0.5rem',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                minHeight: '44px',
+                boxSizing: 'border-box',
+                maxWidth: '300px'
+              }}
+            >
+              {dayNames.map((day, idx) => (
+                <option key={idx} value={idx}>{day}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Bi-weekly Schedule Options */}
+      {frequency === 'biweekly' && (
+        <div style={{ 
+          padding: '1rem', 
+          background: '#f9fafb', 
+          borderRadius: '0.5rem',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{ 
+            marginBottom: '1rem', 
+            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            margin: '0 0 1rem 0'
+          }}>
+            Bi-weekly Schedule
+          </h4>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem'
+          }}>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontWeight: '600' 
+              }}>
+                Day of Week
+              </label>
+              <select 
+                value={dayOfWeek} 
+                onChange={(e) => setDayOfWeek(Number(e.target.value))}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.75rem', 
+                  border: '2px solid #d1d5db', 
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {dayNames.map((day, idx) => (
+                  <option key={idx} value={idx}>{day}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontWeight: '600' 
+              }}>
+                Start Date (for pattern)
+              </label>
+              <input 
+                type="date"
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.75rem', 
+                  border: '2px solid #d1d5db', 
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+          
+          <div style={{ 
+            marginTop: '0.75rem',
+            padding: '0.75rem',
+            background: '#eff6ff',
+            borderRadius: '0.5rem',
+            fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+            color: '#1e40af'
+          }}>
+            The start date establishes your bi-weekly pattern. Bills will occur every other week on the selected day.
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '1rem', 
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        marginTop: '1rem'
+      }}>
+        <button
+          onClick={handleSave}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: '#2563eb',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.5rem',
+            cursor: 'pointer',
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            fontWeight: '600',
+            minHeight: '44px',
+            minWidth: '120px'
+          }}
+        >
+          {bill ? 'Update Bill' : 'Add Bill'}
+        </button>
+        
+        <button
+          onClick={onCancel}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.5rem',
+            cursor: 'pointer',
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            minHeight: '44px',
+            minWidth: '120px'
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard(){
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -314,6 +823,9 @@ export default function Dashboard(){
   const [editingBill, setEditingBill] = useState(null);
   const [editingOTC, setEditingOTC] = useState(null);
 
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountType, setNewAccountType] = useState('Bank');
+
   const [otcName, setOtcName] = useState("");
   const [otcCategory, setOtcCategory] = useState(activeCats[0] || 'Personal');
   const [otcAmount, setOtcAmount] = useState(0);
@@ -368,6 +880,25 @@ export default function Dashboard(){
     await supabase.auth.signOut();
     setUser(null);
     notify('Logged out', 'info');
+  }
+
+  function addAccount() {
+    if (!newAccountName.trim()) {
+      notify('Please enter an account name', 'error');
+      return;
+    }
+    
+    setAccounts(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name: newAccountName.trim(),
+      type: newAccountType,
+      balance: 0
+    }]);
+    
+    setNewAccountName('');
+    setNewAccountType('Bank');
+    setShowAddAccount(false);
+    notify('Account added');
   }
 
   useEffect(() => {
@@ -554,7 +1085,10 @@ export default function Dashboard(){
   }
 
   function addOneTimeCost() {
-    if(!otcName || !otcAmount || !otcDueDate) return;
+    if(!otcName || !otcAmount || !otcDueDate) {
+      notify('Please fill in all required fields', 'error');
+      return;
+    }
     setOneTimeCosts(prev => [...prev, { 
       id: crypto.randomUUID(), 
       name: otcName, 
@@ -1429,3 +1963,983 @@ export default function Dashboard(){
                 style={{ 
                   width: '100%', 
                   padding: '0.75rem',
+                  border: '2px solid #d1d5db', 
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+          
+          <div style={{ textAlign: 'center' }}>
+            <button 
+              onClick={addOneTimeCost}
+              style={{ 
+                padding: '0.75rem 2rem', 
+                background: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '0.5rem', 
+                cursor: 'pointer',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontWeight: '600',
+                minHeight: '44px'
+              }}
+            >
+              Add One-Time Cost
+            </button>
+          </div>
+        </div>
+
+        {/* Bills Section */}
+        <div style={{ 
+          background: 'white', 
+          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          borderRadius: '1rem', 
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '1rem', 
+            marginBottom: '1.5rem',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>
+              Bills
+            </h3>
+            <button 
+              onClick={() => setShowAddBill(true)}
+              style={{ 
+                padding: '0.75rem 1.5rem', 
+                background: '#1f2937', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '0.5rem', 
+                cursor: 'pointer',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                minHeight: '44px',
+                minWidth: '120px'
+              }}
+            >
+              ➕ Add Bill
+            </button>
+          </div>
+
+          {bills.filter(b => selectedCats.includes(b.category)).map(bill => (
+            <div key={bill.id} style={{ 
+              background: '#f9fafb', 
+              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              borderRadius: '0.75rem', 
+              marginBottom: '1rem',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: '1rem'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {bill.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                    color: '#6b7280',
+                    lineHeight: 1.4
+                  }}>
+                    {fmt(bill.amount)} • {bill.category} • {formatBillSchedule(bill)}
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.75rem', 
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => togglePaid(bill)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: (bill.frequency === 'monthly' || !bill.frequency) ? 
+                        (bill.paidMonths?.includes(activeMonth) ? '#10b981' : '#2563eb') :
+                        (bill.paidPeriods?.includes(getBillKey(bill, new Date())) ? '#10b981' : '#2563eb'),
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    {(bill.frequency === 'monthly' || !bill.frequency) ? 
+                      (bill.paidMonths?.includes(activeMonth) ? '✓ Paid' : 'Mark Paid') :
+                      (bill.paidPeriods?.includes(getBillKey(bill, new Date())) ? '✓ Paid' : 'Mark Paid')
+                    }
+                  </button>
+                  
+                  <button
+                    onClick={() => setEditingBill(bill)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                  
+                  <button
+                    onClick={() => deleteBill(bill.id)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* One-Time Costs List */}
+        <div style={{ 
+          background: 'white', 
+          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          borderRadius: '1rem', 
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '1rem', 
+            marginBottom: '1.5rem',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>
+              One-Time Costs
+            </h3>
+          </div>
+
+          {oneTimeCosts
+            .filter(otc => selectedCats.includes(otc.category) && (!otc.ignored || showIgnored))
+            .map(otc => (
+            <div key={otc.id} style={{ 
+              background: otc.paid ? '#f0fdf4' : '#f9fafb', 
+              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              borderRadius: '0.75rem', 
+              marginBottom: '1rem',
+              border: `1px solid ${otc.paid ? '#bbf7d0' : '#e5e7eb'}`,
+              opacity: otc.ignored ? 0.6 : 1
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: '1rem'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {otc.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                    color: '#6b7280',
+                    lineHeight: 1.4
+                  }}>
+                    {new Date(otc.dueDate).toLocaleDateString()} • {fmt(otc.amount)} • {otc.category}
+                    {otc.notes && <><br/>Notes: {otc.notes}</>}
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.75rem', 
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => toggleOneTimePaid(otc)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: otc.paid ? '#10b981' : '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    {otc.paid ? '✓ Paid' : 'Mark Paid'}
+                  </button>
+                  
+                  <button
+                    onClick={() => toggleOneTimeIgnored(otc)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: otc.ignored ? '#f59e0b' : '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    {otc.ignored ? 'Unignore' : 'Ignore'}
+                  </button>
+                  
+                  <button
+                    onClick={() => setEditingOTC(otc)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                  
+                  <button
+                    onClick={() => deleteOneTimeCost(otc.id)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                      minHeight: '44px'
+                    }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* Add/Edit Bill Modal */}
+      {(showAddBill || editingBill) && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: 'clamp(1rem, 4vw, 2rem)',
+            borderRadius: '1rem',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              textAlign: 'center',
+              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+            }}>
+              {editingBill ? 'Edit Bill' : 'Add Bill'}
+            </h2>
+            
+            <BillForm 
+              bill={editingBill}
+              accounts={accounts}
+              categories={activeCats}
+              onSave={(billData) => {
+                if (editingBill) {
+                  setBills(prev => prev.map(b => b.id === editingBill.id ? { ...b, ...billData } : b));
+                  notify('Bill updated');
+                } else {
+                  setBills(prev => [...prev, { id: crypto.randomUUID(), ...billData }]);
+                  notify('Bill added');
+                }
+                setEditingBill(null);
+                setShowAddBill(false);
+              }}
+              onCancel={() => {
+                setEditingBill(null);
+                setShowAddBill(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '1rem',
+            maxWidth: '400px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+              {isSignUp ? 'Sign Up' : 'Login'}
+            </h2>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleAuth}
+                disabled={authLoading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: authLoading ? 'not-allowed' : 'pointer',
+                  opacity: authLoading ? 0.5 : 1
+                }}
+              >
+                {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Login')}
+              </button>
+              
+              <button
+                onClick={() => setIsSignUp(!isSignUp)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {isSignUp ? 'Login Instead' : 'Sign Up Instead'}
+              </button>
+              
+              <button
+                onClick={() => setShowAuth(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Account Modal */}
+      {showAddAccount && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '1rem',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Add Account</h2>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Name</label>
+              <input
+                type="text"
+                value={newAccountName}
+                onChange={(e) => setNewAccountName(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Type</label>
+              <select
+                value={newAccountType}
+                onChange={(e) => setNewAccountType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Bank">Bank</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit">Credit</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={addAccount}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Add Account
+              </button>
+              
+              <button
+                onClick={() => setShowAddAccount(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Account Modal */}
+      {editingAccount && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: 'clamp(1rem, 4vw, 2rem)',
+            borderRadius: '1rem',
+            maxWidth: '400px',
+            width: '100%'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              textAlign: 'center',
+              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+            }}>
+              Edit Account
+            </h2>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontWeight: '600'
+              }}>
+                Name
+              </label>
+              <input
+                type="text"
+                value={editingAccount.name}
+                onChange={(e) => setEditingAccount({...editingAccount, name: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontWeight: '600'
+              }}>
+                Type
+              </label>
+              <select
+                value={editingAccount.type}
+                onChange={(e) => setEditingAccount({...editingAccount, type: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Bank">Bank</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit">Credit</option>
+              </select>
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => {
+                  setAccounts(prev => prev.map(a => a.id === editingAccount.id ? editingAccount : a));
+                  setEditingAccount(null);
+                  notify('Account updated');
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px'
+                }}
+              >
+                Update Account
+              </button>
+              
+              <button
+                onClick={() => setEditingAccount(null)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit One-Time Cost Modal */}
+      {editingOTC && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: 'clamp(1rem, 4vw, 2rem)',
+            borderRadius: '1rem',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              textAlign: 'center',
+              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+            }}>
+              Edit One-Time Cost
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editingOTC.name}
+                  onChange={(e) => setEditingOTC({...editingOTC, name: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editingOTC.amount}
+                  onChange={(e) => setEditingOTC({...editingOTC, amount: Number(e.target.value)})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Category
+                </label>
+                <select
+                  value={editingOTC.category}
+                  onChange={(e) => setEditingOTC({...editingOTC, category: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {activeCats.sort().map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={editingOTC.dueDate}
+                  onChange={(e) => setEditingOTC({...editingOTC, dueDate: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Account
+                </label>
+                <select
+                  value={editingOTC.accountId}
+                  onChange={(e) => setEditingOTC({...editingOTC, accountId: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontWeight: '600'
+                }}>
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  value={editingOTC.notes || ''}
+                  onChange={(e) => setEditingOTC({...editingOTC, notes: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    minHeight: '44px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => {
+                  setOneTimeCosts(prev => prev.map(o => o.id === editingOTC.id ? editingOTC : o));
+                  setEditingOTC(null);
+                  notify('One-time cost updated');
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px'
+                }}
+              >
+                Update Cost
+              </button>
+              
+              <button
+                onClick={() => setEditingOTC(null)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  minHeight: '44px'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Snapshots Modal */}
+      {showSnapshots && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '1rem',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Net Worth Snapshots</h2>
+            
+            {nwHistory.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#6b7280' }}>No snapshots saved yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {nwHistory.slice(-10).reverse().map((snapshot, idx) => (
+                  <div key={idx} style={{ 
+                    padding: '1rem', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '0.5rem',
+                    background: '#f9fafb'
+                  }}>
+                    <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                      {new Date(snapshot.ts).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      Current: {fmt(snapshot.current)} | After Week: {fmt(snapshot.afterWeek)} | After Month: {fmt(snapshot.afterMonth)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+              <button
+                onClick={() => setShowSnapshots(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
