@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // ===================== SUPABASE CONFIG =====================
@@ -38,9 +38,9 @@ function notify(msg, type = 'success'){
 
 // Hook to detect mobile
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
   
-  useEffect(() => {
+  React.useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -54,11 +54,11 @@ function useIsMobile() {
 
 // Custom hook for undo/redo
 function useUndoRedo(initialState) {
-  const [state, setState] = useState(initialState);
-  const [history, setHistory] = useState([initialState]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [state, setState] = React.useState(initialState);
+  const [history, setHistory] = React.useState([initialState]);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
   
-  const pushState = useCallback((newState) => {
+  const pushState = React.useCallback((newState) => {
     const updatedHistory = history.slice(0, currentIndex + 1);
     updatedHistory.push(newState);
     setHistory(updatedHistory);
@@ -66,7 +66,7 @@ function useUndoRedo(initialState) {
     setState(newState);
   }, [history, currentIndex]);
   
-  const undo = useCallback(() => {
+  const undo = React.useCallback(() => {
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
@@ -74,7 +74,7 @@ function useUndoRedo(initialState) {
     }
   }, [currentIndex, history]);
   
-  const redo = useCallback(() => {
+  const redo = React.useCallback(() => {
     if (currentIndex < history.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
@@ -90,11 +90,11 @@ function useUndoRedo(initialState) {
 
 // Custom hook for cloud-synced persistent state
 function useCloudState(key, initial, user, supabase){
-  const [state, setState] = useState(initial);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState(null);
+  const [state, setState] = React.useState(initial);
+  const [syncing, setSyncing] = React.useState(false);
+  const [lastSync, setLastSync] = React.useState(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const raw = localStorage.getItem(key);
@@ -102,7 +102,7 @@ function useCloudState(key, initial, user, supabase){
     } catch {}
   }, [key]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!user || !supabase) return;
     
     const loadFromCloud = async () => {
@@ -130,7 +130,7 @@ function useCloudState(key, initial, user, supabase){
     loadFromCloud();
   }, [user, supabase, key]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!user || !supabase) {
       if(typeof window !== 'undefined') {
         try {
@@ -253,15 +253,15 @@ export default function Dashboard(){
   const isMobile = useIsMobile();
   
   // Auth state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [user, setUser] = React.useState(null);
+  const [authLoading, setAuthLoading] = React.useState(false);
+  const [showAuth, setShowAuth] = React.useState(false);
+  const [isSignUp, setIsSignUp] = React.useState(false);
   
   // Supabase client
-  const supabase = useMemo(() => {
+  const supabase = React.useMemo(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return null;
     }
@@ -269,7 +269,7 @@ export default function Dashboard(){
   }, []);
 
   // Session persistence
-  useEffect(() => {
+  React.useEffect(() => {
     if (!supabase) return;
     
     // Check for existing session on page load
@@ -334,7 +334,7 @@ export default function Dashboard(){
   });
 
   // Sync master state with cloud state
-  useEffect(() => {
+  React.useEffect(() => {
     setMasterState({
       accounts: accountsBase,
       bills: billsBase,
@@ -344,7 +344,7 @@ export default function Dashboard(){
   }, [accountsBase, billsBase, oneTimeCostsBase, categoriesBase]);
 
   // Sync changes back to cloud state
-  useEffect(() => {
+  React.useEffect(() => {
     setAccountsBase(masterState.accounts);
     setBillsBase(masterState.bills);
     setOneTimeCostsBase(masterState.oneTimeCosts);
@@ -354,38 +354,39 @@ export default function Dashboard(){
   // Extract current state
   const { accounts, bills, oneTimeCosts, categories } = masterState;
   
-  const activeCats = useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
+  const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
   // Settings/UI with cloud sync
   const [autoDeductCash, setAutoDeductCash, deductSync] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
   const [showIgnored, setShowIgnored, ignoredSync] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
   const [selectedCat, setSelectedCat, catSelSync] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
   
-  const [activeMonth, setActiveMonth] = useState(monthKey);
-  const [netWorthMode, setNetWorthMode] = useState('current');
-  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [activeMonth, setActiveMonth] = React.useState(monthKey);
+  const [billTypeFilter, setBillTypeFilter] = React.useState('all');
+  const [netWorthMode, setNetWorthMode] = React.useState('current');
+  const [editingCategoryId, setEditingCategoryId] = React.useState(null);
 
   // Dialog states
-  const [showAddAccount, setShowAddAccount] = useState(false);
-  const [showAddBill, setShowAddBill] = useState(false);
-  const [showSnapshots, setShowSnapshots] = useState(false);
-  const [editingAccount, setEditingAccount] = useState(null);
-  const [editingBill, setEditingBill] = useState(null);
-  const [editingOTC, setEditingOTC] = useState(null);
+  const [showAddAccount, setShowAddAccount] = React.useState(false);
+  const [showAddBill, setShowAddBill] = React.useState(false);
+  const [showSnapshots, setShowSnapshots] = React.useState(false);
+  const [editingAccount, setEditingAccount] = React.useState(null);
+  const [editingBill, setEditingBill] = React.useState(null);
+  const [editingOTC, setEditingOTC] = React.useState(null);
 
   // One-time cost form state
-  const [otcName, setOtcName] = useState("");
-  const [otcCategory, setOtcCategory] = useState(activeCats[0] || 'Personal');
-  const [otcAmount, setOtcAmount] = useState(0);
-  const [otcDueDate, setOtcDueDate] = useState(new Date().toISOString().slice(0,10));
-  const [otcAccountId, setOtcAccountId] = useState(accounts[0]?.id || 'cash');
-  const [otcNotes, setOtcNotes] = useState("");
+  const [otcName, setOtcName] = React.useState("");
+  const [otcCategory, setOtcCategory] = React.useState(activeCats[0] || 'Personal');
+  const [otcAmount, setOtcAmount] = React.useState(0);
+  const [otcDueDate, setOtcDueDate] = React.useState(new Date().toISOString().slice(0,10));
+  const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || 'cash');
+  const [otcNotes, setOtcNotes] = React.useState("");
 
   // Check if any data is syncing
   const isSyncing = catSync.syncing || accSync.syncing || billSync.syncing || otcSync.syncing || nwSync.syncing;
   
   // Get last sync time
-  const lastSyncTime = useMemo(() => {
+  const lastSyncTime = React.useMemo(() => {
     const times = [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]
       .filter(t => t !== null);
     if (times.length === 0) return null;
@@ -393,7 +394,7 @@ export default function Dashboard(){
   }, [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]);
 
   // Keyboard shortcuts for undo/redo
-  useEffect(() => {
+  React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
@@ -450,18 +451,18 @@ export default function Dashboard(){
   }
 
   // Update form state when categories/accounts change
-  useEffect(() => {
+  React.useEffect(() => {
     if(activeCats.length && !activeCats.includes(otcCategory)) setOtcCategory(activeCats[0]);
   }, [activeCats, otcCategory]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if(accounts.length && !accounts.find(a => a.id === otcAccountId)) setOtcAccountId(accounts[0].id);
   }, [accounts, otcAccountId]);
 
   // Derived calculations
-  const currentLiquid = useMemo(()=> accounts.reduce((s,a)=> s+a.balance, 0), [accounts]);
+  const currentLiquid = React.useMemo(()=> accounts.reduce((s,a)=> s+a.balance, 0), [accounts]);
   
-  const upcoming = useMemo(()=>{
+  const upcoming = React.useMemo(()=>{
     const now = new Date();
     const horizon = new Date(now); 
     horizon.setDate(now.getDate()+7);
@@ -519,12 +520,20 @@ export default function Dashboard(){
     };
   }, [accounts, bills, oneTimeCosts, activeCats, activeMonth]);
 
-  const monthUnpaidTotal = useMemo(()=>{
+  const monthUnpaidTotal = React.useMemo(()=>{
     let sum = 0;
     for(const b of bills){ 
       if(b.ignored) continue; // Excluded from calculations
       if(!activeCats.includes(b.category)) continue; 
       if(b.skipMonths?.includes(activeMonth)) continue; 
+      
+      // For yearly bills, only include if they're due in the current month
+      if(b.frequency === 'yearly') {
+        const [year, month] = activeMonth.split('-');
+        const billMonth = (b.yearlyMonth || 0) + 1; // yearlyMonth is 0-11, we need 1-12
+        if (parseInt(month) !== billMonth) continue;
+      }
+      
       if(!b.paidMonths.includes(activeMonth)) sum += b.amount; 
     }
     for(const o of oneTimeCosts){ 
@@ -703,27 +712,41 @@ export default function Dashboard(){
 
   function moveCategoryUp(id) {
     setMasterState(prev => {
-      const sorted = [...prev.categories].sort((a,b) => (a.order || 0) - (b.order || 0));
-      const index = sorted.findIndex(c => c.id === id);
+      const cats = [...prev.categories];
+      // Ensure all categories have order values
+      cats.forEach((c, i) => {
+        if (c.order === undefined) c.order = i;
+      });
+      cats.sort((a, b) => a.order - b.order);
+      
+      const index = cats.findIndex(c => c.id === id);
       if (index > 0) {
-        const temp = sorted[index].order || index;
-        sorted[index].order = sorted[index - 1].order || (index - 1);
-        sorted[index - 1].order = temp;
+        // Swap order values
+        const temp = cats[index].order;
+        cats[index].order = cats[index - 1].order;
+        cats[index - 1].order = temp;
       }
-      return { ...prev, categories: sorted };
+      return { ...prev, categories: cats };
     });
   }
 
   function moveCategoryDown(id) {
     setMasterState(prev => {
-      const sorted = [...prev.categories].sort((a,b) => (a.order || 0) - (b.order || 0));
-      const index = sorted.findIndex(c => c.id === id);
-      if (index < sorted.length - 1) {
-        const temp = sorted[index].order || index;
-        sorted[index].order = sorted[index + 1].order || (index + 1);
-        sorted[index + 1].order = temp;
+      const cats = [...prev.categories];
+      // Ensure all categories have order values
+      cats.forEach((c, i) => {
+        if (c.order === undefined) c.order = i;
+      });
+      cats.sort((a, b) => a.order - b.order);
+      
+      const index = cats.findIndex(c => c.id === id);
+      if (index < cats.length - 1) {
+        // Swap order values
+        const temp = cats[index].order;
+        cats[index].order = cats[index + 1].order;
+        cats[index + 1].order = temp;
       }
-      return { ...prev, categories: sorted };
+      return { ...prev, categories: cats };
     });
   }
 
@@ -765,7 +788,7 @@ export default function Dashboard(){
         {/* Mobile Header */}
         <div style={{ ...mobileStyles.card, textAlign: 'center', padding: '0.75rem' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
-            💰 Cashfl0
+            💰 Cashfl0.io 💰
           </h1>
           
           {/* Cloud Status */}
@@ -968,7 +991,13 @@ export default function Dashboard(){
         {/* Mobile Bills */}
         <div style={mobileStyles.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Bills ({activeMonth})</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>
+              Bills ({(() => {
+                const [year, month] = activeMonth.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              })()})
+            </h3>
             <button 
               onClick={() => setShowAddBill(true)}
               style={{ padding: '0.25rem 0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
@@ -984,6 +1013,18 @@ export default function Dashboard(){
             style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}
           />
           
+          <select
+            value={billTypeFilter}
+            onChange={(e) => setBillTypeFilter(e.target.value)}
+            style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}
+          >
+            <option value="all">All Bills</option>
+            <option value="monthly">Monthly Only</option>
+            <option value="yearly">Yearly Only</option>
+            <option value="weekly">Weekly Only</option>
+            <option value="biweekly">Bi-weekly Only</option>
+          </select>
+          
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
             <input 
               type="checkbox" 
@@ -994,7 +1035,22 @@ export default function Dashboard(){
           </label>
 
           {bills
-            .filter(b => selectedCats.includes(b.category)) // Show all, including ignored
+            .filter(b => {
+              // Category filter
+              if (!selectedCats.includes(b.category)) return false;
+              
+              // Bill type filter
+              if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
+              
+              // For yearly bills, only show in the specific month they're due
+              if (b.frequency === 'yearly') {
+                const [year, month] = activeMonth.split('-');
+                const billMonth = (b.yearlyMonth || 0) + 1; // yearlyMonth is 0-11, we need 1-12
+                if (parseInt(month) !== billMonth) return false;
+              }
+              
+              return true;
+            })
             .sort((a,b) => {
               const aDate = getNextOccurrence(a);
               const bDate = getNextOccurrence(b);
@@ -1338,8 +1394,7 @@ export default function Dashboard(){
         {/* Header with Cloud Status */}
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '2.5rem' }}>💰</span>
-            Cashfl0
+            💰 Cashfl0.io 💰
           </h1>
           <p style={{ color: '#4b5563' }}>Complete financial management system</p>
           
@@ -1646,7 +1701,13 @@ export default function Dashboard(){
         {/* Bills Management */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Bills ({activeMonth})</h3>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+              Bills ({(() => {
+                const [year, month] = activeMonth.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              })()})
+            </h3>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                 <input 
@@ -1656,6 +1717,17 @@ export default function Dashboard(){
                 />
                 Auto-deduct Cash when marking paid
               </label>
+              <select
+                value={billTypeFilter}
+                onChange={(e) => setBillTypeFilter(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
+                <option value="all">All Bills</option>
+                <option value="monthly">Monthly Only</option>
+                <option value="yearly">Yearly Only</option>
+                <option value="weekly">Weekly Only</option>
+                <option value="biweekly">Bi-weekly Only</option>
+              </select>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ fontSize: '0.875rem' }}>Month</label>
                 <input 
@@ -1676,7 +1748,22 @@ export default function Dashboard(){
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             {bills
-              .filter(b => selectedCats.includes(b.category)) // Show all, including ignored
+              .filter(b => {
+                // Category filter
+                if (!selectedCats.includes(b.category)) return false;
+                
+                // Bill type filter
+                if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
+                
+                // For yearly bills, only show in the specific month they're due
+                if (b.frequency === 'yearly') {
+                  const [year, month] = activeMonth.split('-');
+                  const billMonth = (b.yearlyMonth || 0) + 1; // yearlyMonth is 0-11, we need 1-12
+                  if (parseInt(month) !== billMonth) return false;
+                }
+                
+                return true;
+              })
               .sort((a,b) => {
                 const aDate = getNextOccurrence(a);
                 const bDate = getNextOccurrence(b);
@@ -1777,7 +1864,16 @@ export default function Dashboard(){
                   </div>
                 );
               })}
-            {bills.filter(b => selectedCats.includes(b.category)).length === 0 && (
+            {bills.filter(b => {
+              if (!selectedCats.includes(b.category)) return false;
+              if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
+              if (b.frequency === 'yearly') {
+                const [year, month] = activeMonth.split('-');
+                const billMonth = (b.yearlyMonth || 0) + 1;
+                if (parseInt(month) !== billMonth) return false;
+              }
+              return true;
+            }).length === 0 && (
               <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>No bills in this category yet. Use "Add Bill" to create one.</div>
             )}
           </div>
@@ -2075,9 +2171,9 @@ export default function Dashboard(){
 
 // Dialog Components
 function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('Cash');
-  const [balance, setBalance] = useState(0);
+  const [name, setName] = React.useState('');
+  const [type, setType] = React.useState('Cash');
+  const [balance, setBalance] = React.useState(0);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -2139,17 +2235,17 @@ function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
 }
 
 function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState(categories[0] || '');
-  const [amount, setAmount] = useState(0);
-  const [frequency, setFrequency] = useState('monthly');
-  const [dueDay, setDueDay] = useState(1);
-  const [yearlyMonth, setYearlyMonth] = useState(0);
-  const [weeklyDay, setWeeklyDay] = useState(0);
-  const [weeklySchedule, setWeeklySchedule] = useState('every');
-  const [biweeklyStart, setBiweeklyStart] = useState(new Date().toISOString().slice(0,10));
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
-  const [notes, setNotes] = useState('');
+  const [name, setName] = React.useState('');
+  const [category, setCategory] = React.useState(categories[0] || '');
+  const [amount, setAmount] = React.useState(0);
+  const [frequency, setFrequency] = React.useState('monthly');
+  const [dueDay, setDueDay] = React.useState(1);
+  const [yearlyMonth, setYearlyMonth] = React.useState(0);
+  const [weeklyDay, setWeeklyDay] = React.useState(0);
+  const [weeklySchedule, setWeeklySchedule] = React.useState('every');
+  const [biweeklyStart, setBiweeklyStart] = React.useState(new Date().toISOString().slice(0,10));
+  const [accountId, setAccountId] = React.useState(accounts[0]?.id || '');
+  const [notes, setNotes] = React.useState('');
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflowY: 'auto' }}>
@@ -2351,17 +2447,17 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
 }
 
 function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = useState(bill.name);
-  const [category, setCategory] = useState(bill.category);
-  const [amount, setAmount] = useState(bill.amount);
-  const [frequency, setFrequency] = useState(bill.frequency);
-  const [dueDay, setDueDay] = useState(bill.dueDay || 1);
-  const [yearlyMonth, setYearlyMonth] = useState(bill.yearlyMonth || 0);
-  const [weeklyDay, setWeeklyDay] = useState(bill.weeklyDay || 0);
-  const [weeklySchedule, setWeeklySchedule] = useState(bill.weeklySchedule || 'every');
-  const [biweeklyStart, setBiweeklyStart] = useState(bill.biweeklyStart ? new Date(bill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
-  const [accountId, setAccountId] = useState(bill.accountId);
-  const [notes, setNotes] = useState(bill.notes || '');
+  const [name, setName] = React.useState(bill.name);
+  const [category, setCategory] = React.useState(bill.category);
+  const [amount, setAmount] = React.useState(bill.amount);
+  const [frequency, setFrequency] = React.useState(bill.frequency);
+  const [dueDay, setDueDay] = React.useState(bill.dueDay || 1);
+  const [yearlyMonth, setYearlyMonth] = React.useState(bill.yearlyMonth || 0);
+  const [weeklyDay, setWeeklyDay] = React.useState(bill.weeklyDay || 0);
+  const [weeklySchedule, setWeeklySchedule] = React.useState(bill.weeklySchedule || 'every');
+  const [biweeklyStart, setBiweeklyStart] = React.useState(bill.biweeklyStart ? new Date(bill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
+  const [accountId, setAccountId] = React.useState(bill.accountId);
+  const [notes, setNotes] = React.useState(bill.notes || '');
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflowY: 'auto' }}>
@@ -2543,12 +2639,12 @@ function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAll
 }
 
 function EditOTCDialog({ otc, categories, accounts, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = useState(otc.name);
-  const [category, setCategory] = useState(otc.category);
-  const [amount, setAmount] = useState(otc.amount);
-  const [dueDate, setDueDate] = useState(otc.dueDate);
-  const [accountId, setAccountId] = useState(otc.accountId);
-  const [notes, setNotes] = useState(otc.notes || '');
+  const [name, setName] = React.useState(otc.name);
+  const [category, setCategory] = React.useState(otc.category);
+  const [amount, setAmount] = React.useState(otc.amount);
+  const [dueDate, setDueDate] = React.useState(otc.dueDate);
+  const [accountId, setAccountId] = React.useState(otc.accountId);
+  const [notes, setNotes] = React.useState(otc.notes || '');
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -2638,8 +2734,8 @@ function EditOTCDialog({ otc, categories, accounts, onClose, onSave, selectAllOn
 }
 
 function EditAccountDialog({ account, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = useState(account.name);
-  const [type, setType] = useState(account.type);
+  const [name, setName] = React.useState(account.name);
+  const [type, setType] = React.useState(account.type);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
