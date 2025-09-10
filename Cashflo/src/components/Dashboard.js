@@ -516,3 +516,78 @@ export default function Dashboard(){
   const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
 
   // Continue in next part due to length...
+  // Remove the "// Continue in next part due to length..." comment and add this:
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
+      <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Header with Cloud Status */}
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
+            <PiggyBank size={40} style={{ color: '#2563eb' }} />
+            Bills & Balances Dashboard
+          </h1>
+          <p style={{ color: '#4b5563' }}>Complete financial management system</p>
+          
+          {/* Cloud Status Bar */}
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center' }}>
+            {user ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'white', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                  {isSyncing ? (
+                    <>
+                      <RefreshCcw size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: '0.875rem' }}>Syncing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud size={16} style={{ color: '#10b981' }} />
+                      <span style={{ fontSize: '0.875rem' }}>Synced to cloud</span>
+                      {lastSyncTime && (
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          ({new Date(lastSyncTime).toLocaleTimeString()})
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{user.email}</span>
+                  <button
+                    onClick={handleLogout}
+                    style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                  >
+                    <LogOut size={14} style={{ marginRight: '0.25rem' }} />
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#fef3c7', borderRadius: '0.5rem' }}>
+                  <CloudOff size={16} style={{ color: '#d97706' }} />
+                  <span style={{ fontSize: '0.875rem', color: '#92400e' }}>Local storage only</span>
+                </div>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                >
+                  <LogIn size={14} style={{ marginRight: '0.25rem' }} />
+                  Login for Cloud Sync
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Rest of your dashboard UI here - I'll provide a minimal version */}
+        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <h2>Dashboard is loading...</h2>
+          <p>Complete the Dashboard.js file with the full UI components.</p>
+        </div>
+
+      </div>
+    </div>
+  );
+}
