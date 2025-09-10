@@ -235,7 +235,7 @@ export default function Dashboard(){
   
   // Supabase client
   const supabase = useMemo(() => {
-    if (SUPABASE_URL === 'https://your-project-id.supabase.co') {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return null; // Will use localStorage only
     }
     return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
