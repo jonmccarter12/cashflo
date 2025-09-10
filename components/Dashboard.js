@@ -211,7 +211,7 @@ export default function Dashboard(){
     return new Date(Math.max(...times.map(t => t.getTime())));
   }, [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]);
 
-  // Auth functions
+  // Auth functions - FIXED VERSION
   async function handleAuth() {
     if (!supabase) {
       notify('Please configure Supabase credentials first', 'error');
@@ -221,11 +221,18 @@ export default function Dashboard(){
     setAuthLoading(true);
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password 
+        });
         if (error) throw error;
-        notify('Account created! Check your email to verify.', 'success');
+        notify('Account created! You can now login.', 'success');
+        setIsSignUp(false); // Switch to login mode
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
         if (error) throw error;
         setUser(data.user);
         setShowAuth(false);
@@ -330,7 +337,9 @@ export default function Dashboard(){
   const weekNeedWithoutSavings = upcoming.weekDueTotal;
   const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquid);
 
-  // Actions
+  const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
+
+  // Actions - FIXED to handle return of money
   function togglePaid(b){
     const isPaid = b.paidMonths.includes(activeMonth);
     setBills(prev=> prev.map(x=> x.id===b.id ? { 
@@ -338,8 +347,14 @@ export default function Dashboard(){
       paidMonths: isPaid? x.paidMonths.filter(m=>m!==activeMonth) : [...x.paidMonths, activeMonth] 
     } : x));
     const acc = accounts.find(a=>a.id===b.accountId);
-    if(!isPaid && autoDeductCash && acc?.type==='Cash'){ 
-      setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - b.amount } : a)); 
+    if(autoDeductCash && acc?.type==='Cash'){ 
+      if(!isPaid) {
+        // Marking as paid - deduct money
+        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - b.amount } : a)); 
+      } else {
+        // Unmarking as paid - return money
+        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance + b.amount } : a)); 
+      }
     }
   }
 
@@ -355,8 +370,14 @@ export default function Dashboard(){
   function toggleOneTimePaid(o){
     setOneTimeCosts(prev=> prev.map(x=> x.id===o.id ? { ...x, paid: !x.paid } : x));
     const acc = accounts.find(a=>a.id===o.accountId);
-    if(!o.paid && autoDeductCash && acc?.type==='Cash'){ 
-      setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - o.amount } : a)); 
+    if(autoDeductCash && acc?.type==='Cash'){ 
+      if(!o.paid) {
+        // Marking as paid - deduct money
+        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - o.amount } : a)); 
+      } else {
+        // Unmarking as paid - return money  
+        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance + o.amount } : a)); 
+      }
     }
   }
 
@@ -415,8 +436,6 @@ export default function Dashboard(){
     setOneTimeCosts(prev=> prev.map(o=> o.category===name? { ...o, category: fallback } : o)); 
     setCategories(prev=> prev.filter(c=> c.name!==name)); 
   }
-
-  const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
@@ -635,57 +654,71 @@ export default function Dashboard(){
             ))}
           </div>
 
-          {/* Due & Overdue */}
+          {/* Due & Overdue - FIXED with category filtering */}
           <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Due & Overdue (next 7 days)</h3>
-              <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>Total: {fmt(upcoming.weekDueTotal)}</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
+                Total: {fmt(upcoming.items
+                  .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
+                  .reduce((sum, it) => sum + (it.bill ? it.bill.amount : it.otc.amount), 0)
+                )}
+              </div>
             </div>
 
-            {upcoming.items.length === 0 ? (
-              <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>Nothing due or overdue this week.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {upcoming.items.map((it, idx) => {
-                  const name = it.bill ? it.bill.name : it.otc.name;
-                  const amt = it.bill ? it.bill.amount : it.otc.amount;
-                  const overdue = it.overdue;
-                  
-                  return (
-                    <div key={idx} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      padding: '0.75rem', 
-                      borderRadius: '0.5rem', 
-                      border: `1px solid ${overdue ? '#fca5a5' : '#d1d5db'}`,
-                      background: overdue ? '#fef2f2' : 'white'
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: '500' }}>{name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {it.due.toLocaleDateString()} • {fmt(amt)}
+            {(() => {
+              const filteredItems = upcoming.items.filter(it => 
+                selectedCats.includes(it.bill ? it.bill.category : it.otc.category)
+              );
+              
+              if(filteredItems.length === 0) {
+                return <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>Nothing due or overdue this week.</div>;
+              }
+              
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {filteredItems.map((it, idx) => {
+                    const name = it.bill ? it.bill.name : it.otc.name;
+                    const amt = it.bill ? it.bill.amount : it.otc.amount;
+                    const category = it.bill ? it.bill.category : it.otc.category;
+                    const overdue = it.overdue;
+                    
+                    return (
+                      <div key={idx} style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        padding: '0.75rem', 
+                        borderRadius: '0.5rem', 
+                        border: `1px solid ${overdue ? '#fca5a5' : '#d1d5db'}`,
+                        background: overdue ? '#fef2f2' : 'white'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '500' }}>{name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                            {it.due.toLocaleDateString()} • {fmt(amt)} • {category}
+                          </div>
                         </div>
+                        <button
+                          onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            background: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          Mark Paid
+                        </button>
                       </div>
-                      <button
-                        onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          background: '#2563eb',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '0.375rem',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        Mark Paid
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -1009,13 +1042,13 @@ export default function Dashboard(){
         {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setBills(prev => prev.map(b => b.id === editingBill.id ? {...b, ...updates} : b)); setEditingBill(null); }} />}
         {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setOneTimeCosts(prev => prev.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)); setEditingOTC(null); }} />}
         {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setAccounts(prev => prev.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)); setEditingAccount(null); }} />}
-        {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} />}
+        {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
       </div>
     </div>
   );
 }
 
-// Dialog Components
+// Dialog Components - Complete versions
 function AddAccountDialog({ onClose, onAdd }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('Cash');
@@ -1426,7 +1459,7 @@ function EditAccountDialog({ account, onClose, onSave }) {
   );
 }
 
-function SnapshotsDialog({ snapshots, onClose }) {
+function SnapshotsDialog({ snapshots, onClose, fmt }) {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }}>
