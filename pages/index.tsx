@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { PiggyBank, Link2 as LinkIcon, RefreshCcw, Plus, Trash2, Calendar, Settings, Eye, Edit, Download, Upload, Share2, History, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { PiggyBank, RefreshCcw, Plus, Trash2, Calendar, Settings, Eye, Edit, Download, Upload, Share2, History, AlertTriangle, CheckCircle2, XCircle, LogIn, LogOut, Cloud, CloudOff, TrendingUp, DollarSign, Target } from "lucide-react";
 
 // ===================== TYPES =====================
 interface Account { id: string; name: string; type: "Cash" | "Bank"; balance: number; plaidLinked?: boolean; institution?: string; lastSyncTs?: number }
@@ -9,6 +9,11 @@ interface OneTimeCost { id: string; name: string; category: string; amount: numb
 interface NWSnapshot { ts: number; current: number; afterWeek: number; afterMonth: number; reason?: string }
 interface UpcomingItem { bill?: Bill; otc?: OneTimeCost; due: Date; overdue: boolean }
 
+// ===================== SUPABASE CONFIG =====================
+// These would normally be in environment variables
+const SUPABASE_URL = 'https://cgrfvdmbdgkwsyeafiip.supabase.co'; // You'll get this from Supabase dashboard
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncmZ2ZG1iZGdrd3N5ZWFmaWlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NjIyNTAsImV4cCI6MjA3MzAzODI1MH0.K2zzQAZYlK-AvJEkD3KONpL2fvahrMD7njxAZ4W84-4'; // You'll get this from Supabase dashboard
+
 // ===================== HELPERS =====================
 const storageKey = "bills_balance_dashboard_v2";
 const yyyyMm = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -16,31 +21,16 @@ const monthKey = yyyyMm();
 const clampDue = (d: number) => Math.max(1, Math.min(28, Math.round(d||1)));
 const fmt = (n: number) => `$${(n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
 
-function usePersistentState<T>(key: string, initial: T){
-  const [state, setState] = useState<T>(()=>{
-    if (typeof window === 'undefined') return initial;
-    try {
-      const raw = localStorage.getItem(key);
-      return raw? JSON.parse(raw) as T : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(()=>{ 
-    if(typeof window!=='undefined') {
-      try {
-        localStorage.setItem(key, JSON.stringify(state)); 
-      } catch {}
-    }
-  },[key,state]);
-  return [state, setState] as const;
-}
-
-function notify(msg: string){ 
+function notify(msg: string, type: 'success' | 'error' | 'info' = 'success'){ 
   if(typeof window!=='undefined'){ 
+    const colors = {
+      success: '#10b981',
+      error: '#dc2626',
+      info: '#3b82f6'
+    };
     const toast = document.createElement('div');
     toast.style.cssText = `
-      position: fixed; top: 1rem; right: 1rem; background: #10b981; color: white;
+      position: fixed; top: 1rem; right: 1rem; background: ${colors[type]}; color: white;
       padding: 0.75rem 1rem; border-radius: 0.5rem; z-index: 50;
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       transform: translateX(100%); transition: transform 0.3s ease;
@@ -55,32 +45,155 @@ function notify(msg: string){
   }
 }
 
+// Custom hook for cloud-synced persistent state
+function useCloudState<T>(key: string, initial: T, user: any, supabase: any){
+  const [state, setState] = useState<T>(initial);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  // Load from local storage initially
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) setState(JSON.parse(raw) as T);
+    } catch {}
+  }, [key]);
+
+  // Sync with cloud when user is logged in
+  useEffect(() => {
+    if (!user || !supabase) return;
+    
+    const loadFromCloud = async () => {
+      setSyncing(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_data')
+          .select('data, updated_at')
+          .eq('user_id', user.id)
+          .eq('data_type', key)
+          .single();
+
+        if (data && !error) {
+          setState(data.data as T);
+          setLastSync(new Date(data.updated_at));
+          // Also update local storage
+          localStorage.setItem(key, JSON.stringify(data.data));
+        }
+      } catch (e) {
+        console.error('Failed to load from cloud:', e);
+      } finally {
+        setSyncing(false);
+      }
+    };
+
+    loadFromCloud();
+  }, [user, supabase, key]);
+
+  // Save to cloud when state changes
+  useEffect(() => {
+    if (!user || !supabase) {
+      // Just save to local storage if not logged in
+      if(typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(key, JSON.stringify(state));
+        } catch {}
+      }
+      return;
+    }
+
+    const saveToCloud = async () => {
+      setSyncing(true);
+      try {
+        const { error } = await supabase
+          .from('user_data')
+          .upsert({
+            user_id: user.id,
+            data_type: key,
+            data: state,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,data_type'
+          });
+
+        if (!error) {
+          setLastSync(new Date());
+          localStorage.setItem(key, JSON.stringify(state));
+        } else {
+          notify('Failed to sync to cloud', 'error');
+        }
+      } catch (e) {
+        console.error('Failed to save to cloud:', e);
+      } finally {
+        setSyncing(false);
+      }
+    };
+
+    const debounce = setTimeout(saveToCloud, 1000);
+    return () => clearTimeout(debounce);
+  }, [state, user, supabase, key]);
+
+  return [state, setState, { syncing, lastSync }] as const;
+}
+
 // ===================== MAIN COMPONENT =====================
 export default function Dashboard(){
-  // Categories
-  const [categories, setCategories] = usePersistentState<CategoryItem[]>(`${storageKey}:categories`, [
-    { id: crypto.randomUUID(), name: 'Personal' },
-    { id: crypto.randomUUID(), name: 'Studio' },
-    { id: crypto.randomUUID(), name: 'Smoke Shop' },
-    { id: crypto.randomUUID(), name: 'Botting' },
-  ]);
+  // Auth state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  
+  // Mock Supabase client (replace with real Supabase client)
+  const supabase = useMemo(() => {
+    // This is a mock - you'll replace with real Supabase client
+    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+      return null; // Will use localStorage only
+    }
+    // Real implementation would be:
+    // return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return null;
+  }, []);
+
+  // Categories with cloud sync
+  const [categories, setCategories, catSync] = useCloudState<CategoryItem[]>(
+    `${storageKey}:categories`, 
+    [
+      { id: crypto.randomUUID(), name: 'Personal' },
+      { id: crypto.randomUUID(), name: 'Studio' },
+      { id: crypto.randomUUID(), name: 'Smoke Shop' },
+      { id: crypto.randomUUID(), name: 'Botting' },
+    ],
+    user,
+    supabase
+  );
+  
   const activeCats = useMemo(()=> categories.filter(c=>!c.ignored).map(c=>c.name), [categories]);
 
-  // Data
-  const [accounts, setAccounts] = usePersistentState<Account[]>(`${storageKey}:accounts`, [
-    { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
-    { id: 'boabiz', name:'BOA – Business', type:'Bank', balance:0 },
-    { id: 'pers', name:'Personal Checking', type:'Bank', balance:0 },
-  ]);
-  const [bills, setBills] = usePersistentState<Bill[]>(`${storageKey}:bills`, []);
-  const [oneTimeCosts, setOneTimeCosts] = usePersistentState<OneTimeCost[]>(`${storageKey}:otc`, []);
+  // Data with cloud sync
+  const [accounts, setAccounts, accSync] = useCloudState<Account[]>(
+    `${storageKey}:accounts`,
+    [
+      { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
+      { id: 'boabiz', name:'BOA – Business', type:'Bank', balance:0 },
+      { id: 'pers', name:'Personal Checking', type:'Bank', balance:0 },
+    ],
+    user,
+    supabase
+  );
+  
+  const [bills, setBills, billSync] = useCloudState<Bill[]>(`${storageKey}:bills`, [], user, supabase);
+  const [oneTimeCosts, setOneTimeCosts, otcSync] = useCloudState<OneTimeCost[]>(`${storageKey}:otc`, [], user, supabase);
+  const [nwHistory, setNwHistory, nwSync] = useCloudState<NWSnapshot[]>(`${storageKey}:nwHistory`, [], user, supabase);
 
-  // Settings/UI
+  // Settings/UI with cloud sync
+  const [autoDeductCash, setAutoDeductCash, deductSync] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
+  const [showIgnored, setShowIgnored, ignoredSync] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
+  const [selectedCat, setSelectedCat, catSelSync] = useCloudState<string>(`${storageKey}:selectedCat`, 'All', user, supabase);
+  
   const [activeMonth, setActiveMonth] = useState(monthKey);
-  const [autoDeductCash, setAutoDeductCash] = usePersistentState(`${storageKey}:autoDeductCash`, true);
-  const [showIgnored, setShowIgnored] = usePersistentState(`${storageKey}:showIgnored`, false);
-  const [selectedCat, setSelectedCat] = usePersistentState<string>(`${storageKey}:selectedCat`, 'All');
-  const [nwHistory, setNwHistory] = usePersistentState<NWSnapshot[]>(`${storageKey}:nwHistory`, []);
   const [netWorthMode, setNetWorthMode] = useState<'current'|'afterWeek'|'afterMonth'>('current');
   const [linkingId, setLinkingId] = useState<string | null>(null);
 
@@ -89,6 +202,8 @@ export default function Dashboard(){
   const [showAddBill, setShowAddBill] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [editingOTC, setEditingOTC] = useState<OneTimeCost | null>(null);
 
   // One-time cost form state
   const [otcName, setOtcName] = useState("");
@@ -97,6 +212,51 @@ export default function Dashboard(){
   const [otcDueDate, setOtcDueDate] = useState<string>(new Date().toISOString().slice(0,10));
   const [otcAccountId, setOtcAccountId] = useState<string>(accounts[0]?.id || 'cash');
   const [otcNotes, setOtcNotes] = useState<string>("");
+
+  // Check if any data is syncing
+  const isSyncing = catSync.syncing || accSync.syncing || billSync.syncing || otcSync.syncing || nwSync.syncing;
+  
+  // Get last sync time
+  const lastSyncTime = useMemo(() => {
+    const times = [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]
+      .filter(t => t !== null) as Date[];
+    if (times.length === 0) return null;
+    return new Date(Math.max(...times.map(t => t.getTime())));
+  }, [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]);
+
+  // Auth functions
+  async function handleAuth() {
+    if (!supabase) {
+      notify('Please configure Supabase credentials first', 'error');
+      return;
+    }
+    
+    setAuthLoading(true);
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        notify('Account created! Check your email to verify.', 'success');
+      } else {
+        const { data, error } = await supabase.auth.signIn({ email, password });
+        if (error) throw error;
+        setUser(data.user);
+        setShowAuth(false);
+        notify('Logged in successfully!', 'success');
+      }
+    } catch (error: any) {
+      notify(error.message || 'Authentication failed', 'error');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
+    notify('Logged out', 'info');
+  }
 
   // Update form state when categories/accounts change
   useEffect(() => {
@@ -170,6 +330,10 @@ export default function Dashboard(){
   const afterMonth = currentLiquid - monthUnpaidTotal;
   const netWorthValue = netWorthMode==='current'? currentLiquid : netWorthMode==='afterWeek'? afterWeek : afterMonth;
 
+  // Calculate what needs to be earned
+  const weekNeedWithoutSavings = upcoming.weekDueTotal;
+  const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquid);
+
   // Actions
   function togglePaid(b: Bill){
     const isPaid = b.paidMonths.includes(activeMonth);
@@ -200,6 +364,20 @@ export default function Dashboard(){
     }
   }
 
+  function deleteBill(billId: string){
+    if(confirm('Delete this bill?')){
+      setBills(prev => prev.filter(b => b.id !== billId));
+      notify('Bill deleted');
+    }
+  }
+
+  function deleteOneTimeCost(otcId: string){
+    if(confirm('Delete this one-time cost?')){
+      setOneTimeCosts(prev => prev.filter(o => o.id !== otcId));
+      notify('One-time cost deleted');
+    }
+  }
+
   function addOneTimeCost() {
     if(!otcName || !otcAmount || !otcDueDate) return;
     setOneTimeCosts(prev => [...prev, { 
@@ -222,7 +400,7 @@ export default function Dashboard(){
     const nm=name.trim(); 
     if(!nm) return; 
     if(categories.some(c=>c.name===nm)) { 
-      notify('Category exists'); 
+      notify('Category exists', 'error'); 
       return; 
     } 
     setCategories(prev=> [...prev, { id: crypto.randomUUID(), name: nm }]); 
@@ -266,7 +444,6 @@ export default function Dashboard(){
     setLinkingId(accountId);
     try{
       const ok = await ensurePlaidScript();
-      // Try to get real link token, fall back to demo
       setTimeout(() => {
         setAccounts(prev=> prev.map(a=> a.id===accountId? { 
           ...a, 
@@ -279,7 +456,7 @@ export default function Dashboard(){
         setLinkingId(null);
       }, 2000);
     }catch(e:any){ 
-      notify(`Plaid link failed: ${String(e?.message||e)}`);
+      notify(`Plaid link failed: ${String(e?.message||e)}`, 'error');
       setLinkingId(null);
     }
   }
@@ -290,7 +467,7 @@ export default function Dashboard(){
       balance: a.balance+Math.round(Math.random()*200-100), 
       lastSyncTs: Date.now() 
     } : a)); 
-    notify('Balance refreshed (demo)'); 
+    notify('Balance refreshed (demo)', 'info'); 
   }
 
   function unlinkPlaid(accountId:string){ 
@@ -307,13 +484,112 @@ export default function Dashboard(){
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         
-        {/* Header */}
+        {/* Header with Cloud Status */}
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
             <PiggyBank size={40} style={{ color: '#2563eb' }} />
             Bills & Balances Dashboard
           </h1>
           <p style={{ color: '#4b5563' }}>Complete financial management system</p>
+          
+          {/* Cloud Status Bar */}
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center' }}>
+            {user ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'white', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                  {isSyncing ? (
+                    <>
+                      <RefreshCcw size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: '0.875rem' }}>Syncing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud size={16} style={{ color: '#10b981' }} />
+                      <span style={{ fontSize: '0.875rem' }}>Synced to cloud</span>
+                      {lastSyncTime && (
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          ({new Date(lastSyncTime).toLocaleTimeString()})
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{user.email}</span>
+                  <button
+                    onClick={handleLogout}
+                    style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                  >
+                    <LogOut size={14} style={{ marginRight: '0.25rem' }} />
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#fef3c7', borderRadius: '0.5rem' }}>
+                  <CloudOff size={16} style={{ color: '#d97706' }} />
+                  <span style={{ fontSize: '0.875rem', color: '#92400e' }}>Local storage only</span>
+                </div>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                >
+                  <LogIn size={14} style={{ marginRight: '0.25rem' }} />
+                  Login for Cloud Sync
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Money Needed This Week Card */}
+        <div style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #2563eb 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)', color: 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <Target size={24} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Money Needed This Week</h2>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <DollarSign size={20} />
+                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Total Due (without using savings)</span>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+                {fmt(weekNeedWithoutSavings)}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                Full amount due this week
+              </div>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <TrendingUp size={20} />
+                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Need to Earn (after using savings)</span>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: weekNeedWithSavings === 0 ? '#10b981' : 'white' }}>
+                {fmt(weekNeedWithSavings)}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                {weekNeedWithSavings === 0 ? 'Fully covered by current balances!' : `After using ${fmt(currentLiquid)} in accounts`}
+              </div>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <PiggyBank size={20} />
+                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Current Total Balance</span>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+                {fmt(currentLiquid)}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                Across all accounts
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Net Worth Card */}
@@ -650,7 +926,7 @@ export default function Dashboard(){
                             </div>
                             {otc.notes && <div style={{ fontSize: '0.75rem' }}>{otc.notes}</div>}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                               <input 
                                 type="checkbox" 
@@ -662,7 +938,13 @@ export default function Dashboard(){
                               </span>
                             </label>
                             <button 
-                              onClick={() => setOneTimeCosts(prev => prev.filter(x => x.id !== otc.id))}
+                              onClick={() => setEditingOTC(otc)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => deleteOneTimeCost(otc.id)}
                               style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
                             >
                               Delete
@@ -744,21 +1026,24 @@ export default function Dashboard(){
                         </div>
                         {bill.notes && <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{bill.notes}</div>}
                       </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={() => setEditingBill(bill)}
+                          style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          <Edit size={12} />
+                        </button>
+                        <button
+                          onClick={() => deleteBill(bill.id)}
+                          style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', gap: '1rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={isPaid} 
-                            onChange={() => togglePaid(bill)} 
-                          />
-                          <span style={{ fontSize: '0.875rem' }}>
-                            {isPaid ? <CheckCircle2 size={16} style={{ color: '#10b981' }} /> : <XCircle size={16} style={{ color: '#dc2626' }} />}
-                            {isPaid ? 'Paid' : 'Not paid'}
-                          </span>
-                        </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <input 
                             type="checkbox" 
@@ -876,15 +1161,29 @@ export default function Dashboard(){
         {/* Dialogs */}
         {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setAccounts(prev => [...prev, acc]); setShowAddAccount(false); }} />}
         {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setBills(prev => [...prev, bill]); setShowAddBill(false); }} />}
+        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setBills(prev => prev.map(b => b.id === editingBill.id ? {...b, ...updates} : b)); setEditingBill(null); }} />}
+        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setOneTimeCosts(prev => prev.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)); setEditingOTC(null); }} />}
         {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} />}
         {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setAccounts(prev => prev.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)); setEditingAccount(null); }} />}
+        {showAuth && <AuthDialog 
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          isSignUp={isSignUp}
+          setIsSignUp={setIsSignUp}
+          authLoading={authLoading}
+          onClose={() => setShowAuth(false)}
+          onAuth={handleAuth}
+          supabase={supabase}
+        />}
         
       </div>
     </div>
   );
 }
 
-// Dialog Components (same as before)
+// Dialog Components
 function AddAccountDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (acc: Account) => void }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Cash' | 'Bank'>('Cash');
@@ -1001,7 +1300,7 @@ function AddBillDialog({ categories, accounts, onClose, onAdd }: { categories: s
               min="1" 
               max="28"
               value={dueDay} 
-              onChange={(e) => setDueDay(clampDue(Number(e.target.value)))}
+              onChange={(e) => setDueDay(Math.max(1, Math.min(28, Math.round(Number(e.target.value)||1))))}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             />
           </div>
@@ -1040,7 +1339,7 @@ function AddBillDialog({ categories, accounts, onClose, onAdd }: { categories: s
                   name,
                   category,
                   amount,
-                  dueDay: clampDue(dueDay),
+                  dueDay,
                   accountId,
                   notes,
                   paidMonths: [],
@@ -1058,7 +1357,199 @@ function AddBillDialog({ categories, accounts, onClose, onAdd }: { categories: s
   );
 }
 
+function EditBillDialog({ bill, categories, accounts, onClose, onSave }: { bill: Bill; categories: string[]; accounts: Account[]; onClose: () => void; onSave: (updates: Partial<Bill>) => void }) {
+  const [name, setName] = useState(bill.name);
+  const [category, setCategory] = useState(bill.category);
+  const [amount, setAmount] = useState(bill.amount);
+  const [dueDay, setDueDay] = useState(bill.dueDay);
+  const [accountId, setAccountId] = useState(bill.accountId);
+  const [notes, setNotes] = useState(bill.notes || '');
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit Bill</h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
+            <input 
+              type="number" 
+              step="0.01"
+              value={amount} 
+              onChange={(e) => setAmount(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Day</label>
+            <input 
+              type="number" 
+              min="1" 
+              max="28"
+              value={dueDay} 
+              onChange={(e) => setDueDay(Math.max(1, Math.min(28, Math.round(Number(e.target.value)||1))))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
+          <select 
+            value={accountId} 
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          >
+            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+          </select>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
+          <input 
+            type="text" 
+            value={notes} 
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => onSave({ name, category, amount, dueDay, accountId, notes })}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditOTCDialog({ otc, categories, accounts, onClose, onSave }: { otc: OneTimeCost; categories: string[]; accounts: Account[]; onClose: () => void; onSave: (updates: Partial<OneTimeCost>) => void }) {
+  const [name, setName] = useState(otc.name);
+  const [category, setCategory] = useState(otc.category);
+  const [amount, setAmount] = useState(otc.amount);
+  const [dueDate, setDueDate] = useState(otc.dueDate);
+  const [accountId, setAccountId] = useState(otc.accountId);
+  const [notes, setNotes] = useState(otc.notes || '');
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit One-Time Cost</h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
+            <input 
+              type="number" 
+              step="0.01"
+              value={amount} 
+              onChange={(e) => setAmount(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Date</label>
+            <input 
+              type="date"
+              value={dueDate} 
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
+          <select 
+            value={accountId} 
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          >
+            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+          </select>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
+          <input 
+            type="text" 
+            value={notes} 
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => onSave({ name, category, amount, dueDate, accountId, notes })}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SnapshotsDialog({ snapshots, onClose }: { snapshots: NWSnapshot[]; onClose: () => void }) {
+  const fmt = (n: number) => `${(n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }}>
@@ -1144,3 +1635,74 @@ function EditAccountDialog({ account, onClose, onSave }: { account: Account; onC
     </div>
   );
 }
+
+function AuthDialog({ email, setEmail, password, setPassword, isSignUp, setIsSignUp, authLoading, onClose, onAuth, supabase }: any) {
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>
+          {isSignUp ? 'Create Account' : 'Login'} for Cloud Sync
+        </h3>
+        
+        {!supabase && (
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+            <strong>Setup Required:</strong> To enable cloud sync, add your Supabase credentials to the code.
+          </div>
+        )}
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email</label>
+          <input 
+            type="email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Password</label>
+          <input 
+            type="password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            style={{ marginLeft: '0.5rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            {isSignUp ? 'Login' : 'Sign Up'}
+          </button>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={onAuth}
+            disabled={authLoading}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', opacity: authLoading ? 0.5 : 1 }}
+          >
+            {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Login')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}            checked={isPaid} 
+                            onChange={() => togglePaid(bill)} 
+                          />
+                          <span style={{ fontSize: '0.875rem' }}>
+                            {isPaid ? <CheckCircle2 size={16} style={{ color: '#10b981' }} /> : <XCircle size={16} style={{ color: '#dc2626' }} />}
+                            {isPaid ? 'Paid' : 'Not paid'}
+                          </span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <input 
+                            type="checkbox"
