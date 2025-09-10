@@ -256,7 +256,7 @@ export default function Dashboard(){
   }, []);
 
   // Categories with cloud sync
-  const [categories, setCategories, catSync] = useCloudState(
+  const [categoriesBase, setCategoriesBase, catSync] = useCloudState(
     `${storageKey}:categories`, 
     [
       { id: crypto.randomUUID(), name: 'Personal', order: 0 },
@@ -268,10 +268,8 @@ export default function Dashboard(){
     supabase
   );
   
-  const activeCats = useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
-
-  // Data with cloud sync and undo/redo
-  const [accounts, setAccountsBase, accSync] = useCloudState(
+  // Cloud-synced base data
+  const [accountsBase, setAccountsBase, accSync] = useCloudState(
     `${storageKey}:accounts`,
     [
       { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
@@ -282,21 +280,40 @@ export default function Dashboard(){
     supabase
   );
   
-  const [accountsHistory, setAccounts, accountsUndoRedo] = useUndoRedo(accounts);
-  
-  useEffect(() => {
-    setAccounts(accounts);
-  }, [accounts]);
-  
-  useEffect(() => {
-    if (accountsHistory !== accounts) {
-      setAccountsBase(accountsHistory);
-    }
-  }, [accountsHistory]);
-  
-  const [bills, setBills, billSync] = useCloudState(`${storageKey}:bills`, [], user, supabase);
-  const [oneTimeCosts, setOneTimeCosts, otcSync] = useCloudState(`${storageKey}:otc`, [], user, supabase);
+  const [billsBase, setBillsBase, billSync] = useCloudState(`${storageKey}:bills`, [], user, supabase);
+  const [oneTimeCostsBase, setOneTimeCostsBase, otcSync] = useCloudState(`${storageKey}:otc`, [], user, supabase);
   const [nwHistory, setNwHistory, nwSync] = useCloudState(`${storageKey}:nwHistory`, [], user, supabase);
+
+  // Master state with undo/redo
+  const [masterState, setMasterState, undoRedo] = useUndoRedo({
+    accounts: accountsBase,
+    bills: billsBase,
+    oneTimeCosts: oneTimeCostsBase,
+    categories: categoriesBase
+  });
+
+  // Sync master state with cloud state
+  useEffect(() => {
+    setMasterState({
+      accounts: accountsBase,
+      bills: billsBase,
+      oneTimeCosts: oneTimeCostsBase,
+      categories: categoriesBase
+    });
+  }, [accountsBase, billsBase, oneTimeCostsBase, categoriesBase]);
+
+  // Sync changes back to cloud state
+  useEffect(() => {
+    setAccountsBase(masterState.accounts);
+    setBillsBase(masterState.bills);
+    setOneTimeCostsBase(masterState.oneTimeCosts);
+    setCategoriesBase(masterState.categories);
+  }, [masterState]);
+
+  // Extract current state
+  const { accounts, bills, oneTimeCosts, categories } = masterState;
+  
+  const activeCats = useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
   // Settings/UI with cloud sync
   const [autoDeductCash, setAutoDeductCash, deductSync] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
@@ -339,16 +356,16 @@ export default function Dashboard(){
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        accountsUndoRedo.undo();
+        undoRedo.undo();
       } else if (e.ctrlKey && e.altKey && e.key === 'z') {
         e.preventDefault();
-        accountsUndoRedo.redo();
+        undoRedo.redo();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [accountsUndoRedo]);
+  }, [undoRedo]);
 
   // Auth functions
   async function handleAuth() {
@@ -410,7 +427,7 @@ export default function Dashboard(){
     const items = [];
 
     for(const b of bills){
-      if(b.ignored) continue;
+      if(b.ignored) continue; // Excluded from calculations
       if(!activeCats.includes(b.category)) continue;
       if(b.skipMonths?.includes(activeMonth)) continue;
       
@@ -425,7 +442,7 @@ export default function Dashboard(){
     }
     
     for(const o of oneTimeCosts){
-      if(o.ignored) continue;
+      if(o.ignored) continue; // Excluded from calculations
       if(!activeCats.includes(o.category)) continue;
       if(o.paid) continue;
       const due = new Date(o.dueDate);
@@ -464,13 +481,13 @@ export default function Dashboard(){
   const monthUnpaidTotal = useMemo(()=>{
     let sum = 0;
     for(const b of bills){ 
-      if(b.ignored) continue;
+      if(b.ignored) continue; // Excluded from calculations
       if(!activeCats.includes(b.category)) continue; 
       if(b.skipMonths?.includes(activeMonth)) continue; 
       if(!b.paidMonths.includes(activeMonth)) sum += b.amount; 
     }
     for(const o of oneTimeCosts){ 
-      if(o.ignored) continue;
+      if(o.ignored) continue; // Excluded from calculations
       if(!activeCats.includes(o.category)) continue; 
       if(o.dueDate.slice(0,7)===activeMonth && !o.paid) sum += o.amount; 
     }
@@ -486,79 +503,117 @@ export default function Dashboard(){
 
   const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
 
-  // Actions
+  // Actions - Updated to use master state
   function togglePaid(b){
     const isPaid = b.paidMonths.includes(activeMonth);
-    setBills(prev=> prev.map(x=> x.id===b.id ? { 
-      ...x, 
-      paidMonths: isPaid? x.paidMonths.filter(m=>m!==activeMonth) : [...x.paidMonths, activeMonth] 
-    } : x));
+    setMasterState(prev => ({
+      ...prev,
+      bills: prev.bills.map(x=> x.id===b.id ? { 
+        ...x, 
+        paidMonths: isPaid? x.paidMonths.filter(m=>m!==activeMonth) : [...x.paidMonths, activeMonth] 
+      } : x)
+    }));
+    
     const acc = accounts.find(a=>a.id===b.accountId);
     if(autoDeductCash && acc?.type==='Cash'){ 
       if(!isPaid) {
-        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - b.amount } : a)); 
+        setMasterState(prev => ({
+          ...prev,
+          accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance - b.amount } : a)
+        }));
       } else {
-        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance + b.amount } : a)); 
+        setMasterState(prev => ({
+          ...prev,
+          accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance + b.amount } : a)
+        }));
       }
     }
   }
 
   function toggleSkipThisMonth(b){
-    setBills(prev=> prev.map(x=> x.id===b.id ? { 
-      ...x, 
-      skipMonths: x.skipMonths?.includes(activeMonth) ? 
-        x.skipMonths.filter(m=>m!==activeMonth) : 
-        [ ...(x.skipMonths||[]), activeMonth ] 
-    } : x));
+    setMasterState(prev => ({
+      ...prev,
+      bills: prev.bills.map(x=> x.id===b.id ? { 
+        ...x, 
+        skipMonths: x.skipMonths?.includes(activeMonth) ? 
+          x.skipMonths.filter(m=>m!==activeMonth) : 
+          [ ...(x.skipMonths||[]), activeMonth ] 
+      } : x)
+    }));
   }
 
   function toggleBillIgnored(b){
-    setBills(prev=> prev.map(x=> x.id===b.id ? { ...x, ignored: !x.ignored } : x));
+    setMasterState(prev => ({
+      ...prev,
+      bills: prev.bills.map(x=> x.id===b.id ? { ...x, ignored: !x.ignored } : x)
+    }));
   }
 
   function toggleOneTimePaid(o){
-    setOneTimeCosts(prev=> prev.map(x=> x.id===o.id ? { ...x, paid: !x.paid } : x));
+    setMasterState(prev => ({
+      ...prev,
+      oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, paid: !x.paid } : x)
+    }));
+    
     const acc = accounts.find(a=>a.id===o.accountId);
     if(autoDeductCash && acc?.type==='Cash'){ 
       if(!o.paid) {
-        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance - o.amount } : a)); 
+        setMasterState(prev => ({
+          ...prev,
+          accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance - o.amount } : a)
+        }));
       } else {
-        setAccounts(prev=> prev.map(a=> a.id===acc.id? { ...a, balance: a.balance + o.amount } : a)); 
+        setMasterState(prev => ({
+          ...prev,
+          accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance + o.amount } : a)
+        }));
       }
     }
   }
 
   function toggleOTCIgnored(o){
-    setOneTimeCosts(prev=> prev.map(x=> x.id===o.id ? { ...x, ignored: !x.ignored } : x));
+    setMasterState(prev => ({
+      ...prev,
+      oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, ignored: !x.ignored } : x)
+    }));
   }
 
   function deleteBill(billId){
     if(confirm('Delete this bill?')){
-      setBills(prev => prev.filter(b => b.id !== billId));
+      setMasterState(prev => ({
+        ...prev,
+        bills: prev.bills.filter(b => b.id !== billId)
+      }));
       notify('Bill deleted');
     }
   }
 
   function deleteOneTimeCost(otcId){
     if(confirm('Delete this one-time cost?')){
-      setOneTimeCosts(prev => prev.filter(o => o.id !== otcId));
+      setMasterState(prev => ({
+        ...prev,
+        oneTimeCosts: prev.oneTimeCosts.filter(o => o.id !== otcId)
+      }));
       notify('One-time cost deleted');
     }
   }
 
   function addOneTimeCost() {
     if(!otcName || !otcAmount || !otcDueDate) return;
-    setOneTimeCosts(prev => [...prev, { 
-      id: crypto.randomUUID(), 
-      name: otcName, 
-      category: otcCategory, 
-      amount: otcAmount, 
-      dueDate: otcDueDate, 
-      accountId: otcAccountId, 
-      notes: otcNotes, 
-      paid: false,
-      ignored: false 
-    }]);
+    setMasterState(prev => ({
+      ...prev,
+      oneTimeCosts: [...prev.oneTimeCosts, { 
+        id: crypto.randomUUID(), 
+        name: otcName, 
+        category: otcCategory, 
+        amount: otcAmount, 
+        dueDate: otcDueDate, 
+        accountId: otcAccountId, 
+        notes: otcNotes, 
+        paid: false,
+        ignored: false 
+      }]
+    }));
     setOtcName("");
     setOtcAmount(0);
     setOtcNotes("");
@@ -573,11 +628,17 @@ export default function Dashboard(){
       return; 
     } 
     const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-    setCategories(prev=> [...prev, { id: crypto.randomUUID(), name: nm, order: maxOrder + 1 }]); 
+    setMasterState(prev => ({
+      ...prev,
+      categories: [...prev.categories, { id: crypto.randomUUID(), name: nm, order: maxOrder + 1 }]
+    }));
   }
 
   function toggleIgnoreCategory(name){ 
-    setCategories(prev=> prev.map(c=> c.name===name? { ...c, ignored: !c.ignored } : c)); 
+    setMasterState(prev => ({
+      ...prev,
+      categories: prev.categories.map(c=> c.name===name? { ...c, ignored: !c.ignored } : c)
+    }));
   }
 
   function removeCategory(name){ 
@@ -586,36 +647,42 @@ export default function Dashboard(){
     const fallback='Uncategorized'; 
     if(!categories.find(c=>c.name===fallback)) {
       const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-      setCategories(prev=> [...prev,{id:crypto.randomUUID(), name:fallback, order: maxOrder + 1}]); 
+      setMasterState(prev => ({
+        ...prev,
+        categories: [...prev.categories, {id:crypto.randomUUID(), name:fallback, order: maxOrder + 1}]
+      }));
     }
-    setBills(prev=> prev.map(b=> b.category===name? { ...b, category: fallback } : b)); 
-    setOneTimeCosts(prev=> prev.map(o=> o.category===name? { ...o, category: fallback } : o)); 
-    setCategories(prev=> prev.filter(c=> c.name!==name)); 
+    setMasterState(prev => ({
+      ...prev,
+      bills: prev.bills.map(b=> b.category===name? { ...b, category: fallback } : b),
+      oneTimeCosts: prev.oneTimeCosts.map(o=> o.category===name? { ...o, category: fallback } : o),
+      categories: prev.categories.filter(c=> c.name!==name)
+    }));
   }
 
   function moveCategoryUp(id) {
-    setCategories(prev => {
-      const sorted = [...prev].sort((a,b) => (a.order || 0) - (b.order || 0));
+    setMasterState(prev => {
+      const sorted = [...prev.categories].sort((a,b) => (a.order || 0) - (b.order || 0));
       const index = sorted.findIndex(c => c.id === id);
       if (index > 0) {
         const temp = sorted[index].order || index;
         sorted[index].order = sorted[index - 1].order || (index - 1);
         sorted[index - 1].order = temp;
       }
-      return sorted;
+      return { ...prev, categories: sorted };
     });
   }
 
   function moveCategoryDown(id) {
-    setCategories(prev => {
-      const sorted = [...prev].sort((a,b) => (a.order || 0) - (b.order || 0));
+    setMasterState(prev => {
+      const sorted = [...prev.categories].sort((a,b) => (a.order || 0) - (b.order || 0));
       const index = sorted.findIndex(c => c.id === id);
       if (index < sorted.length - 1) {
         const temp = sorted[index].order || index;
         sorted[index].order = sorted[index + 1].order || (index + 1);
         sorted[index + 1].order = temp;
       }
-      return sorted;
+      return { ...prev, categories: sorted };
     });
   }
 
@@ -627,11 +694,12 @@ export default function Dashboard(){
       return;
     }
     const oldName = categories.find(c => c.id === id)?.name;
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: trimmed } : c));
-    if (oldName) {
-      setBills(prev => prev.map(b => b.category === oldName ? { ...b, category: trimmed } : b));
-      setOneTimeCosts(prev => prev.map(o => o.category === oldName ? { ...o, category: trimmed } : o));
-    }
+    setMasterState(prev => ({
+      ...prev,
+      categories: prev.categories.map(c => c.id === id ? { ...c, name: trimmed } : c),
+      bills: prev.bills.map(b => b.category === oldName ? { ...b, category: trimmed } : b),
+      oneTimeCosts: prev.oneTimeCosts.map(o => o.category === oldName ? { ...o, category: trimmed } : o)
+    }));
   }
 
   // Styles
@@ -656,7 +724,7 @@ export default function Dashboard(){
         {/* Mobile Header */}
         <div style={{ ...mobileStyles.card, textAlign: 'center', padding: '0.75rem' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
-            💰 Bills & Balances
+            💰 Cashfl0
           </h1>
           
           {/* Cloud Status */}
@@ -684,20 +752,73 @@ export default function Dashboard(){
           {/* Undo/Redo */}
           <div style={{ marginTop: '0.5rem' }}>
             <button
-              onClick={accountsUndoRedo.undo}
-              disabled={!accountsUndoRedo.canUndo}
-              style={{ padding: '0.25rem 0.5rem', marginRight: '0.25rem', background: accountsUndoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+              onClick={undoRedo.undo}
+              disabled={!undoRedo.canUndo}
+              style={{ padding: '0.25rem 0.5rem', marginRight: '0.25rem', background: undoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
             >
               ↶ Undo
             </button>
             <button
-              onClick={accountsUndoRedo.redo}
-              disabled={!accountsUndoRedo.canRedo}
-              style={{ padding: '0.25rem 0.5rem', background: accountsUndoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+              onClick={undoRedo.redo}
+              disabled={!undoRedo.canRedo}
+              style={{ padding: '0.25rem 0.5rem', background: undoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
             >
               ↷ Redo
             </button>
           </div>
+        </div>
+
+        {/* Mobile Due This Week - MOVED TO TOP */}
+        <div style={mobileStyles.card}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
+          
+          {upcoming.items
+            .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
+            .map((it, idx) => {
+              const name = it.bill ? it.bill.name : it.otc.name;
+              const amt = it.bill ? it.bill.amount : it.otc.amount;
+              
+              return (
+                <div key={idx} style={{ 
+                  background: it.overdue ? '#fef2f2' : '#f9fafb',
+                  padding: '0.5rem', 
+                  borderRadius: '0.375rem',
+                  border: `1px solid ${it.overdue ? '#fca5a5' : '#d1d5db'}`,
+                  marginBottom: '0.375rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: it.overdue ? '#dc2626' : '#000' }}>
+                      {fmt(amt)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
+                    {it.overdue ? '⚠️ OVERDUE' : ''} {it.due.toLocaleDateString()}
+                  </div>
+                  <button
+                    onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
+                    style={{
+                      width: '100%',
+                      marginTop: '0.25rem',
+                      padding: '0.25rem',
+                      background: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    Mark Paid
+                  </button>
+                </div>
+              );
+            })}
+          
+          {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category)).length === 0 && (
+            <div style={{ color: '#6b7280', textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
+              Nothing due this week!
+            </div>
+          )}
         </div>
 
         {/* Mobile Money Needed */}
@@ -792,7 +913,10 @@ export default function Dashboard(){
                   step="0.01"
                   value={account.balance}
                   onFocus={selectAllOnFocus}
-                  onChange={(e) => setAccounts(prev => prev.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a))}
+                  onChange={(e) => setMasterState(prev => ({
+                    ...prev,
+                    accounts: prev.accounts.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a)
+                  }))}
                   style={{ width: '80px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', textAlign: 'right' }}
                 />
               </div>
@@ -829,7 +953,7 @@ export default function Dashboard(){
           </label>
 
           {bills
-            .filter(b => !b.ignored && selectedCats.includes(b.category))
+            .filter(b => selectedCats.includes(b.category)) // Show all, including ignored
             .sort((a,b) => {
               const aDate = getNextOccurrence(a);
               const bDate = getNextOccurrence(b);
@@ -843,12 +967,29 @@ export default function Dashboard(){
               
               return (
                 <div key={bill.id} style={{ 
-                  background: '#f9fafb', 
+                  background: bill.ignored ? '#f3f4f6' : '#f9fafb', 
                   padding: '0.5rem', 
                   borderRadius: '0.375rem',
                   border: `2px solid ${isPaid ? '#10b981' : isSkipped ? '#f59e0b' : '#e5e7eb'}`,
-                  marginBottom: '0.375rem'
+                  marginBottom: '0.375rem',
+                  opacity: bill.ignored ? 0.6 : 1,
+                  position: 'relative'
                 }}>
+                  {bill.ignored && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '0.25rem',
+                      right: '0.25rem',
+                      background: '#6b7280',
+                      color: 'white',
+                      fontSize: '0.5rem',
+                      padding: '0.125rem 0.25rem',
+                      borderRadius: '0.125rem'
+                    }}>
+                      IGNORED
+                    </div>
+                  )}
+                  
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
@@ -885,9 +1026,9 @@ export default function Dashboard(){
                     </button>
                     <button
                       onClick={() => toggleBillIgnored(bill)}
-                      style={{ padding: '0.125rem 0.25rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                      style={{ padding: '0.125rem 0.25rem', background: bill.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                     >
-                      Ignore
+                      {bill.ignored ? 'Unignore' : 'Ignore'}
                     </button>
                   </div>
                 </div>
@@ -956,15 +1097,32 @@ export default function Dashboard(){
 
           {/* List */}
           {oneTimeCosts
-            .filter(o => !o.ignored && selectedCats.includes(o.category))
+            .filter(o => selectedCats.includes(o.category)) // Show all, including ignored
             .sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate))
             .map(otc => (
               <div key={otc.id} style={{ 
-                background: '#f9fafb', 
+                background: otc.ignored ? '#f3f4f6' : '#f9fafb', 
                 padding: '0.5rem', 
                 borderRadius: '0.375rem',
-                marginBottom: '0.375rem'
+                marginBottom: '0.375rem',
+                opacity: otc.ignored ? 0.6 : 1,
+                position: 'relative'
               }}>
+                {otc.ignored && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '0.25rem',
+                    right: '0.25rem',
+                    background: '#6b7280',
+                    color: 'white',
+                    fontSize: '0.5rem',
+                    padding: '0.125rem 0.25rem',
+                    borderRadius: '0.125rem'
+                  }}>
+                    IGNORED
+                  </div>
+                )}
+                
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                   <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{otc.name}</span>
                   <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
@@ -989,9 +1147,9 @@ export default function Dashboard(){
                   </button>
                   <button 
                     onClick={() => toggleOTCIgnored(otc)}
-                    style={{ padding: '0.125rem 0.25rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                    style={{ padding: '0.125rem 0.25rem', background: otc.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                   >
-                    Ignore
+                    {otc.ignored ? 'Unignore' : 'Ignore'}
                   </button>
                 </div>
               </div>
@@ -1118,66 +1276,19 @@ export default function Dashboard(){
             ))}
         </div>
 
-        {/* Mobile Due & Overdue */}
-        <div style={mobileStyles.card}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
-          
-          {upcoming.items
-            .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
-            .map((it, idx) => {
-              const name = it.bill ? it.bill.name : it.otc.name;
-              const amt = it.bill ? it.bill.amount : it.otc.amount;
-              
-              return (
-                <div key={idx} style={{ 
-                  background: it.overdue ? '#fef2f2' : '#f9fafb',
-                  padding: '0.5rem', 
-                  borderRadius: '0.375rem',
-                  border: `1px solid ${it.overdue ? '#fca5a5' : '#d1d5db'}`,
-                  marginBottom: '0.375rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: it.overdue ? '#dc2626' : '#000' }}>
-                      {fmt(amt)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
-                    {it.overdue ? '⚠️ OVERDUE' : ''} {it.due.toLocaleDateString()}
-                  </div>
-                  <button
-                    onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
-                    style={{
-                      width: '100%',
-                      marginTop: '0.25rem',
-                      padding: '0.25rem',
-                      background: '#2563eb',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '0.25rem',
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    Mark Paid
-                  </button>
-                </div>
-              );
-            })}
-        </div>
-
         {/* Dialogs */}
         {showAuth && <AuthDialog email={email} setEmail={setEmail} password={password} setPassword={setPassword} isSignUp={isSignUp} setIsSignUp={setIsSignUp} authLoading={authLoading} onClose={() => setShowAuth(false)} onAuth={handleAuth} supabase={supabase} />}
-        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setAccounts(prev => [...prev, acc]); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setBills(prev => [...prev, bill]); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setBills(prev => prev.map(b => b.id === editingBill.id ? {...b, ...updates} : b)); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setOneTimeCosts(prev => prev.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setAccounts(prev => prev.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setMasterState(prev => ({...prev, accounts: [...prev.accounts, acc]})); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
+        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setMasterState(prev => ({...prev, bills: [...prev.bills, bill]})); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setMasterState(prev => ({...prev, bills: prev.bills.map(b => b.id === editingBill.id ? {...b, ...updates} : b)})); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setMasterState(prev => ({...prev, oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)})); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setMasterState(prev => ({...prev, accounts: prev.accounts.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)})); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
         {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
       </div>
     );
   }
 
-  // Desktop Version (unchanged layout)
+  // Desktop Version
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1186,7 +1297,7 @@ export default function Dashboard(){
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '2.5rem' }}>💰</span>
-            Bills & Balances Dashboard
+            Cashfl0
           </h1>
           <p style={{ color: '#4b5563' }}>Complete financial management system</p>
           
@@ -1240,18 +1351,18 @@ export default function Dashboard(){
             {/* Undo/Redo Buttons */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
-                onClick={accountsUndoRedo.undo}
-                disabled={!accountsUndoRedo.canUndo}
+                onClick={undoRedo.undo}
+                disabled={!undoRedo.canUndo}
                 title="Ctrl+Z"
-                style={{ padding: '0.5rem 1rem', background: accountsUndoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: accountsUndoRedo.canUndo ? 'pointer' : 'not-allowed' }}
+                style={{ padding: '0.5rem 1rem', background: undoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed' }}
               >
                 ↶ Undo
               </button>
               <button
-                onClick={accountsUndoRedo.redo}
-                disabled={!accountsUndoRedo.canRedo}
+                onClick={undoRedo.redo}
+                disabled={!undoRedo.canRedo}
                 title="Ctrl+Alt+Z"
-                style={{ padding: '0.5rem 1rem', background: accountsUndoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: accountsUndoRedo.canRedo ? 'pointer' : 'not-allowed' }}
+                style={{ padding: '0.5rem 1rem', background: undoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed' }}
               >
                 ↷ Redo
               </button>
@@ -1395,7 +1506,10 @@ export default function Dashboard(){
                     step="0.01"
                     value={account.balance}
                     onFocus={selectAllOnFocus}
-                    onChange={(e) => setAccounts(prev => prev.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a))}
+                    onChange={(e) => setMasterState(prev => ({
+                      ...prev,
+                      accounts: prev.accounts.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a)
+                    }))}
                     style={{ width: '100px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }}
                   />
                   <button onClick={() => setEditingAccount(account)} style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>
@@ -1404,7 +1518,10 @@ export default function Dashboard(){
                   <button 
                     onClick={() => {
                       if(confirm(`Delete account "${account.name}"?`)){
-                        setAccounts(prev => prev.filter(a => a.id !== account.id));
+                        setMasterState(prev => ({
+                          ...prev,
+                          accounts: prev.accounts.filter(a => a.id !== account.id)
+                        }));
                       }
                     }}
                     style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}
@@ -1517,7 +1634,7 @@ export default function Dashboard(){
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             {bills
-              .filter(b => !b.ignored && selectedCats.includes(b.category))
+              .filter(b => selectedCats.includes(b.category)) // Show all, including ignored
               .sort((a,b) => {
                 const aDate = getNextOccurrence(a);
                 const bDate = getNextOccurrence(b);
@@ -1531,11 +1648,28 @@ export default function Dashboard(){
                 
                 return (
                   <div key={bill.id} style={{ 
-                    background: '#f9fafb', 
+                    background: bill.ignored ? '#f3f4f6' : '#f9fafb', 
                     padding: '1rem', 
                     borderRadius: '0.5rem',
-                    border: `2px solid ${isPaid ? '#10b981' : isSkipped ? '#f59e0b' : '#e5e7eb'}`
+                    border: `2px solid ${isPaid ? '#10b981' : isSkipped ? '#f59e0b' : '#e5e7eb'}`,
+                    opacity: bill.ignored ? 0.6 : 1,
+                    position: 'relative'
                   }}>
+                    {bill.ignored && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '0.5rem',
+                        right: '0.5rem',
+                        background: '#6b7280',
+                        color: 'white',
+                        fontSize: '0.625rem',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '0.25rem'
+                      }}>
+                        IGNORED
+                      </div>
+                    )}
+                    
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                       <div>
                         <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
@@ -1562,9 +1696,9 @@ export default function Dashboard(){
                         </button>
                         <button
                           onClick={() => toggleBillIgnored(bill)}
-                          style={{ padding: '0.25rem 0.5rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          style={{ padding: '0.25rem 0.5rem', background: bill.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
                         >
-                          👁️
+                          {bill.ignored ? '👁️' : '👁️'}
                         </button>
                         <button
                           onClick={() => deleteBill(bill.id)}
@@ -1600,7 +1734,7 @@ export default function Dashboard(){
                   </div>
                 );
               })}
-            {bills.filter(b => !b.ignored && selectedCats.includes(b.category)).length === 0 && (
+            {bills.filter(b => selectedCats.includes(b.category)).length === 0 && (
               <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>No bills in this category yet. Use "Add Bill" to create one.</div>
             )}
           </div>
@@ -1692,7 +1826,7 @@ export default function Dashboard(){
                 <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>{cat}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {oneTimeCosts
-                    .filter(o => !o.ignored && o.category === cat)
+                    .filter(o => o.category === cat) // Show all, including ignored
                     .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
                     .map(otc => (
                       <div key={otc.id} style={{ 
@@ -1702,8 +1836,25 @@ export default function Dashboard(){
                         padding: '0.5rem', 
                         borderRadius: '0.375rem', 
                         border: '1px solid #d1d5db',
-                        background: 'white'
+                        background: otc.ignored ? '#f3f4f6' : 'white',
+                        opacity: otc.ignored ? 0.6 : 1,
+                        position: 'relative'
                       }}>
+                        {otc.ignored && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '0.25rem',
+                            right: '0.25rem',
+                            background: '#6b7280',
+                            color: 'white',
+                            fontSize: '0.5rem',
+                            padding: '0.125rem 0.25rem',
+                            borderRadius: '0.125rem'
+                          }}>
+                            IGNORED
+                          </div>
+                        )}
+                        
                         <div>
                           <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{otc.name}</div>
                           <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
@@ -1729,9 +1880,9 @@ export default function Dashboard(){
                           </button>
                           <button 
                             onClick={() => toggleOTCIgnored(otc)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            style={{ padding: '0.25rem 0.5rem', background: otc.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
                           >
-                            Ignore
+                            {otc.ignored ? 'Unignore' : 'Ignore'}
                           </button>
                           <button 
                             onClick={() => deleteOneTimeCost(otc.id)}
@@ -1742,7 +1893,7 @@ export default function Dashboard(){
                         </div>
                       </div>
                     ))}
-                  {oneTimeCosts.filter(o => !o.ignored && o.category === cat).length === 0 && (
+                  {oneTimeCosts.filter(o => o.category === cat).length === 0 && (
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>No one-time costs.</div>
                   )}
                 </div>
@@ -1868,19 +2019,18 @@ export default function Dashboard(){
 
         {/* Dialogs */}
         {showAuth && <AuthDialog email={email} setEmail={setEmail} password={password} setPassword={setPassword} isSignUp={isSignUp} setIsSignUp={setIsSignUp} authLoading={authLoading} onClose={() => setShowAuth(false)} onAuth={handleAuth} supabase={supabase} />}
-        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setAccounts(prev => [...prev, acc]); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setBills(prev => [...prev, bill]); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setBills(prev => prev.map(b => b.id === editingBill.id ? {...b, ...updates} : b)); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setOneTimeCosts(prev => prev.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setAccounts(prev => prev.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setMasterState(prev => ({...prev, accounts: [...prev.accounts, acc]})); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
+        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setMasterState(prev => ({...prev, bills: [...prev.bills, bill]})); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setMasterState(prev => ({...prev, bills: prev.bills.map(b => b.id === editingBill.id ? {...b, ...updates} : b)})); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setMasterState(prev => ({...prev, oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)})); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
+        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setMasterState(prev => ({...prev, accounts: prev.accounts.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)})); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
         {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
       </div>
     </div>
   );
 }
 
-// Dialog Components (replace everything after the main Dashboard component)
-
+// Dialog Components
 function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('Cash');
@@ -2111,7 +2261,7 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
                   dueDay, 
                   weeklyDay, 
                   weeklySchedule, 
-                  biweeklyStart, 
+                  biweeklyStart,
                   accountId, 
                   notes,
                   paidMonths: [],
