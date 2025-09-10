@@ -225,7 +225,7 @@ export default function Dashboard(){
         if (error) throw error;
         notify('Account created! Check your email to verify.', 'success');
       } else {
-        const { data, error } = await supabase.auth.signIn({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setUser(data.user);
         setShowAuth(false);
