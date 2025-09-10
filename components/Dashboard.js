@@ -1879,7 +1879,8 @@ export default function Dashboard(){
   );
 }
 
-// Dialog Components
+// Dialog Components (replace everything after the main Dashboard component)
+
 function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('Cash');
@@ -2091,130 +2092,63 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
             value={notes} 
             onChange={(e) => setNotes(e.target.value)}
             style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-              Cancel
-            </button>
-            <button 
-              onClick={() => onSave({ name, category, amount, frequency, dueDay, weeklyDay, weeklySchedule, biweeklyStart, accountId, notes })}
-              style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-            >
-              Save Changes
-            </button>
-          </div>
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              if (name && amount && category && accountId) {
+                onAdd({ 
+                  id: crypto.randomUUID(), 
+                  name, 
+                  category, 
+                  amount, 
+                  frequency, 
+                  dueDay, 
+                  weeklyDay, 
+                  weeklySchedule, 
+                  biweeklyStart, 
+                  accountId, 
+                  notes,
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                });
+              }
+            }}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Add Bill
+          </button>
         </div>
       </div>
-    );
-  }
-  
-  function EditOTCDialog({ otc, categories, accounts, onClose, onSave, selectAllOnFocus }) {
-    const [name, setName] = useState(otc.name);
-    const [category, setCategory] = useState(otc.category);
-    const [amount, setAmount] = useState(otc.amount);
-    const [dueDate, setDueDate] = useState(otc.dueDate);
-    const [accountId, setAccountId] = useState(otc.accountId);
-    const [notes, setNotes] = useState(otc.notes || '');
-  
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit One-Time Cost</h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
-              <select 
-                value={category} 
-                onChange={(e) => setCategory(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
-              <input 
-                type="number" 
-                step="0.01"
-                value={amount} 
-                onFocus={selectAllOnFocus}
-                onChange={(e) => setAmount(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Date</label>
-              <input 
-                type="date"
-                value={dueDate} 
-                onChange={(e) => setDueDate(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </div>
-          </div>
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
-            <select 
-              value={accountId} 
-              onChange={(e) => setAccountId(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-            </select>
-          </div>
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
-            <input 
-              type="text" 
-              value={notes} 
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-              Cancel
-            </button>
-            <button 
-              onClick={() => onSave({ name, category, amount, dueDate, accountId, notes })}
-              style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  function EditAccountDialog({ account, onClose, onSave, selectAllOnFocus }) {
-    const [name, setName] = useState(account.name);
-    const [type, setType] = useState(account.type);
-  
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit Account</h3>
-          
-          <div style={{ marginBottom: '1rem' }}>
+    </div>
+  );
+}
+
+function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAllOnFocus }) {
+  const [name, setName] = useState(bill.name);
+  const [category, setCategory] = useState(bill.category);
+  const [amount, setAmount] = useState(bill.amount);
+  const [frequency, setFrequency] = useState(bill.frequency);
+  const [dueDay, setDueDay] = useState(bill.dueDay || 1);
+  const [weeklyDay, setWeeklyDay] = useState(bill.weeklyDay || 0);
+  const [weeklySchedule, setWeeklySchedule] = useState(bill.weeklySchedule || 'every');
+  const [biweeklyStart, setBiweeklyStart] = useState(bill.biweeklyStart ? new Date(bill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
+  const [accountId, setAccountId] = useState(bill.accountId);
+  const [notes, setNotes] = useState(bill.notes || '');
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflowY: 'auto' }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw', margin: '2rem auto' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit Bill</h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
             <input 
               type="text" 
@@ -2224,126 +2158,41 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
             />
           </div>
           
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Type</label>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
             <select 
-              value={type} 
-              onChange={(e) => setType(e.target.value)}
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             >
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-              Cancel
-            </button>
-            <button 
-              onClick={() => onSave({ name, type })}
-              style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  function SnapshotsDialog({ snapshots, onClose, fmt }) {
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Net Worth Snapshots</h3>
-          
-          {snapshots.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#6b7280', padding: '2rem' }}>No snapshots yet</div>
-          ) : (
-            <div style={{ marginBottom: '1rem' }}>
-              {snapshots.map((snapshot, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                  <div>{new Date(snapshot.ts).toLocaleString()}</div>
-                  <div>{fmt(snapshot.current)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  function AuthDialog({ email, setEmail, password, setPassword, isSignUp, setIsSignUp, authLoading, onClose, onAuth, supabase }) {
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>
-            {isSignUp ? 'Create Account' : 'Login'} for Cloud Sync
-          </h3>
-          
-          {!supabase && (
-            <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-              <strong>Setup Required:</strong> To enable cloud sync, add your Supabase credentials to the code or environment variables.
-            </div>
-          )}
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email</label>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
             <input 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)}
+              type="number" 
+              step="0.01"
+              value={amount} 
+              onFocus={selectAllOnFocus}
+              onChange={(e) => setAmount(Number(e.target.value))}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             />
           </div>
           
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)}
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Frequency</label>
+            <select 
+              value={frequency} 
+              onChange={(e) => setFrequency(e.target.value)}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              style={{ marginLeft: '0.5rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
             >
-              {isSignUp ? 'Login' : 'Sign Up'}
-            </button>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-              Cancel
-            </button>
-            <button 
-              onClick={onAuth}
-              disabled={authLoading}
-              style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', opacity: authLoading ? 0.5 : 1 }}
-            >
-              {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Login')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+              <option value="monthly">Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Bi-weekly</option>
             </select>
           </div>
-        // Continue from EditBillDialog where it was cut off...
         </div>
         
         {frequency === 'monthly' && (
@@ -2440,6 +2289,238 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
             style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
           >
             Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditOTCDialog({ otc, categories, accounts, onClose, onSave, selectAllOnFocus }) {
+  const [name, setName] = useState(otc.name);
+  const [category, setCategory] = useState(otc.category);
+  const [amount, setAmount] = useState(otc.amount);
+  const [dueDate, setDueDate] = useState(otc.dueDate);
+  const [accountId, setAccountId] = useState(otc.accountId);
+  const [notes, setNotes] = useState(otc.notes || '');
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit One-Time Cost</h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
+            <input 
+              type="number" 
+              step="0.01"
+              value={amount} 
+              onFocus={selectAllOnFocus}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Date</label>
+            <input 
+              type="date"
+              value={dueDate} 
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
+          <select 
+            value={accountId} 
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          >
+            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+          </select>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
+          <input 
+            type="text" 
+            value={notes} 
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => onSave({ name, category, amount, dueDate, accountId, notes })}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditAccountDialog({ account, onClose, onSave, selectAllOnFocus }) {
+  const [name, setName] = useState(account.name);
+  const [type, setType] = useState(account.type);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Edit Account</h3>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
+          <input 
+            type="text" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Type</label>
+          <select 
+            value={type} 
+            onChange={(e) => setType(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank</option>
+          </select>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => onSave({ name, type })}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SnapshotsDialog({ snapshots, onClose, fmt }) {
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Net Worth Snapshots</h3>
+        
+        {snapshots.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#6b7280', padding: '2rem' }}>No snapshots yet</div>
+        ) : (
+          <div style={{ marginBottom: '1rem' }}>
+            {snapshots.map((snapshot, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                <div>{new Date(snapshot.ts).toLocaleString()}</div>
+                <div>{fmt(snapshot.current)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthDialog({ email, setEmail, password, setPassword, isSignUp, setIsSignUp, authLoading, onClose, onAuth, supabase }) {
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>
+          {isSignUp ? 'Create Account' : 'Login'} for Cloud Sync
+        </h3>
+        
+        {!supabase && (
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+            <strong>Setup Required:</strong> To enable cloud sync, add your Supabase credentials to the code or environment variables.
+          </div>
+        )}
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email</label>
+          <input 
+            type="email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Password</label>
+          <input 
+            type="password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            style={{ marginLeft: '0.5rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            {isSignUp ? 'Login' : 'Sign Up'}
+          </button>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={onAuth}
+            disabled={authLoading}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', opacity: authLoading ? 0.5 : 1 }}
+          >
+            {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Login')}
           </button>
         </div>
       </div>
