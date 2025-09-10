@@ -1,10 +1,12 @@
+// This MUST be at the very top of the file
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from '@supabase/supabase-js';
 
-// ===================== SUPABASE CONFIG =====================
-// Replace these with your actual Supabase credentials
-const SUPABASE_URL = 'https://your-project-id.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key-here';
+// Then your environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Then the rest of your component code...
 
 // ===================== TYPES =====================
 const storageKey = "bills_balance_dashboard_v2";
