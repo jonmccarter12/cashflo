@@ -304,14 +304,14 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
       {/* Basic Info */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1rem'
       }}>
         <div>
           <label style={{ 
             display: 'block', 
             marginBottom: '0.5rem', 
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontSize: '0.875rem', 
             fontWeight: '600' 
           }}>
             Bill Name *
@@ -325,7 +325,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               padding: '0.75rem', 
               border: '2px solid #d1d5db', 
               borderRadius: '0.5rem',
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              fontSize: '0.875rem',
               minHeight: '44px',
               boxSizing: 'border-box'
             }}
@@ -336,7 +336,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
           <label style={{ 
             display: 'block', 
             marginBottom: '0.5rem', 
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontSize: '0.875rem', 
             fontWeight: '600' 
           }}>
             Amount *
@@ -351,7 +351,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               padding: '0.75rem', 
               border: '2px solid #d1d5db', 
               borderRadius: '0.5rem',
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              fontSize: '0.875rem',
               minHeight: '44px',
               boxSizing: 'border-box'
             }}
@@ -362,7 +362,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
           <label style={{ 
             display: 'block', 
             marginBottom: '0.5rem', 
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontSize: '0.875rem', 
             fontWeight: '600' 
           }}>
             Category
@@ -375,7 +375,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               padding: '0.75rem', 
               border: '2px solid #d1d5db', 
               borderRadius: '0.5rem',
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              fontSize: '0.875rem',
               minHeight: '44px',
               boxSizing: 'border-box'
             }}
@@ -388,7 +388,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
           <label style={{ 
             display: 'block', 
             marginBottom: '0.5rem', 
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+            fontSize: '0.875rem', 
             fontWeight: '600' 
           }}>
             Account
@@ -401,7 +401,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               padding: '0.75rem', 
               border: '2px solid #d1d5db', 
               borderRadius: '0.5rem',
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+              fontSize: '0.875rem',
               minHeight: '44px',
               boxSizing: 'border-box'
             }}
@@ -416,7 +416,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
         <label style={{ 
           display: 'block', 
           marginBottom: '0.5rem', 
-          fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+          fontSize: '0.875rem', 
           fontWeight: '600' 
         }}>
           Frequency
@@ -429,7 +429,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             padding: '0.75rem', 
             border: '2px solid #d1d5db', 
             borderRadius: '0.5rem',
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            fontSize: '0.875rem',
             minHeight: '44px',
             boxSizing: 'border-box',
             maxWidth: '300px'
@@ -451,7 +451,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
         }}>
           <h4 style={{ 
             marginBottom: '1rem', 
-            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            fontSize: '1rem',
             margin: '0 0 1rem 0'
           }}>
             Monthly Schedule
@@ -461,7 +461,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             <label style={{ 
               display: 'block', 
               marginBottom: '0.5rem', 
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+              fontSize: '0.875rem', 
               fontWeight: '600' 
             }}>
               Schedule Type
@@ -474,7 +474,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                 padding: '0.75rem', 
                 border: '2px solid #d1d5db', 
                 borderRadius: '0.5rem',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontSize: '0.875rem',
                 minHeight: '44px',
                 boxSizing: 'border-box',
                 maxWidth: '300px'
@@ -490,7 +490,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Day of Month (1-28)
@@ -506,7 +506,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   minHeight: '44px',
                   boxSizing: 'border-box',
                   maxWidth: '150px'
@@ -518,14 +518,14 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
           {scheduleType === 'nth_weekday' && (
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
               gap: '1rem'
             }}>
               <div>
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                  fontSize: '0.875rem', 
                   fontWeight: '600' 
                 }}>
                   Position
@@ -538,7 +538,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                     padding: '0.75rem', 
                     border: '2px solid #d1d5db', 
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    fontSize: '0.875rem',
                     minHeight: '44px',
                     boxSizing: 'border-box'
                   }}
@@ -555,7 +555,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                  fontSize: '0.875rem', 
                   fontWeight: '600' 
                 }}>
                   Day of Week
@@ -568,7 +568,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                     padding: '0.75rem', 
                     border: '2px solid #d1d5db', 
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                    fontSize: '0.875rem',
                     minHeight: '44px',
                     boxSizing: 'border-box'
                   }}
@@ -593,7 +593,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
         }}>
           <h4 style={{ 
             marginBottom: '1rem', 
-            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            fontSize: '1rem',
             margin: '0 0 1rem 0'
           }}>
             Weekly Schedule
@@ -603,7 +603,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             <label style={{ 
               display: 'block', 
               marginBottom: '0.5rem', 
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+              fontSize: '0.875rem', 
               fontWeight: '600' 
             }}>
               Day of Week
@@ -616,10 +616,10 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                 padding: '0.75rem', 
                 border: '2px solid #d1d5db', 
                 borderRadius: '0.5rem',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontSize: '0.875rem',
                 minHeight: '44px',
                 boxSizing: 'border-box',
-                maxWidth: '300px'
+                maxWidth: '200px'
               }}
             >
               {dayNames.map((day, idx) => (
@@ -640,7 +640,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
         }}>
           <h4 style={{ 
             marginBottom: '1rem', 
-            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+            fontSize: '1rem',
             margin: '0 0 1rem 0'
           }}>
             Bi-weekly Schedule
@@ -648,14 +648,14 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
           
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '1rem'
           }}>
             <div>
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Day of Week
@@ -668,7 +668,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   minHeight: '44px',
                   boxSizing: 'border-box'
                 }}
@@ -683,7 +683,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Start Date (for pattern)
@@ -697,7 +697,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   minHeight: '44px',
                   boxSizing: 'border-box'
                 }}
@@ -710,7 +710,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             padding: '0.75rem',
             background: '#eff6ff',
             borderRadius: '0.5rem',
-            fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+            fontSize: '0.75rem',
             color: '#1e40af'
           }}>
             The start date establishes your bi-weekly pattern. Bills will occur every other week on the selected day.
@@ -735,7 +735,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             border: 'none',
             borderRadius: '0.5rem',
             cursor: 'pointer',
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            fontSize: '0.875rem',
             fontWeight: '600',
             minHeight: '44px',
             minWidth: '120px'
@@ -753,7 +753,7 @@ function BillForm({ bill, accounts, categories, onSave, onCancel }) {
             border: 'none',
             borderRadius: '0.5rem',
             cursor: 'pointer',
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+            fontSize: '0.875rem',
             minHeight: '44px',
             minWidth: '120px'
           }}
@@ -1134,47 +1134,41 @@ export default function Dashboard(){
     <div style={{ 
       minHeight: '100vh', 
       background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', 
-      padding: 'clamp(0.5rem, 2vw, 1rem)',
-      width: '100%',
-      maxWidth: '100vw',
-      overflowX: 'hidden',
-      boxSizing: 'border-box'
+      padding: '1rem'
     }}>
       <div style={{ 
         maxWidth: '80rem', 
         margin: '0 auto', 
         display: 'flex', 
         flexDirection: 'column', 
-        gap: 'clamp(0.75rem, 2vw, 1.5rem)',
-        width: '100%',
-        boxSizing: 'border-box'
+        gap: '1.5rem'
       }}>
         
-        <div style={{ textAlign: 'center', padding: '0 0.5rem' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center' }}>
           <h1 style={{ 
-            fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', 
+            fontSize: '2.5rem', 
             fontWeight: '700', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            gap: 'clamp(0.5rem, 2vw, 0.75rem)', 
+            gap: '0.75rem', 
             color: '#1f2937', 
             marginBottom: '0.5rem',
-            flexWrap: 'wrap',
-            lineHeight: 1.2
+            flexWrap: 'wrap'
           }}>
-            <span style={{ fontSize: 'clamp(2rem, 6vw, 3rem)' }}>💰</span>
-            <span style={{ textAlign: 'center' }}>Bills & Balances</span>
+            <span style={{ fontSize: '3rem' }}>💰</span>
+            Bills & Balances
           </h1>
           <p style={{ 
             color: '#4b5563', 
-            fontSize: 'clamp(0.875rem, 3vw, 1rem)', 
-            margin: '0 0 1rem 0',
-            lineHeight: 1.4
+            fontSize: '1rem', 
+            margin: '0 0 1rem 0'
           }}>
             Financial management with flexible scheduling
           </p>
           
+          {/* Auth Status */}
           <div style={{ 
             marginTop: '1rem', 
             display: 'flex', 
@@ -1193,8 +1187,7 @@ export default function Dashboard(){
                   background: 'white', 
                   borderRadius: '0.75rem', 
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}>
                   {isSyncing ? (
                     <>
@@ -1214,7 +1207,7 @@ export default function Dashboard(){
                   )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)', color: '#374151' }}>{user.email}</span>
+                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{user.email}</span>
                   <button
                     onClick={handleLogout}
                     style={{ 
@@ -1224,9 +1217,7 @@ export default function Dashboard(){
                       border: 'none', 
                       borderRadius: '0.5rem', 
                       cursor: 'pointer', 
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px',
-                      minWidth: '120px'
+                      fontSize: '1rem'
                     }}
                   >
                     Logout
@@ -1242,8 +1233,7 @@ export default function Dashboard(){
                   padding: '0.75rem 1rem', 
                   background: '#fef3c7', 
                   borderRadius: '0.75rem',
-                  fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}>
                   <span>💾</span>
                   <span style={{ color: '#92400e' }}>Local storage only</span>
@@ -1257,9 +1247,7 @@ export default function Dashboard(){
                     border: 'none', 
                     borderRadius: '0.5rem', 
                     cursor: 'pointer',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
-                    minWidth: '160px'
+                    fontSize: '1rem'
                   }}
                 >
                   Login for Cloud Sync
@@ -1269,13 +1257,13 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* Money Needed This Week */}
         <div style={{ 
           background: 'linear-gradient(135deg, #4c1d95 0%, #2563eb 100%)', 
-          padding: 'clamp(1rem, 3vw, 2rem)', 
+          padding: '2rem', 
           borderRadius: '1rem', 
           boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)', 
-          color: 'white',
-          margin: '0'
+          color: 'white'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -1285,9 +1273,9 @@ export default function Dashboard(){
             marginBottom: '1.5rem', 
             flexWrap: 'wrap'
           }}>
-            <span style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>🎯</span>
+            <span style={{ fontSize: '2rem' }}>🎯</span>
             <h2 style={{ 
-              fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', 
+              fontSize: '1.75rem', 
               fontWeight: '600', 
               textAlign: 'center',
               margin: 0
@@ -1298,12 +1286,12 @@ export default function Dashboard(){
           
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-            gap: 'clamp(1rem, 3vw, 2rem)' 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '2rem' 
           }}>
             <div style={{ 
               background: 'rgba(255,255,255,0.15)', 
-              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              padding: '1.5rem', 
               borderRadius: '1rem', 
               backdropFilter: 'blur(10px)',
               textAlign: 'center'
@@ -1313,31 +1301,21 @@ export default function Dashboard(){
                 alignItems: 'center', 
                 justifyContent: 'center',
                 gap: '0.5rem', 
-                marginBottom: '1rem', 
-                flexWrap: 'wrap' 
+                marginBottom: '1rem'
               }}>
-                <span style={{ fontSize: 'clamp(1.25rem, 3vw, 1.5rem)' }}>💵</span>
-                <span style={{ 
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                  opacity: 0.9, 
-                  lineHeight: 1.3,
-                  fontWeight: '500'
-                }}>
-                  Total Due
-                </span>
+                <span style={{ fontSize: '1.5rem' }}>💵</span>
+                <span style={{ fontSize: '1rem', opacity: 0.9, fontWeight: '500' }}>Total Due</span>
               </div>
               <div style={{ 
-                fontSize: 'clamp(2rem, 8vw, 3rem)', 
+                fontSize: '3rem', 
                 fontWeight: '700', 
-                wordBreak: 'break-word',
                 marginBottom: '0.5rem'
               }}>
                 {fmt(weekNeedWithoutSavings)}
               </div>
               <div style={{ 
-                fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', 
-                opacity: 0.8, 
-                lineHeight: 1.3 
+                fontSize: '0.875rem', 
+                opacity: 0.8 
               }}>
                 Without using savings
               </div>
@@ -1345,7 +1323,7 @@ export default function Dashboard(){
             
             <div style={{ 
               background: 'rgba(255,255,255,0.15)', 
-              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              padding: '1.5rem', 
               borderRadius: '1rem', 
               backdropFilter: 'blur(10px)',
               textAlign: 'center'
@@ -1355,32 +1333,22 @@ export default function Dashboard(){
                 alignItems: 'center', 
                 justifyContent: 'center',
                 gap: '0.5rem', 
-                marginBottom: '1rem', 
-                flexWrap: 'wrap' 
+                marginBottom: '1rem'
               }}>
-                <span style={{ fontSize: 'clamp(1.25rem, 3vw, 1.5rem)' }}>📈</span>
-                <span style={{ 
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                  opacity: 0.9, 
-                  lineHeight: 1.3,
-                  fontWeight: '500'
-                }}>
-                  Need to Earn
-                </span>
+                <span style={{ fontSize: '1.5rem' }}>📈</span>
+                <span style={{ fontSize: '1rem', opacity: 0.9, fontWeight: '500' }}>Need to Earn</span>
               </div>
               <div style={{ 
-                fontSize: 'clamp(2rem, 8vw, 3rem)', 
+                fontSize: '3rem', 
                 fontWeight: '700', 
-                color: weekNeedWithSavings === 0 ? '#10b981' : 'white', 
-                wordBreak: 'break-word',
+                color: weekNeedWithSavings === 0 ? '#10b981' : 'white',
                 marginBottom: '0.5rem'
               }}>
                 {fmt(weekNeedWithSavings)}
               </div>
               <div style={{ 
-                fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', 
-                opacity: 0.8, 
-                lineHeight: 1.3 
+                fontSize: '0.875rem', 
+                opacity: 0.8 
               }}>
                 {weekNeedWithSavings === 0 ? 'Fully covered!' : 'After using savings'}
               </div>
@@ -1388,7 +1356,7 @@ export default function Dashboard(){
             
             <div style={{ 
               background: 'rgba(255,255,255,0.15)', 
-              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              padding: '1.5rem', 
               borderRadius: '1rem', 
               backdropFilter: 'blur(10px)',
               textAlign: 'center'
@@ -1398,31 +1366,21 @@ export default function Dashboard(){
                 alignItems: 'center', 
                 justifyContent: 'center',
                 gap: '0.5rem', 
-                marginBottom: '1rem', 
-                flexWrap: 'wrap' 
+                marginBottom: '1rem'
               }}>
-                <span style={{ fontSize: 'clamp(1.25rem, 3vw, 1.5rem)' }}>🏦</span>
-                <span style={{ 
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                  opacity: 0.9, 
-                  lineHeight: 1.3,
-                  fontWeight: '500'
-                }}>
-                  Total Balance
-                </span>
+                <span style={{ fontSize: '1.5rem' }}>🏦</span>
+                <span style={{ fontSize: '1rem', opacity: 0.9, fontWeight: '500' }}>Total Balance</span>
               </div>
               <div style={{ 
-                fontSize: 'clamp(2rem, 8vw, 3rem)', 
-                fontWeight: '700', 
-                wordBreak: 'break-word',
+                fontSize: '3rem', 
+                fontWeight: '700',
                 marginBottom: '0.5rem'
               }}>
                 {fmt(currentLiquid)}
               </div>
               <div style={{ 
-                fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', 
-                opacity: 0.8, 
-                lineHeight: 1.3 
+                fontSize: '0.875rem', 
+                opacity: 0.8 
               }}>
                 Across all accounts
               </div>
@@ -1430,9 +1388,10 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* Net Worth */}
         <div style={{ 
           background: 'white', 
-          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          padding: '1.5rem', 
           borderRadius: '1rem', 
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
         }}>
@@ -1444,8 +1403,8 @@ export default function Dashboard(){
             alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: 'clamp(1.25rem, 3vw, 1.5rem)' }}>💰</span>
-              <h2 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.5rem)', fontWeight: '600', margin: 0 }}>Net Worth</h2>
+              <span style={{ fontSize: '1.5rem' }}>💰</span>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', margin: 0 }}>Net Worth</h2>
             </div>
             
             <div style={{ 
@@ -1462,10 +1421,8 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   borderRadius: '0.5rem', 
                   border: '1px solid #d1d5db',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minWidth: '200px',
-                  maxWidth: '100%',
-                  minHeight: '44px'
+                  fontSize: '1rem',
+                  minWidth: '200px'
                 }}
               >
                 <option value="current">Current</option>
@@ -1474,21 +1431,21 @@ export default function Dashboard(){
               </select>
               
               <div style={{ 
-                fontSize: 'clamp(2rem, 6vw, 2.5rem)', 
+                fontSize: '2.5rem', 
                 fontWeight: '700', 
                 color: netWorthValue < 0 ? '#dc2626' : '#059669',
-                textAlign: 'center',
-                wordBreak: 'break-word'
+                textAlign: 'center'
               }}>
                 {fmt(netWorthValue)}
               </div>
               
               <div style={{ 
                 display: 'flex', 
-                flexDirection: 'column',
+                flexDirection: 'row',
                 gap: '0.75rem', 
                 alignItems: 'center',
-                width: '100%'
+                flexWrap: 'wrap',
+                justifyContent: 'center'
               }}>
                 <button 
                   onClick={() => setNwHistory(prev=>[...prev,{ ts:Date.now(), current:currentLiquid, afterWeek: afterWeek, afterMonth: afterMonth, reason:'manual' }])}
@@ -1498,9 +1455,7 @@ export default function Dashboard(){
                     border: '1px solid #d1d5db', 
                     borderRadius: '0.5rem', 
                     cursor: 'pointer',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
-                    minWidth: '140px'
+                    fontSize: '1rem'
                   }}
                 >
                   Save snapshot
@@ -1513,9 +1468,7 @@ export default function Dashboard(){
                     border: '1px solid #d1d5db', 
                     borderRadius: '0.5rem', 
                     cursor: 'pointer',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
-                    minWidth: '140px'
+                    fontSize: '1rem'
                   }}
                 >
                   📊 Snapshots
@@ -1524,6 +1477,7 @@ export default function Dashboard(){
             </div>
           </div>
 
+          {/* Category Filter */}
           <div style={{ 
             display: 'flex', 
             gap: '0.5rem', 
@@ -1541,8 +1495,7 @@ export default function Dashboard(){
                   background: selectedCat === cat ? '#1f2937' : 'white',
                   color: selectedCat === cat ? 'white' : '#374151',
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   whiteSpace: 'nowrap'
                 }}
               >
@@ -1552,15 +1505,17 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* Main Grid */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: 'clamp(1rem, 3vw, 1.5rem)'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+          gap: '1.5rem'
         }}>
           
+          {/* Accounts */}
           <div style={{ 
             background: 'white', 
-            padding: 'clamp(1rem, 3vw, 1.5rem)', 
+            padding: '1.5rem', 
             borderRadius: '1rem', 
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }}>
@@ -1571,7 +1526,7 @@ export default function Dashboard(){
               marginBottom: '1.5rem',
               alignItems: 'center'
             }}>
-              <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>Accounts</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>Accounts</h3>
               <button 
                 onClick={() => setShowAddAccount(true)}
                 style={{ 
@@ -1581,9 +1536,7 @@ export default function Dashboard(){
                   border: 'none', 
                   borderRadius: '0.5rem', 
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
-                  minWidth: '120px'
+                  fontSize: '1rem'
                 }}
               >
                 ➕ Add Account
@@ -1593,7 +1546,7 @@ export default function Dashboard(){
             {accounts.map(account => (
               <div key={account.id} style={{ 
                 background: '#f9fafb', 
-                padding: 'clamp(1rem, 3vw, 1.5rem)', 
+                padding: '1.5rem', 
                 borderRadius: '0.75rem', 
                 marginBottom: '1rem', 
                 display: 'flex', 
@@ -1605,14 +1558,14 @@ export default function Dashboard(){
                     padding: '0.5rem 1rem', 
                     background: account.type === 'Cash' ? '#f3f4f6' : '#dbeafe', 
                     borderRadius: '9999px', 
-                    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                    fontSize: '0.875rem',
                     fontWeight: '500'
                   }}>
                     {account.type}
                   </span>
                   <span style={{ 
                     fontWeight: '600', 
-                    fontSize: 'clamp(1rem, 3vw, 1.125rem)', 
+                    fontSize: '1.125rem', 
                     textAlign: 'center' 
                   }}>
                     {account.name}
@@ -1632,13 +1585,12 @@ export default function Dashboard(){
                     value={account.balance}
                     onChange={(e) => setAccounts(prev => prev.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a))}
                     style={{ 
-                      width: 'clamp(120px, 30vw, 160px)', 
+                      width: '160px', 
                       padding: '0.75rem', 
                       border: '2px solid #d1d5db', 
                       borderRadius: '0.5rem', 
-                      fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                      fontSize: '1.125rem',
                       textAlign: 'center',
-                      minHeight: '44px',
                       fontWeight: '600'
                     }}
                   />
@@ -1652,9 +1604,7 @@ export default function Dashboard(){
                         border: 'none', 
                         borderRadius: '0.5rem', 
                         cursor: 'pointer',
-                        fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-                        minHeight: '44px',
-                        minWidth: '44px'
+                        fontSize: '1.125rem'
                       }}
                     >
                       ✏️
@@ -1672,9 +1622,7 @@ export default function Dashboard(){
                         border: 'none', 
                         borderRadius: '0.5rem', 
                         cursor: 'pointer',
-                        fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-                        minHeight: '44px',
-                        minWidth: '44px'
+                        fontSize: '1.125rem'
                       }}
                     >
                       🗑️
@@ -1685,9 +1633,10 @@ export default function Dashboard(){
             ))}
           </div>
 
+          {/* Due & Overdue */}
           <div style={{ 
             background: 'white', 
-            padding: 'clamp(1rem, 3vw, 1.5rem)', 
+            padding: '1.5rem', 
             borderRadius: '1rem', 
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }}>
@@ -1698,17 +1647,16 @@ export default function Dashboard(){
               marginBottom: '1.5rem',
               alignItems: 'center'
             }}>
-              <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', textAlign: 'center', margin: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', textAlign: 'center', margin: 0 }}>
                 Due & Overdue (7 days)
               </h3>
               <div style={{ 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '1rem', 
                 fontWeight: '600',
                 textAlign: 'center',
                 padding: '0.75rem 1rem',
                 background: '#f3f4f6',
-                borderRadius: '0.5rem',
-                minWidth: '120px'
+                borderRadius: '0.5rem'
               }}>
                 Total: {fmt(upcoming.items
                   .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
@@ -1727,8 +1675,7 @@ export default function Dashboard(){
                   color: '#6b7280', 
                   textAlign: 'center', 
                   padding: '2rem', 
-                  fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-                  lineHeight: 1.5
+                  fontSize: '1.125rem'
                 }}>
                   Nothing due or overdue this week!
                 </div>;
@@ -1756,15 +1703,14 @@ export default function Dashboard(){
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ 
                             fontWeight: '600', 
-                            fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                            fontSize: '1.125rem',
                             marginBottom: '0.5rem'
                           }}>
                             {name}
                           </div>
                           <div style={{ 
-                            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                            color: '#6b7280',
-                            lineHeight: 1.4
+                            fontSize: '1rem', 
+                            color: '#6b7280'
                           }}>
                             {it.due.toLocaleDateString()} • {fmt(amt)} • {category}
                             {frequency !== 'one-time' && <><br/>{frequency}</>}
@@ -1779,9 +1725,8 @@ export default function Dashboard(){
                             border: 'none',
                             borderRadius: '0.5rem',
                             cursor: 'pointer',
-                            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                            fontWeight: '600',
-                            minHeight: '44px'
+                            fontSize: '1rem',
+                            fontWeight: '600'
                           }}
                         >
                           Mark Paid
@@ -1795,9 +1740,10 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* One-Time Cost Form */}
         <div style={{ 
           background: 'white', 
-          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          padding: '1.5rem', 
           borderRadius: '1rem', 
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
         }}>
@@ -1808,14 +1754,14 @@ export default function Dashboard(){
             marginBottom: '1.5rem',
             alignItems: 'center'
           }}>
-            <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
               Add One-Time Cost
             </h3>
           </div>
           
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '1rem', 
             marginBottom: '2rem' 
           }}>
@@ -1823,7 +1769,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Name
@@ -1837,8 +1783,7 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               />
@@ -1848,7 +1793,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Category
@@ -1861,8 +1806,7 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               >
@@ -1874,7 +1818,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Amount
@@ -1889,8 +1833,7 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               />
@@ -1900,7 +1843,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Due Date
@@ -1914,8 +1857,7 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               />
@@ -1925,7 +1867,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Account
@@ -1938,8 +1880,7 @@ export default function Dashboard(){
                   padding: '0.75rem', 
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               >
@@ -1951,7 +1892,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
+                fontSize: '0.875rem', 
                 fontWeight: '600' 
               }}>
                 Notes
@@ -1965,8 +1906,7 @@ export default function Dashboard(){
                   padding: '0.75rem',
                   border: '2px solid #d1d5db', 
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '1rem',
                   boxSizing: 'border-box'
                 }}
               />
@@ -1983,9 +1923,8 @@ export default function Dashboard(){
                 border: 'none', 
                 borderRadius: '0.5rem', 
                 cursor: 'pointer',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                fontWeight: '600',
-                minHeight: '44px'
+                fontSize: '1rem',
+                fontWeight: '600'
               }}
             >
               Add One-Time Cost
@@ -1996,7 +1935,7 @@ export default function Dashboard(){
         {/* Bills Section */}
         <div style={{ 
           background: 'white', 
-          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          padding: '1.5rem', 
           borderRadius: '1rem', 
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
         }}>
@@ -2007,7 +1946,7 @@ export default function Dashboard(){
             marginBottom: '1.5rem',
             alignItems: 'center'
           }}>
-            <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
               Bills
             </h3>
             <button 
@@ -2019,9 +1958,7 @@ export default function Dashboard(){
                 border: 'none', 
                 borderRadius: '0.5rem', 
                 cursor: 'pointer',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                minHeight: '44px',
-                minWidth: '120px'
+                fontSize: '1rem'
               }}
             >
               ➕ Add Bill
@@ -2031,7 +1968,7 @@ export default function Dashboard(){
           {bills.filter(b => selectedCats.includes(b.category)).map(bill => (
             <div key={bill.id} style={{ 
               background: '#f9fafb', 
-              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              padding: '1.5rem', 
               borderRadius: '0.75rem', 
               marginBottom: '1rem',
               border: '1px solid #e5e7eb'
@@ -2044,15 +1981,14 @@ export default function Dashboard(){
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ 
                     fontWeight: '600', 
-                    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                    fontSize: '1.125rem',
                     marginBottom: '0.5rem'
                   }}>
                     {bill.name}
                   </div>
                   <div style={{ 
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                    color: '#6b7280',
-                    lineHeight: 1.4
+                    fontSize: '1rem', 
+                    color: '#6b7280'
                   }}>
                     {fmt(bill.amount)} • {bill.category} • {formatBillSchedule(bill)}
                   </div>
@@ -2075,8 +2011,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     {(bill.frequency === 'monthly' || !bill.frequency) ? 
@@ -2094,8 +2029,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     ✏️ Edit
@@ -2110,8 +2044,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     🗑️ Delete
@@ -2125,7 +2058,7 @@ export default function Dashboard(){
         {/* One-Time Costs List */}
         <div style={{ 
           background: 'white', 
-          padding: 'clamp(1rem, 3vw, 1.5rem)', 
+          padding: '1.5rem', 
           borderRadius: '1rem', 
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
         }}>
@@ -2136,7 +2069,7 @@ export default function Dashboard(){
             marginBottom: '1.5rem',
             alignItems: 'center'
           }}>
-            <h3 style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)', fontWeight: '600', margin: 0 }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
               One-Time Costs
             </h3>
           </div>
@@ -2146,7 +2079,7 @@ export default function Dashboard(){
             .map(otc => (
             <div key={otc.id} style={{ 
               background: otc.paid ? '#f0fdf4' : '#f9fafb', 
-              padding: 'clamp(1rem, 3vw, 1.5rem)', 
+              padding: '1.5rem', 
               borderRadius: '0.75rem', 
               marginBottom: '1rem',
               border: `1px solid ${otc.paid ? '#bbf7d0' : '#e5e7eb'}`,
@@ -2160,15 +2093,14 @@ export default function Dashboard(){
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ 
                     fontWeight: '600', 
-                    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+                    fontSize: '1.125rem',
                     marginBottom: '0.5rem'
                   }}>
                     {otc.name}
                   </div>
                   <div style={{ 
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', 
-                    color: '#6b7280',
-                    lineHeight: 1.4
+                    fontSize: '1rem', 
+                    color: '#6b7280'
                   }}>
                     {new Date(otc.dueDate).toLocaleDateString()} • {fmt(otc.amount)} • {otc.category}
                     {otc.notes && <><br/>Notes: {otc.notes}</>}
@@ -2190,8 +2122,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     {otc.paid ? '✓ Paid' : 'Mark Paid'}
@@ -2206,8 +2137,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     {otc.ignored ? 'Unignore' : 'Ignore'}
@@ -2222,8 +2152,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     ✏️ Edit
@@ -2238,8 +2167,7 @@ export default function Dashboard(){
                       border: 'none',
                       borderRadius: '0.5rem',
                       cursor: 'pointer',
-                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                      minHeight: '44px'
+                      fontSize: '1rem'
                     }}
                   >
                     🗑️ Delete
@@ -2252,6 +2180,8 @@ export default function Dashboard(){
 
       </div>
 
+      {/* Modals */}
+      
       {/* Add/Edit Bill Modal */}
       {(showAddBill || editingBill) && (
         <div style={{
@@ -2269,7 +2199,7 @@ export default function Dashboard(){
         }}>
           <div style={{
             background: 'white',
-            padding: 'clamp(1rem, 4vw, 2rem)',
+            padding: '2rem',
             borderRadius: '1rem',
             maxWidth: '600px',
             width: '100%',
@@ -2279,7 +2209,7 @@ export default function Dashboard(){
             <h2 style={{ 
               marginBottom: '1.5rem', 
               textAlign: 'center',
-              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+              fontSize: '1.5rem'
             }}>
               {editingBill ? 'Edit Bill' : 'Add Bill'}
             </h2>
@@ -2524,7 +2454,7 @@ export default function Dashboard(){
         }}>
           <div style={{
             background: 'white',
-            padding: 'clamp(1rem, 4vw, 2rem)',
+            padding: '2rem',
             borderRadius: '1rem',
             maxWidth: '400px',
             width: '100%'
@@ -2532,7 +2462,7 @@ export default function Dashboard(){
             <h2 style={{ 
               marginBottom: '1.5rem', 
               textAlign: 'center',
-              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+              fontSize: '1.5rem'
             }}>
               Edit Account
             </h2>
@@ -2541,7 +2471,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontSize: '0.875rem',
                 fontWeight: '600'
               }}>
                 Name
@@ -2555,8 +2485,7 @@ export default function Dashboard(){
                   padding: '0.75rem',
                   border: '2px solid #d1d5db',
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '0.875rem',
                   boxSizing: 'border-box'
                 }}
               />
@@ -2566,7 +2495,7 @@ export default function Dashboard(){
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem',
-                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontSize: '0.875rem',
                 fontWeight: '600'
               }}>
                 Type
@@ -2579,8 +2508,7 @@ export default function Dashboard(){
                   padding: '0.75rem',
                   border: '2px solid #d1d5db',
                   borderRadius: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px',
+                  fontSize: '0.875rem',
                   boxSizing: 'border-box'
                 }}
               >
@@ -2609,8 +2537,7 @@ export default function Dashboard(){
                   border: 'none',
                   borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}
               >
                 Update Account
@@ -2625,8 +2552,7 @@ export default function Dashboard(){
                   border: 'none',
                   borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}
               >
                 Cancel
@@ -2653,7 +2579,7 @@ export default function Dashboard(){
         }}>
           <div style={{
             background: 'white',
-            padding: 'clamp(1rem, 4vw, 2rem)',
+            padding: '2rem',
             borderRadius: '1rem',
             maxWidth: '500px',
             width: '100%',
@@ -2663,7 +2589,7 @@ export default function Dashboard(){
             <h2 style={{ 
               marginBottom: '1.5rem', 
               textAlign: 'center',
-              fontSize: 'clamp(1.25rem, 4vw, 1.5rem)'
+              fontSize: '1.5rem'
             }}>
               Edit One-Time Cost
             </h2>
@@ -2678,7 +2604,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Name
@@ -2692,8 +2618,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 />
@@ -2703,7 +2628,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Amount
@@ -2718,8 +2643,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 />
@@ -2729,7 +2653,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Category
@@ -2742,8 +2666,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 >
@@ -2755,7 +2678,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Due Date
@@ -2769,8 +2692,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 />
@@ -2780,7 +2702,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Account
@@ -2793,8 +2715,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 >
@@ -2806,7 +2727,7 @@ export default function Dashboard(){
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                  fontSize: '0.875rem',
                   fontWeight: '600'
                 }}>
                   Notes
@@ -2820,8 +2741,7 @@ export default function Dashboard(){
                     padding: '0.75rem',
                     border: '2px solid #d1d5db',
                     borderRadius: '0.5rem',
-                    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                    minHeight: '44px',
+                    fontSize: '0.875rem',
                     boxSizing: 'border-box'
                   }}
                 />
@@ -2847,8 +2767,7 @@ export default function Dashboard(){
                   border: 'none',
                   borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}
               >
                 Update Cost
@@ -2863,8 +2782,7 @@ export default function Dashboard(){
                   border: 'none',
                   borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-                  minHeight: '44px'
+                  fontSize: '0.875rem'
                 }}
               >
                 Cancel
