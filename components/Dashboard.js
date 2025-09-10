@@ -186,6 +186,19 @@ function getNextOccurrence(bill, fromDate = new Date()) {
     return date;
   }
   
+  if (bill.frequency === 'yearly') {
+    const dueMonth = bill.yearlyMonth || 0; // 0-11 (Jan-Dec)
+    const dueDay = clampDue(bill.dueDay || 1);
+    
+    date.setMonth(dueMonth);
+    date.setDate(dueDay);
+    
+    if (date <= fromDate) {
+      date.setFullYear(date.getFullYear() + 1);
+    }
+    return date;
+  }
+  
   if (bill.frequency === 'weekly') {
     const dayOfWeek = bill.weeklyDay || 0;
     const daysUntil = (dayOfWeek - date.getDay() + 7) % 7 || 7;
@@ -254,6 +267,34 @@ export default function Dashboard(){
     }
     return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }, []);
+
+  // Session persistence
+  useEffect(() => {
+    if (!supabase) return;
+    
+    // Check for existing session on page load
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+      }
+    };
+    
+    checkSession();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          setUser(session.user);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+    
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   // Categories with cloud sync
   const [categoriesBase, setCategoriesBase, catSync] = useCloudState(
@@ -432,7 +473,7 @@ export default function Dashboard(){
       if(b.skipMonths?.includes(activeMonth)) continue;
       
       const nextDate = getNextOccurrence(b, now);
-      const paid = b.paidMonths.includes(activeMonth) && b.frequency === 'monthly';
+      const paid = b.paidMonths.includes(activeMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
       const overdue = nextDate < now && !paid;
       const withinWeek = nextDate <= horizon && !paid;
       
@@ -997,6 +1038,7 @@ export default function Dashboard(){
                   
                   <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
                     {bill.frequency === 'monthly' ? `Due: ${bill.dueDay}` : 
+                     bill.frequency === 'yearly' ? `Yearly: ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][bill.yearlyMonth || 0]} ${bill.dueDay || 1}` :
                      bill.frequency === 'weekly' ? `Weekly: ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][bill.weeklyDay || 0]}` :
                      bill.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'} • {account?.name}
                   </div>
@@ -1675,6 +1717,7 @@ export default function Dashboard(){
                         <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           {bill.frequency === 'monthly' ? `Due: ${bill.dueDay}` : 
+                           bill.frequency === 'yearly' ? `Yearly: ${['January','February','March','April','May','June','July','August','September','October','November','December'][bill.yearlyMonth || 0]} ${bill.dueDay || 1}` :
                            bill.frequency === 'weekly' ? (
                              bill.weeklySchedule === 'every' ? 
                              `Every ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][bill.weeklyDay || 0]}` :
@@ -2101,6 +2144,7 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
   const [amount, setAmount] = useState(0);
   const [frequency, setFrequency] = useState('monthly');
   const [dueDay, setDueDay] = useState(1);
+  const [yearlyMonth, setYearlyMonth] = useState(0);
   const [weeklyDay, setWeeklyDay] = useState(0);
   const [weeklySchedule, setWeeklySchedule] = useState('every');
   const [biweeklyStart, setBiweeklyStart] = useState(new Date().toISOString().slice(0,10));
@@ -2154,13 +2198,14 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             >
               <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
               <option value="weekly">Weekly</option>
               <option value="biweekly">Bi-weekly</option>
             </select>
           </div>
         </div>
         
-        {frequency === 'monthly' && (
+        {(frequency === 'monthly' || frequency === 'yearly') && (
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Day of Month</label>
             <input 
@@ -2172,6 +2217,30 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
               onChange={(e) => setDueDay(Math.max(1, Math.min(28, Number(e.target.value))))}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             />
+          </div>
+        )}
+
+        {frequency === 'yearly' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Month</label>
+            <select 
+              value={yearlyMonth} 
+              onChange={(e) => setYearlyMonth(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              <option value={0}>January</option>
+              <option value={1}>February</option>
+              <option value={2}>March</option>
+              <option value={3}>April</option>
+              <option value={4}>May</option>
+              <option value={5}>June</option>
+              <option value={6}>July</option>
+              <option value={7}>August</option>
+              <option value={8}>September</option>
+              <option value={9}>October</option>
+              <option value={10}>November</option>
+              <option value={11}>December</option>
+            </select>
           </div>
         )}
         
@@ -2259,9 +2328,10 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
                   amount, 
                   frequency, 
                   dueDay, 
+                  yearlyMonth,
                   weeklyDay, 
                   weeklySchedule, 
-                  biweeklyStart,
+                  biweeklyStart, 
                   accountId, 
                   notes,
                   paidMonths: [],
@@ -2286,6 +2356,7 @@ function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAll
   const [amount, setAmount] = useState(bill.amount);
   const [frequency, setFrequency] = useState(bill.frequency);
   const [dueDay, setDueDay] = useState(bill.dueDay || 1);
+  const [yearlyMonth, setYearlyMonth] = useState(bill.yearlyMonth || 0);
   const [weeklyDay, setWeeklyDay] = useState(bill.weeklyDay || 0);
   const [weeklySchedule, setWeeklySchedule] = useState(bill.weeklySchedule || 'every');
   const [biweeklyStart, setBiweeklyStart] = useState(bill.biweeklyStart ? new Date(bill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
@@ -2339,13 +2410,14 @@ function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAll
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             >
               <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
               <option value="weekly">Weekly</option>
               <option value="biweekly">Bi-weekly</option>
             </select>
           </div>
         </div>
         
-        {frequency === 'monthly' && (
+        {(frequency === 'monthly' || frequency === 'yearly') && (
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Day of Month</label>
             <input 
@@ -2357,6 +2429,30 @@ function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAll
               onChange={(e) => setDueDay(Math.max(1, Math.min(28, Number(e.target.value))))}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             />
+          </div>
+        )}
+
+        {frequency === 'yearly' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Month</label>
+            <select 
+              value={yearlyMonth} 
+              onChange={(e) => setYearlyMonth(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              <option value={0}>January</option>
+              <option value={1}>February</option>
+              <option value={2}>March</option>
+              <option value={3}>April</option>
+              <option value={4}>May</option>
+              <option value={5}>June</option>
+              <option value={6}>July</option>
+              <option value={7}>August</option>
+              <option value={8}>September</option>
+              <option value={9}>October</option>
+              <option value={10}>November</option>
+              <option value={11}>December</option>
+            </select>
           </div>
         )}
         
@@ -2435,7 +2531,7 @@ function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAll
             Cancel
           </button>
           <button 
-            onClick={() => onSave({ name, category, amount, frequency, dueDay, weeklyDay, weeklySchedule, biweeklyStart, accountId, notes })}
+            onClick={() => onSave({ name, category, amount, frequency, dueDay, yearlyMonth, weeklyDay, weeklySchedule, biweeklyStart, accountId, notes })}
             style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
           >
             Save Changes
