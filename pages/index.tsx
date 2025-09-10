@@ -11,8 +11,8 @@ interface UpcomingItem { bill?: Bill; otc?: OneTimeCost; due: Date; overdue: boo
 
 // ===================== SUPABASE CONFIG =====================
 // These would normally be in environment variables
-const SUPABASE_URL = 'https://cgrfvdmbdgkwsyeafiip.supabase.co'; // You'll get this from Supabase dashboard
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncmZ2ZG1iZGdrd3N5ZWFmaWlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NjIyNTAsImV4cCI6MjA3MzAzODI1MH0.K2zzQAZYlK-AvJEkD3KONpL2fvahrMD7njxAZ4W84-4'; // You'll get this from Supabase dashboard
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
 // ===================== HELPERS =====================
 const storageKey = "bills_balance_dashboard_v2";
