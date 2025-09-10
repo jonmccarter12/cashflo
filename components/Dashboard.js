@@ -1,91 +1,10 @@
-// Custom hook for cloud-synced persistent state
-function useCloudState(key, initial, user, supabase){
-  const [state, setState] = useState(initial);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState(null);
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createClient } from '@supabase/supabase-js';
 
-  // Load from local storage initially
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) setState(JSON.parse(raw));
-    } catch {}
-  }, [key]);
-
-  // Sync with cloud when user is logged in
-  useEffect(() => {
-    if (!user || !supabase) return;
-    
-    const loadFromCloud = async () => {
-      setSyncing(true);
-      try {
-        const { data, error } = await supabase
-          .from('user_data')
-          .select('data, updated_at')
-          .eq('user_id', user.id)
-          .eq('data_type', key)
-          .single();
-
-        if (data && !error) {
-          setState(data.data);
-          setLastSync(new Date(data.updated_at));
-          localStorage.setItem(key, JSON.stringify(data.data));
-        }
-      } catch (e) {
-        console.error('Failed to load from cloud:', e);
-      } finally {
-        setSyncing(false);
-      }
-    };
-
-    loadFromCloud();
-  }, [user, supabase, key]);
-
-  // Save to cloud when state changes
-  useEffect(() => {
-    if (!user || !supabase) {
-      if(typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(key, JSON.stringify(state));
-        } catch {}
-      }
-      return;
-    }
-
-    const saveToCloud = async () => {
-      setSyncing(true);
-      try {
-        const { error } = await supabase
-          .from('user_data')
-          .upsert({
-            user_id: user.id,
-            data_type: key,
-            data: state,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,data_type'
-          });
-
-        if (!error) {
-          setLastSync(new Date());
-          localStorage.setItem(key, JSON.stringify(state));
-        } else {
-          notify('Failed to sync to cloud', 'error');
-        }
-      } catch (e) {
-        console.error('Failed to save to cloud:', e);
-      } finally {
-        setSyncing(false);
-      }
-    };
-
-    const debounce = setTimeout(saveToCloud, 1000);
-    return () => clearTimeout(debounce);
-  }, [state, user, supabase, key]);
-
-  return [state, setState, { syncing, lastSync }];
-}import React, { useState, useEffect, useMemo } from "react";
+// ===================== SUPABASE CONFIG =====================
+// Using Vercel environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // ===================== HELPERS =====================
 const storageKey = "bills_balance_dashboard_v3";
