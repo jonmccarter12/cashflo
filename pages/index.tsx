@@ -146,16 +146,15 @@ export default function Dashboard(){
   const [showAuth, setShowAuth] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   
-  // Mock Supabase client (replace with real Supabase client)
-  const supabase = useMemo(() => {
-    // This is a mock - you'll replace with real Supabase client
-    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-      return null; // Will use localStorage only
-    }
-    // Real implementation would be:
-    // return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    return null;
-  }, []);
+  import { createClient } from '@supabase/supabase-js'; // Add this import at the very top
+
+// Real Supabase client
+const supabase = useMemo(() => {
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    return null; // Will use localStorage only
+  }
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}, []);
 
   // Categories with cloud sync
   const [categories, setCategories, catSync] = useCloudState<CategoryItem[]>(
