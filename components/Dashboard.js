@@ -2356,10 +2356,7 @@ function DashboardContent() {
               {accountBalanceData.length > 0 ? (
                 <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '300px', height: '300px' }}>
-                    // This code should replace the truncated line that ends with "view"
-// and continue from there. Find this line in the main code:
-//     <svg width="300" height="300" view
-// Replace it and everything after with:
+                  
 
                     <svg width="300" height="300" viewBox="0 0 300 300">
                       {(() => {
