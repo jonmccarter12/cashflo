@@ -1850,8 +1850,15 @@ function DashboardContent() {
         </div>
 
         {/* Settings */}
-        <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Settings</h3>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', 
+          padding: '1rem', 
+          borderRadius: '0.5rem', 
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
+          marginBottom: '0.75rem',
+          color: 'white'
+        }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Settings & Actions</h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
@@ -1859,6 +1866,7 @@ function DashboardContent() {
                 type="checkbox" 
                 checked={autoDeductCash[0]} 
                 onChange={(e) => setAutoDeductCash(e.target.checked)} 
+                style={{ accentColor: 'white' }}
               />
               Auto-deduct from Cash accounts when marking bills as paid
             </label>
@@ -1868,6 +1876,7 @@ function DashboardContent() {
                 type="checkbox" 
                 checked={showIgnored[0]} 
                 onChange={(e) => setShowIgnored(e.target.checked)} 
+                style={{ accentColor: 'white' }}
               />
               Show ignored items
             </label>
@@ -1879,12 +1888,13 @@ function DashboardContent() {
                 style={{ 
                   flex: 1, 
                   padding: '0.5rem', 
-                  background: undoRedo.canUndo ? '#2563eb' : '#9ca3af', 
+                  background: undoRedo.canUndo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
                   color: 'white', 
-                  border: 'none', 
+                  border: undoRedo.canUndo ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)', 
                   borderRadius: '0.25rem', 
                   fontSize: '0.75rem',
-                  cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed'
+                  cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed',
+                  opacity: undoRedo.canUndo ? 1 : 0.6
                 }}
               >
                 Undo (Ctrl+Z)
@@ -1895,12 +1905,13 @@ function DashboardContent() {
                 style={{ 
                   flex: 1, 
                   padding: '0.5rem', 
-                  background: undoRedo.canRedo ? '#2563eb' : '#9ca3af', 
+                  background: undoRedo.canRedo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
                   color: 'white', 
-                  border: 'none', 
+                  border: undoRedo.canRedo ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)', 
                   borderRadius: '0.25rem', 
                   fontSize: '0.75rem',
-                  cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed'
+                  cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed',
+                  opacity: undoRedo.canRedo ? 1 : 0.6
                 }}
               >
                 Redo (Ctrl+Alt+Z)
@@ -1909,7 +1920,16 @@ function DashboardContent() {
 
             <button
               onClick={() => setShowSnapshots(true)}
-              style={{ width: '100%', padding: '0.5rem', background: '#7c3aed', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
+              style={{ 
+                width: '100%', 
+                padding: '0.5rem', 
+                background: 'rgba(255,255,255,0.2)', 
+                color: 'white', 
+                border: '1px solid rgba(255,255,255,0.3)', 
+                borderRadius: '0.25rem', 
+                fontSize: '0.75rem', 
+                marginTop: '0.5rem' 
+              }}
             >
               View Net Worth History
             </button>
@@ -2836,8 +2856,9 @@ function DashboardContent() {
           </div>
         </div>
 
+        {/* Net Worth & Analytics Section */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Analytics with Pie Charts</h3>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Net Worth & Financial Analytics</h3>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
             <div>
@@ -3172,6 +3193,156 @@ function DashboardContent() {
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button type="submit" style={{ flex: 1, padding: '1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Credit</button>
                   <button type="button" onClick={() => setShowAddCredit(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>Add New Bill</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newBill = {
+                  id: crypto.randomUUID(),
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId'),
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                };
+                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
+                setShowAddBill(false);
+                notify('Bill added successfully!');
+              }}>
+                <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue="15" required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {editingBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>Edit Bill</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedBill = {
+                  ...editingBill,
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId')
+                };
+                setMasterState(prev => ({
+                  ...prev,
+                  bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
+                }));
+                setEditingBill(null);
+                notify('Bill updated successfully!');
+              }}>
+                <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingBill.amount} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" defaultValue={editingBill.frequency} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month" defaultValue={editingBill.dueDay} required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" defaultValue={editingBill.accountId} style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Update Bill</button>
+                  <button type="button" onClick={() => setEditingBill(null)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {editingOTC && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>Edit One-Time Cost</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedOTC = {
+                  ...editingOTC,
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  dueDate: formData.get('dueDate'),
+                  accountId: formData.get('accountId'),
+                  notes: formData.get('notes')
+                };
+                setMasterState(prev => ({
+                  ...prev,
+                  oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? updatedOTC : o)
+                }));
+                setEditingOTC(null);
+                notify('One-time cost updated successfully!');
+              }}>
+                <input name="name" placeholder="Cost name" defaultValue={editingOTC.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" defaultValue={editingOTC.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingOTC.amount} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <input name="dueDate" type="date" defaultValue={editingOTC.dueDate} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="accountId" defaultValue={editingOTC.accountId} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingOTC.notes} style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Update Cost</button>
+                  <button type="button" onClick={() => setEditingOTC(null)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
                 </div>
               </form>
             </div>
