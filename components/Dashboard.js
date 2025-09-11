@@ -2487,6 +2487,7 @@ function DashboardContent() {
           </div>
         </div>
 
+        {/* Category Filter */}
         <div style={{ background: 'white', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {['All', ...activeCats].map(cat => (
@@ -2505,6 +2506,333 @@ function DashboardContent() {
                 {cat}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Bills Management Section */}
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills</h3>
+            <button 
+              onClick={() => setShowAddBill(true)}
+              style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+            >
+              + Add Bill
+            </button>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+            {bills
+              .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+              .sort((a,b) => {
+                const aDate = getNextOccurrence(a);
+                const bDate = getNextOccurrence(b);
+                return aDate - bDate;
+              })
+              .map(bill => {
+                const account = accounts.find(a => a.id === bill.accountId);
+                const isPaid = bill.paidMonths.includes(yyyyMm());
+                const nextDate = getNextOccurrence(bill);
+                
+                return (
+                  <div key={bill.id} style={{ 
+                    background: '#f9fafb', 
+                    padding: '1rem', 
+                    borderRadius: '0.5rem',
+                    border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
+                    opacity: bill.ignored ? 0.6 : 1
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          Next: {nextDate.toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(bill.amount)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{bill.category}</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isPaid} 
+                          onChange={() => togglePaid(bill)} 
+                        />
+                        {isPaid ? 'Paid' : 'Not paid'}
+                      </label>
+                      <button
+                        onClick={() => setEditingBill(bill)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => toggleBillIgnored(bill)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        {bill.ignored ? 'Show' : 'Hide'}
+                      </button>
+                      <button
+                        onClick={() => deleteBill(bill.id)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+          
+          {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true)).length === 0 && (
+            <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+              No bills found. Add your first bill to get started!
+            </div>
+          )}
+        </div>
+
+        {/* One-Time Costs Section */}
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>One-Time Costs</h3>
+          
+          {/* Add One-Time Cost Form */}
+          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <input
+                placeholder="Cost name"
+                value={otcName}
+                onChange={(e) => setOtcName(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <input
+                type="number"
+                placeholder="Amount"
+                value={otcAmount}
+                onChange={(e) => setOtcAmount(Number(e.target.value))}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <input
+                type="date"
+                value={otcDueDate}
+                onChange={(e) => setOtcDueDate(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <select
+                value={otcCategory}
+                onChange={(e) => setOtcCategory(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
+                {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select
+                value={otcAccountId}
+                onChange={(e) => setOtcAccountId(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <textarea
+                placeholder="Notes (optional)"
+                value={otcNotes}
+                onChange={(e) => setOtcNotes(e.target.value)}
+                style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }}
+              />
+              <button
+                onClick={addOneTimeCost}
+                style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', alignSelf: 'flex-start' }}
+              >
+                Add Cost
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+            {oneTimeCosts
+              .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
+              .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+              .map(otc => {
+                const account = accounts.find(a => a.id === otc.accountId);
+                const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
+                
+                return (
+                  <div key={otc.id} style={{ 
+                    background: otc.paid ? '#f0fdf4' : (isOverdue ? '#fef2f2' : '#f9fafb'),
+                    padding: '1rem', 
+                    borderRadius: '0.5rem',
+                    border: `2px solid ${otc.paid ? '#16a34a' : (isOverdue ? '#fca5a5' : '#e5e7eb')}`,
+                    opacity: otc.ignored ? 0.6 : 1
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{otc.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          {otc.category}
+                          {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                        </div>
+                        {otc.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{otc.notes}</div>}
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(otc.amount)}</div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={otc.paid} 
+                          onChange={() => toggleOneTimePaid(otc)} 
+                        />
+                        {otc.paid ? 'Paid' : 'Not paid'}
+                      </label>
+                      <button
+                        onClick={() => setEditingOTC(otc)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => toggleOTCIgnored(otc)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        {otc.ignored ? 'Show' : 'Hide'}
+                      </button>
+                      <button
+                        onClick={() => deleteOneTimeCost(otc.id)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+          
+          {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true)).length === 0 && (
+            <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+              No one-time costs found. Add costs above to track them!
+            </div>
+          )}
+        </div>
+
+        {/* Categories Management */}
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Categories Management</h3>
+          
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const name = e.target.categoryName.value.trim();
+              if (name) {
+                addCategory(name);
+                e.target.categoryName.value = '';
+              }
+            }} style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+              <input
+                name="categoryName"
+                placeholder="New category name"
+                style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <button
+                type="submit"
+                style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+              >
+                Add Category
+              </button>
+            </form>
+            
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+              <input 
+                type="checkbox" 
+                checked={showIgnored[0]} 
+                onChange={(e) => setShowIgnored(e.target.checked)} 
+              />
+              Show ignored
+            </label>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.5rem' }}>
+            {categories
+              .filter(cat => !cat.ignored || showIgnored[0])
+              .sort((a, b) => (a.order || 0) - (b.order || 0))
+              .map(cat => (
+                <div key={cat.id} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  padding: '0.75rem', 
+                  background: cat.ignored ? '#f3f4f6' : '#f9fafb', 
+                  borderRadius: '0.375rem',
+                  border: '1px solid #e5e7eb',
+                  opacity: cat.ignored ? 0.6 : 1
+                }}>
+                  {editingCategoryId === cat.id ? (
+                    <input
+                      type="text"
+                      defaultValue={cat.name}
+                      onBlur={(e) => {
+                        renameCategory(cat.id, e.target.value);
+                        setEditingCategoryId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          renameCategory(cat.id, e.target.value);
+                          setEditingCategoryId(null);
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingCategoryId(null);
+                        }
+                      }}
+                      autoFocus
+                      style={{ fontSize: '0.875rem', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', flex: 1 }}
+                    />
+                  ) : (
+                    <span 
+                      style={{ fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer', flex: 1 }}
+                      onClick={() => setEditingCategoryId(cat.id)}
+                    >
+                      {cat.name}
+                    </span>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button
+                      onClick={() => moveCategoryUp(cat.id)}
+                      style={{ padding: '0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveCategoryDown(cat.id)}
+                      style={{ padding: '0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={() => toggleIgnoreCategory(cat.name)}
+                      style={{ padding: '0.25rem 0.5rem', background: cat.ignored ? '#16a34a' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      {cat.ignored ? 'Show' : 'Hide'}
+                    </button>
+                    <button
+                      onClick={() => removeCategory(cat.name)}
+                      style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
 
