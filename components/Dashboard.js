@@ -316,1054 +316,6 @@ function getNextOccurrence(bill, fromDate = new Date()) {
   }
 }
 
-// ===================== DIALOG COMPONENTS =====================
-
-// Auth Dialog
-function AuthDialog({ email, setEmail, password, setPassword, isSignUp, setIsSignUp, authLoading, onClose, onAuth, supabase }) {
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '400px'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
-        
-        {!supabase && (
-          <div style={{ background: '#fee', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem', color: '#dc2626' }}>
-            ⚠️ Supabase is not configured. Please add environment variables in Vercel.
-          </div>
-        )}
-        
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-        />
-        
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={onAuth}
-            disabled={authLoading || !supabase}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: authLoading || !supabase ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: authLoading || !supabase ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {authLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-        
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Add Account Dialog
-function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = React.useState('');
-  const [type, setType] = React.useState('Bank');
-  const [balance, setBalance] = React.useState(0);
-  
-  const handleAdd = () => {
-    if (!name.trim()) {
-      notify('Please enter an account name', 'error');
-      return;
-    }
-    onAdd({
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      type,
-      balance: Number(balance)
-    });
-    notify('Account added successfully', 'success');
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '400px'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Add Account</h2>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Type
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            <option value="Bank">Bank</option>
-            <option value="Cash">Cash</option>
-            <option value="Credit">Credit</option>
-            <option value="Investment">Investment</option>
-          </select>
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '1rem' }}>
-          Initial Balance
-          <input
-            type="number"
-            step="0.01"
-            value={balance}
-            onFocus={selectAllOnFocus}
-            onChange={(e) => setBalance(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={handleAdd}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Add Account
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Add Bill Dialog
-function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = React.useState('');
-  const [category, setCategory] = React.useState(categories[0] || '');
-  const [amount, setAmount] = React.useState(0);
-  const [frequency, setFrequency] = React.useState('monthly');
-  const [dueDay, setDueDay] = React.useState(1);
-  const [accountId, setAccountId] = React.useState(accounts[0]?.id || '');
-  const [yearlyMonth, setYearlyMonth] = React.useState(0);
-  const [weeklyDay, setWeeklyDay] = React.useState(0);
-  const [weeklySchedule, setWeeklySchedule] = React.useState('every');
-  const [biweeklyStart, setBiweeklyStart] = React.useState(new Date().toISOString().slice(0,10));
-  
-  const handleAdd = () => {
-    if (!name.trim()) {
-      notify('Please enter a bill name', 'error');
-      return;
-    }
-    if (amount <= 0) {
-      notify('Please enter a valid amount', 'error');
-      return;
-    }
-    
-    const newBill = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      category,
-      amount: Number(amount),
-      frequency,
-      dueDay: Number(dueDay),
-      accountId,
-      paidMonths: [],
-      skipMonths: [],
-      ignored: false
-    };
-    
-    if (frequency === 'yearly') {
-      newBill.yearlyMonth = yearlyMonth;
-    } else if (frequency === 'weekly') {
-      newBill.weeklyDay = weeklyDay;
-      newBill.weeklySchedule = weeklySchedule;
-    } else if (frequency === 'biweekly') {
-      newBill.biweeklyStart = biweeklyStart;
-    }
-    
-    onAdd(newBill);
-    notify(`Bill "${name.trim()}" added successfully to ${category}`, 'success');
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '500px',
-        maxHeight: '80vh',
-        overflowY: 'auto'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Add Bill</h2>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <label>
-            Category
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-          
-          <label>
-            Amount
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onFocus={selectAllOnFocus}
-              onChange={(e) => setAmount(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <label>
-            Frequency
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              <option value="monthly">Monthly</option>
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Bi-weekly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </label>
-          
-          <label>
-            Account
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-        </div>
-        
-        {frequency === 'monthly' && (
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Due Day of Month
-            <input
-              type="number"
-              min="1"
-              max="28"
-              value={dueDay}
-              onChange={(e) => setDueDay(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        )}
-        
-        {frequency === 'yearly' && (
-          <>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Month
-              <select
-                value={yearlyMonth}
-                onChange={(e) => setYearlyMonth(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => 
-                  <option key={i} value={i}>{m}</option>
-                )}
-              </select>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Day
-              <input
-                type="number"
-                min="1"
-                max="28"
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </label>
-          </>
-        )}
-        
-        {frequency === 'weekly' && (
-          <>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Day of Week
-              <select
-                value={weeklyDay}
-                onChange={(e) => setWeeklyDay(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => 
-                  <option key={i} value={i}>{d}</option>
-                )}
-              </select>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Schedule
-              <select
-                value={weeklySchedule}
-                onChange={(e) => setWeeklySchedule(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                <option value="every">Every Week</option>
-                <option value="first">First Week of Month</option>
-                <option value="second">Second Week of Month</option>
-                <option value="third">Third Week of Month</option>
-                <option value="fourth">Fourth Week of Month</option>
-                <option value="last">Last Week of Month</option>
-              </select>
-            </label>
-          </>
-        )}
-        
-        {frequency === 'biweekly' && (
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Start Date
-            <input
-              type="date"
-              value={biweeklyStart}
-              onChange={(e) => setBiweeklyStart(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        )}
-        
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button
-            onClick={handleAdd}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Add Bill
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Edit Bill Dialog
-function EditBillDialog({ bill, categories, accounts, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = React.useState(bill.name);
-  const [category, setCategory] = React.useState(bill.category);
-  const [amount, setAmount] = React.useState(bill.amount);
-  const [frequency, setFrequency] = React.useState(bill.frequency || 'monthly');
-  const [dueDay, setDueDay] = React.useState(bill.dueDay || 1);
-  const [accountId, setAccountId] = React.useState(bill.accountId);
-  const [yearlyMonth, setYearlyMonth] = React.useState(bill.yearlyMonth || 0);
-  const [weeklyDay, setWeeklyDay] = React.useState(bill.weeklyDay || 0);
-  const [weeklySchedule, setWeeklySchedule] = React.useState(bill.weeklySchedule || 'every');
-  const [biweeklyStart, setBiweeklyStart] = React.useState(bill.biweeklyStart || new Date().toISOString().slice(0,10));
-  
-  const handleSave = () => {
-    if (!name.trim()) {
-      notify('Bill name cannot be empty', 'error');
-      return;
-    }
-    if (amount <= 0) {
-      notify('Amount must be greater than 0', 'error');
-      return;
-    }
-    
-    const updates = {
-      name: name.trim(),
-      category,
-      amount: Number(amount),
-      frequency,
-      dueDay: Number(dueDay),
-      accountId
-    };
-    
-    if (frequency === 'yearly') {
-      updates.yearlyMonth = yearlyMonth;
-    } else if (frequency === 'weekly') {
-      updates.weeklyDay = weeklyDay;
-      updates.weeklySchedule = weeklySchedule;
-    } else if (frequency === 'biweekly') {
-      updates.biweeklyStart = biweeklyStart;
-    }
-    
-    onSave(updates);
-    notify('Bill updated successfully', 'success');
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '500px',
-        maxHeight: '80vh',
-        overflowY: 'auto'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Edit Bill</h2>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <label>
-            Category
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-          
-          <label>
-            Amount
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onFocus={selectAllOnFocus}
-              onChange={(e) => setAmount(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <label>
-            Frequency
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              <option value="monthly">Monthly</option>
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Bi-weekly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </label>
-          
-          <label>
-            Account
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-        </div>
-        
-        {frequency === 'monthly' && (
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Due Day of Month
-            <input
-              type="number"
-              min="1"
-              max="28"
-              value={dueDay}
-              onChange={(e) => setDueDay(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        )}
-        
-        {frequency === 'yearly' && (
-          <>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Month
-              <select
-                value={yearlyMonth}
-                onChange={(e) => setYearlyMonth(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => 
-                  <option key={i} value={i}>{m}</option>
-                )}
-              </select>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Day
-              <input
-                type="number"
-                min="1"
-                max="28"
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </label>
-          </>
-        )}
-        
-        {frequency === 'weekly' && (
-          <>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Day of Week
-              <select
-                value={weeklyDay}
-                onChange={(e) => setWeeklyDay(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => 
-                  <option key={i} value={i}>{d}</option>
-                )}
-              </select>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Schedule
-              <select
-                value={weeklySchedule}
-                onChange={(e) => setWeeklySchedule(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                <option value="every">Every Week</option>
-                <option value="first">First Week of Month</option>
-                <option value="second">Second Week of Month</option>
-                <option value="third">Third Week of Month</option>
-                <option value="fourth">Fourth Week of Month</option>
-                <option value="last">Last Week of Month</option>
-              </select>
-            </label>
-          </>
-        )}
-        
-        {frequency === 'biweekly' && (
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Start Date
-            <input
-              type="date"
-              value={biweeklyStart}
-              onChange={(e) => setBiweeklyStart(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </label>
-        )}
-        
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Save Changes
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Edit One-Time Cost Dialog
-function EditOTCDialog({ otc, categories, accounts, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = React.useState(otc.name);
-  const [category, setCategory] = React.useState(otc.category);
-  const [amount, setAmount] = React.useState(otc.amount);
-  const [dueDate, setDueDate] = React.useState(otc.dueDate);
-  const [accountId, setAccountId] = React.useState(otc.accountId);
-  const [notes, setNotes] = React.useState(otc.notes || '');
-  
-  const handleSave = () => {
-    if (!name.trim()) {
-      notify('Name cannot be empty', 'error');
-      return;
-    }
-    if (amount <= 0) {
-      notify('Amount must be greater than 0', 'error');
-      return;
-    }
-    
-    onSave({
-      name: name.trim(),
-      category,
-      amount: Number(amount),
-      dueDate,
-      accountId,
-      notes
-    });
-    notify('One-time cost updated successfully', 'success');
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '400px'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Edit One-Time Cost</h2>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Category
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Amount
-          <input
-            type="number"
-            step="0.01"
-            value={amount}
-            onFocus={selectAllOnFocus}
-            onChange={(e) => setAmount(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Due Date
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Account
-          <select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '1rem' }}>
-          Notes
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Save Changes
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Edit Account Dialog
-function EditAccountDialog({ account, onClose, onSave, selectAllOnFocus }) {
-  const [name, setName] = React.useState(account.name);
-  const [type, setType] = React.useState(account.type);
-  const [balance, setBalance] = React.useState(account.balance);
-  
-  const handleSave = () => {
-    if (!name.trim()) {
-      notify('Account name cannot be empty', 'error');
-      return;
-    }
-    
-    onSave({
-      name: name.trim(),
-      type,
-      balance: Number(balance)
-    });
-    notify('Account updated successfully', 'success');
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '400px'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Edit Account</h2>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Type
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            <option value="Bank">Bank</option>
-            <option value="Cash">Cash</option>
-            <option value="Credit">Credit</option>
-            <option value="Investment">Investment</option>
-          </select>
-        </label>
-        
-        <label style={{ display: 'block', marginBottom: '1rem' }}>
-          Balance
-          <input
-            type="number"
-            step="0.01"
-            value={balance}
-            onFocus={selectAllOnFocus}
-            onChange={(e) => setBalance(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </label>
-        
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Save Changes
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Snapshots Dialog
-function SnapshotsDialog({ snapshots, onClose, fmt }) {
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        width: '90%',
-        maxWidth: '600px',
-        maxHeight: '80vh',
-        overflowY: 'auto'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Net Worth Snapshots</h2>
-        
-        {snapshots.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center' }}>No snapshots saved yet</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {snapshots.map((snap, idx) => (
-              <div key={idx} style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
-                <div style={{ fontWeight: '500' }}>{new Date(snap.ts).toLocaleString()}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Current</div>
-                    <div style={{ fontWeight: '500' }}>{fmt(snap.current)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>After Week</div>
-                    <div style={{ fontWeight: '500' }}>{fmt(snap.afterWeek)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>After Month</div>
-                    <div style={{ fontWeight: '500' }}>{fmt(snap.afterMonth)}</div>
-                  </div>
-                </div>
-                {snap.reason && (
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Reason: {snap.reason}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%',
-            padding: '0.5rem',
-            background: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            marginTop: '1rem'
-          }}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ===================== MAIN DASHBOARD COMPONENT =====================
 function DashboardContent() {
   const isMobile = useIsMobile();
@@ -1422,7 +374,7 @@ function DashboardContent() {
   }, [supabase]);
 
   // Categories with cloud sync
-  const [categoriesBase, setCategoriesBase, catSync] = useCloudState(
+  const [categoriesBase, setCategoriesBase] = useCloudState(
     `${storageKey}:categories`, 
     [
       { id: crypto.randomUUID(), name: 'Personal', order: 0 },
@@ -1435,7 +387,7 @@ function DashboardContent() {
   );
   
   // Cloud-synced base data
-  const [accountsBase, setAccountsBase, accSync] = useCloudState(
+  const [accountsBase, setAccountsBase] = useCloudState(
     `${storageKey}:accounts`,
     [
       { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
@@ -1446,9 +398,9 @@ function DashboardContent() {
     supabase
   );
   
-  const [billsBase, setBillsBase, billSync] = useCloudState(`${storageKey}:bills`, [], user, supabase);
-  const [oneTimeCostsBase, setOneTimeCostsBase, otcSync] = useCloudState(`${storageKey}:otc`, [], user, supabase);
-  const [nwHistory, setNwHistory, nwSync] = useCloudState(`${storageKey}:nwHistory`, [], user, supabase);
+  const [billsBase, setBillsBase] = useCloudState(`${storageKey}:bills`, [], user, supabase);
+  const [oneTimeCostsBase, setOneTimeCostsBase] = useCloudState(`${storageKey}:otc`, [], user, supabase);
+  const [nwHistory, setNwHistory] = useCloudState(`${storageKey}:nwHistory`, [], user, supabase);
 
   // Master state with undo/redo
   const [masterState, setMasterState, undoRedo] = useUndoRedo({
@@ -1482,15 +434,14 @@ function DashboardContent() {
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
   // Settings/UI with cloud sync
-  const [autoDeductCash, setAutoDeductCash, deductSync] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
-  const [showIgnored, setShowIgnored, ignoredSync] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
-  const [selectedCat, setSelectedCat, catSelSync] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
+  const [autoDeductCash, setAutoDeductCash] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
+  const [showIgnored, setShowIgnored] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
+  const [selectedCat, setSelectedCat] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
   
-  const [activeMonth, setActiveMonth] = React.useState(monthKey);
   const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
 
-  // Dialog states
+  // Dialog states - NO MORE MONTH PICKER
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showAddBill, setShowAddBill] = React.useState(false);
   const [showSnapshots, setShowSnapshots] = React.useState(false);
@@ -1507,15 +458,15 @@ function DashboardContent() {
   const [otcNotes, setOtcNotes] = React.useState("");
 
   // Check if any data is syncing
-  const isSyncing = catSync.syncing || accSync.syncing || billSync.syncing || otcSync.syncing || nwSync.syncing;
+  const isSyncing = categoriesBase[2]?.syncing || accountsBase[2]?.syncing || billsBase[2]?.syncing || oneTimeCostsBase[2]?.syncing || nwHistory[2]?.syncing;
   
   // Get last sync time
   const lastSyncTime = React.useMemo(() => {
-    const times = [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]
+    const times = [categoriesBase[2]?.lastSync, accountsBase[2]?.lastSync, billsBase[2]?.lastSync, oneTimeCostsBase[2]?.lastSync, nwHistory[2]?.lastSync]
       .filter(t => t !== null);
     if (times.length === 0) return null;
     return new Date(Math.max(...times.map(t => t.getTime())));
-  }, [catSync.lastSync, accSync.lastSync, billSync.lastSync, otcSync.lastSync, nwSync.lastSync]);
+  }, [categoriesBase, accountsBase, billsBase, oneTimeCostsBase, nwHistory]);
 
   // Keyboard shortcuts for undo/redo
   React.useEffect(() => {
@@ -1614,14 +565,14 @@ function DashboardContent() {
       const horizon = new Date(now); 
       horizon.setDate(now.getDate()+7);
       const items = [];
+      const currentMonth = yyyyMm();
 
       for(const b of bills){
         if(b.ignored) continue;
         if(!activeCats.includes(b.category)) continue;
-        if(b.skipMonths?.includes(activeMonth)) continue;
         
         const nextDate = getNextOccurrence(b, now);
-        const paid = b.paidMonths.includes(activeMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
+        const paid = b.paidMonths.includes(currentMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
         const overdue = nextDate < now && !paid;
         const withinWeek = nextDate <= horizon && !paid;
         
@@ -1669,28 +620,28 @@ function DashboardContent() {
       console.error('Error calculating upcoming:', error);
       return { items: [], byAccount: [], totalDeficit: 0, weekDueTotal: 0 };
     }
-  }, [accounts, bills, oneTimeCosts, activeCats, activeMonth]);
+  }, [accounts, bills, oneTimeCosts, activeCats]);
 
   const monthUnpaidTotal = React.useMemo(()=>{
     try {
+      const currentMonth = yyyyMm();
       let sum = 0;
       for(const b of bills){ 
         if(b.ignored) continue;
         if(!activeCats.includes(b.category)) continue; 
-        if(b.skipMonths?.includes(activeMonth)) continue; 
-        if(!b.paidMonths.includes(activeMonth)) sum += Number(b.amount) || 0; 
+        if(!b.paidMonths.includes(currentMonth)) sum += Number(b.amount) || 0; 
       }
       for(const o of oneTimeCosts){ 
         if(o.ignored) continue;
         if(!activeCats.includes(o.category)) continue; 
-        if(o.dueDate.slice(0,7)===activeMonth && !o.paid) sum += Number(o.amount) || 0; 
+        if(o.dueDate.slice(0,7)===currentMonth && !o.paid) sum += Number(o.amount) || 0; 
       }
       return sum;
     } catch (error) {
       console.error('Error calculating month unpaid total:', error);
       return 0;
     }
-  },[bills, oneTimeCosts, activeCats, activeMonth]);
+  },[bills, oneTimeCosts, activeCats]);
 
   const afterWeek = currentLiquid - upcoming.weekDueTotal;
   const afterMonth = currentLiquid - monthUnpaidTotal;
@@ -1699,17 +650,77 @@ function DashboardContent() {
   const weekNeedWithoutSavings = upcoming.weekDueTotal;
   const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquid);
 
-  const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
+  const selectedCats = selectedCat==='All' ? 
+    // When "All" is selected, show bills from ALL categories (even if category is missing/ignored)
+    [...activeCats, ...bills.map(b => b.category).filter(cat => !activeCats.includes(cat))] : 
+    activeCats.filter(c=> c===selectedCat);
+
+  // Analytics data calculations
+  const accountBalanceData = React.useMemo(() => {
+    return accounts
+      .filter(a => a.balance > 0)
+      .map(a => ({
+        name: a.name,
+        value: a.balance,
+        type: a.type
+      }));
+  }, [accounts]);
+
+  const categorySpendingData = React.useMemo(() => {
+    const categoryTotals = {};
+    
+    // Sum up bills by category
+    bills.forEach(bill => {
+      if (!bill.ignored && activeCats.includes(bill.category)) {
+        categoryTotals[bill.category] = (categoryTotals[bill.category] || 0) + bill.amount;
+      }
+    });
+    
+    // Sum up one-time costs by category
+    oneTimeCosts.forEach(otc => {
+      if (!otc.ignored && !otc.paid && activeCats.includes(otc.category)) {
+        categoryTotals[otc.category] = (categoryTotals[otc.category] || 0) + otc.amount;
+      }
+    });
+    
+    return Object.entries(categoryTotals)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [bills, oneTimeCosts, activeCats]);
+
+  // Net worth trend data
+  const netWorthTrend = React.useMemo(() => {
+    const trend = [...nwHistory];
+    // Add current point
+    trend.push({
+      ts: Date.now(),
+      current: currentLiquid,
+      afterWeek,
+      afterMonth,
+      reason: 'current'
+    });
+    
+    return trend
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-10) // Last 10 data points
+      .map(snap => ({
+        date: new Date(snap.ts).toLocaleDateString(),
+        current: snap.current,
+        afterWeek: snap.afterWeek,
+        afterMonth: snap.afterMonth
+      }));
+  }, [nwHistory, currentLiquid, afterWeek, afterMonth]);
 
   // Actions with error handling
   function togglePaid(b){
     try {
-      const isPaid = b.paidMonths.includes(activeMonth);
+      const currentMonth = yyyyMm();
+      const isPaid = b.paidMonths.includes(currentMonth);
       setMasterState(prev => ({
         ...prev,
         bills: prev.bills.map(x=> x.id===b.id ? { 
           ...x, 
-          paidMonths: isPaid? x.paidMonths.filter(m=>m!==activeMonth) : [...x.paidMonths, activeMonth] 
+          paidMonths: isPaid? x.paidMonths.filter(m=>m!==currentMonth) : [...x.paidMonths, currentMonth] 
         } : x)
       }));
       
@@ -1736,13 +747,14 @@ function DashboardContent() {
 
   function toggleSkipThisMonth(b){
     try {
+      const currentMonth = yyyyMm();
       setMasterState(prev => ({
         ...prev,
         bills: prev.bills.map(x=> x.id===b.id ? { 
           ...x, 
-          skipMonths: x.skipMonths?.includes(activeMonth) ? 
-            x.skipMonths.filter(m=>m!==activeMonth) : 
-            [ ...(x.skipMonths||[]), activeMonth ] 
+          skipMonths: x.skipMonths?.includes(currentMonth) ? 
+            x.skipMonths.filter(m=>m!==currentMonth) : 
+            [ ...(x.skipMonths||[]), currentMonth ] 
         } : x)
       }));
     } catch (error) {
@@ -2024,32 +1036,18 @@ function DashboardContent() {
     }
   }
 
-  // Styles
-  const mobileStyles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: isMobile ? '0.75rem' : '1.5rem' },
-    card: { background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: isMobile ? '0.5rem' : '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: isMobile ? '0.75rem' : '0' },
-    button: { padding: isMobile ? '0.375rem 0.75rem' : '0.5rem 1rem', fontSize: isMobile ? '0.875rem' : '1rem' },
-    input: { padding: isMobile ? '0.375rem' : '0.5rem', fontSize: isMobile ? '0.875rem' : '1rem' },
-    title: { fontSize: isMobile ? '1.25rem' : '2rem', fontWeight: '700' },
-    sectionTitle: { fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: '600' },
-    smallText: { fontSize: isMobile ? '0.75rem' : '0.875rem' },
-    grid: { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(400px, 1fr))', gap: isMobile ? '0.75rem' : '1.5rem' }
-  };
-
   const selectAllOnFocus = (e) => {
     e.target.select();
   };
 
   if (isMobile) {
     return (
-      <div style={mobileStyles.container}>
-        {/* Mobile Header */}
-        <div style={{ ...mobileStyles.card, textAlign: 'center', padding: '0.75rem' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '0.75rem' }}>
+        <div style={{ textAlign: 'center', background: 'white', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
             💰 Cashfl0.io 💰
           </h1>
           
-          {/* Cloud Status */}
           <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
             {user ? (
               <div>
@@ -2070,28 +1068,9 @@ function DashboardContent() {
               </button>
             )}
           </div>
-          
-          {/* Undo/Redo */}
-          <div style={{ marginTop: '0.5rem' }}>
-            <button
-              onClick={undoRedo.undo}
-              disabled={!undoRedo.canUndo}
-              style={{ padding: '0.25rem 0.5rem', marginRight: '0.25rem', background: undoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              ↶ Undo
-            </button>
-            <button
-              onClick={undoRedo.redo}
-              disabled={!undoRedo.canRedo}
-              style={{ padding: '0.25rem 0.5rem', background: undoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              ↷ Redo
-            </button>
-          </div>
         </div>
 
-        {/* Mobile Due This Week */}
-        <div style={mobileStyles.card}>
+        <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
           
           {upcoming.items
@@ -2143,180 +1122,56 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Mobile Money Needed */}
-        <div style={{ ...mobileStyles.card, background: 'linear-gradient(135deg, #4c1d95 0%, #2563eb 100%)', color: 'white' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>🎯 This Week</h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.5rem', borderRadius: '0.375rem' }}>
-              <div style={{ fontSize: '0.625rem', opacity: 0.9 }}>Total Due</div>
-              <div style={{ fontSize: '1.125rem', fontWeight: '700' }}>{fmt(weekNeedWithoutSavings)}</div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.5rem', borderRadius: '0.375rem' }}>
-              <div style={{ fontSize: '0.625rem', opacity: 0.9 }}>Need to Earn</div>
-              <div style={{ fontSize: '1.125rem', fontWeight: '700', color: weekNeedWithSavings === 0 ? '#10b981' : 'white' }}>
-                {fmt(weekNeedWithSavings)}
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', opacity: 0.9 }}>
-            Current Balance: {fmt(currentLiquid)}
-          </div>
-        </div>
-
-        {/* Mobile Net Worth */}
-        <div style={mobileStyles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: '600' }}>Net Worth</h2>
-            <div style={{ fontSize: '1.25rem', fontWeight: '600', color: netWorthValue < 0 ? '#dc2626' : '#059669' }}>
-              {fmt(netWorthValue)}
-            </div>
-          </div>
-          
-          <select 
-            value={netWorthMode} 
-            onChange={(e) => setNetWorthMode(e.target.value)}
-            style={{ width: '100%', padding: '0.375rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
-          >
-            <option value="current">Current</option>
-            <option value="afterWeek">After This Week</option>
-            <option value="afterMonth">After This Month</option>
-          </select>
-        </div>
-
-        {/* Mobile Category Tabs */}
-        <div style={{ ...mobileStyles.card, padding: '0.5rem' }}>
-          <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-            {['All', ...activeCats].map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCat(cat)}
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  borderRadius: '0.25rem',
-                  border: '1px solid #d1d5db',
-                  background: selectedCat === cat ? '#1f2937' : 'white',
-                  color: selectedCat === cat ? 'white' : '#374151',
-                  fontSize: '0.75rem',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile Accounts */}
-        <div style={mobileStyles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Accounts</h3>
-            <button 
-              onClick={() => setShowAddAccount(true)}
-              style={{ padding: '0.25rem 0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+        <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem', background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+          {['All', ...activeCats].map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCat(cat)}
+              style={{
+                padding: '0.375rem 0.75rem',
+                borderRadius: '0.25rem',
+                border: '1px solid #d1d5db',
+                background: selectedCat === cat ? '#1f2937' : 'white',
+                color: selectedCat === cat ? 'white' : '#374151',
+                fontSize: '0.75rem',
+                whiteSpace: 'nowrap'
+              }}
             >
-              + Add
+              {cat}
             </button>
-          </div>
-          
-          {accounts.map(account => (
-            <div key={account.id} style={{ background: '#f9fafb', padding: '0.5rem', borderRadius: '0.375rem', marginBottom: '0.375rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontSize: '0.625rem', padding: '0.125rem 0.375rem', background: account.type === 'Cash' ? '#f3f4f6' : '#dbeafe', borderRadius: '9999px', marginRight: '0.25rem' }}>
-                    {account.type}
-                  </span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{account.name}</span>
-                </div>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={account.balance}
-                  onFocus={selectAllOnFocus}
-                  onChange={(e) => setMasterState(prev => ({
-                    ...prev,
-                    accounts: prev.accounts.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a)
-                  }))}
-                  style={{ width: '80px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', textAlign: 'right' }}
-                />
-              </div>
-            </div>
           ))}
         </div>
 
-        {/* Mobile Bills */}
-        <div style={mobileStyles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>All Bills</h3>
-            <button 
-              onClick={() => setShowAddBill(true)}
-              style={{ padding: '0.25rem 0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              + Add
-            </button>
-          </div>
+        <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>All Bills - NO MONTH PICKER!</h3>
           
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
-            <input 
-              type="checkbox" 
-              checked={autoDeductCash} 
-              onChange={(e) => setAutoDeductCash(e.target.checked)} 
-            />
-            Auto-deduct Cash when paid
-          </label>
-
           {bills
             .filter(b => selectedCats.includes(b.category))
             .sort((a,b) => {
-              if (a.frequency === 'yearly' && b.frequency !== 'yearly') return 1;
-              if (a.frequency !== 'yearly' && b.frequency === 'yearly') return -1;
               const aDate = getNextOccurrence(a);
               const bDate = getNextOccurrence(b);
               return aDate - bDate;
             })
             .map(bill => {
               const account = accounts.find(a => a.id === bill.accountId);
-              const isPaid = bill.paidMonths.includes(activeMonth);
-              const isSkipped = bill.skipMonths?.includes(activeMonth);
+              const isPaid = bill.paidMonths.includes(yyyyMm());
               const nextDate = getNextOccurrence(bill);
               
               return (
                 <div key={bill.id} style={{ 
-                  background: bill.ignored ? '#f3f4f6' : '#f9fafb', 
+                  background: '#f9fafb', 
                   padding: '0.5rem', 
                   borderRadius: '0.375rem',
-                  border: `2px solid ${isPaid ? '#10b981' : isSkipped ? '#f59e0b' : '#e5e7eb'}`,
-                  marginBottom: '0.375rem',
-                  opacity: bill.ignored ? 0.6 : 1,
-                  position: 'relative'
+                  border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
+                  marginBottom: '0.375rem'
                 }}>
-                  {bill.ignored && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '0.25rem',
-                      right: '0.25rem',
-                      background: '#6b7280',
-                      color: 'white',
-                      fontSize: '0.5rem',
-                      padding: '0.125rem 0.25rem',
-                      borderRadius: '0.125rem'
-                    }}>
-                      IGNORED
-                    </div>
-                  )}
-                  
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
                   </div>
                   
                   <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                    {bill.frequency === 'monthly' ? `Due: ${bill.dueDay}` : 
-                     bill.frequency === 'yearly' ? `Yearly: ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][bill.yearlyMonth || 0]} ${bill.dueDay || 1}` :
-                     bill.frequency === 'weekly' ? `Weekly: ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][bill.weeklyDay || 0]}` :
-                     bill.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'} • {account?.name}
+                    {bill.frequency} • {account?.name} • Next: {nextDate.toLocaleDateString()}
                   </div>
                   
                   <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
@@ -2328,26 +1183,6 @@ function DashboardContent() {
                       />
                       {isPaid ? '✅ Paid' : 'Not paid'}
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={!!isSkipped} 
-                        onChange={() => toggleSkipThisMonth(bill)} 
-                      />
-                      Skip
-                    </label>
-                    <button
-                      onClick={() => setEditingBill(bill)}
-                      style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => toggleBillIgnored(bill)}
-                      style={{ padding: '0.125rem 0.25rem', background: bill.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                    >
-                      {bill.ignored ? 'Unignore' : 'Ignore'}
-                    </button>
                     <button
                       onClick={() => deleteBill(bill.id)}
                       style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
@@ -2358,428 +1193,233 @@ function DashboardContent() {
                 </div>
               );
             })}
+            <button 
+              onClick={() => setShowAddBill(true)}
+              style={{ width: '100%', padding: '0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
+            >
+              + Add Bill
+            </button>
         </div>
 
-        {/* Mobile One-Time Costs */}
-        <div style={mobileStyles.card}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>One-Time Costs</h3>
+        <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Analytics - Pie Charts</h3>
           
-          {/* Add form */}
-          <div style={{ background: '#f9fafb', padding: '0.5rem', borderRadius: '0.375rem', marginBottom: '0.75rem' }}>
-            <input 
-              type="text"
-              placeholder="Name"
-              value={otcName} 
-              onChange={(e) => setOtcName(e.target.value)}
-              style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.25rem' }}
-            />
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-              <select 
-                value={otcCategory} 
-                onChange={(e) => setOtcCategory(e.target.value)}
-                style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-              >
-                {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              
-              <input 
-                type="number" 
-                step="0.01"
-                placeholder="Amount"
-                value={otcAmount}
-                onFocus={selectAllOnFocus}
-                onChange={(e) => setOtcAmount(Number(e.target.value))}
-                style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+          <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Account Balances</h4>
+            {accountBalanceData.length > 0 ? (
+              <>
+                <div style={{ width: '200px', height: '200px', margin: '0 auto' }}>
+                  <svg width="200" height="200" viewBox="0 0 200 200">
+                    {(() => {
+                      const total = accountBalanceData.reduce((sum, item) => sum + item.value, 0);
+                      let currentAngle = 0;
+                      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                      
+                      return accountBalanceData.map((item, index) => {
+                        const percentage = item.value / total;
+                        const angle = percentage * 360;
+                        const startAngle = currentAngle;
+                        const endAngle = currentAngle + angle;
+                        currentAngle = endAngle;
+                        
+                        const startRadians = (startAngle - 90) * Math.PI / 180;
+                        const endRadians = (endAngle - 90) * Math.PI / 180;
+                        
+                        const largeArcFlag = angle > 180 ? 1 : 0;
+                        const x1 = 100 + 80 * Math.cos(startRadians);
+                        const y1 = 100 + 80 * Math.sin(startRadians);
+                        const x2 = 100 + 80 * Math.cos(endRadians);
+                        const y2 = 100 + 80 * Math.sin(endRadians);
+                        
+                        const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                        
+                        return (
+                          <path
+                            key={index}
+                            d={pathData}
+                            fill={colors[index % colors.length]}
+                            stroke="white"
+                            strokeWidth="2"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
+                </div>
+                <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                  {accountBalanceData.map((item, index) => {
+                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                    return (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                        <div style={{ width: '8px', height: '8px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                        <span>{item.name}: {fmt(item.value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>No account data</div>
+            )}
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Category Spending</h4>
+            {categorySpendingData.length > 0 ? (
+              <>
+                <div style={{ width: '200px', height: '200px', margin: '0 auto' }}>
+                  <svg width="200" height="200" viewBox="0 0 200 200">
+                    {(() => {
+                      const total = categorySpendingData.reduce((sum, item) => sum + item.value, 0);
+                      let currentAngle = 0;
+                      const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                      
+                      return categorySpendingData.map((item, index) => {
+                        const percentage = item.value / total;
+                        const angle = percentage * 360;
+                        const startAngle = currentAngle;
+                        const endAngle = currentAngle + angle;
+                        currentAngle = endAngle;
+                        
+                        const startRadians = (startAngle - 90) * Math.PI / 180;
+                        const endRadians = (endAngle - 90) * Math.PI / 180;
+                        
+                        const largeArcFlag = angle > 180 ? 1 : 0;
+                        const x1 = 100 + 80 * Math.cos(startRadians);
+                        const y1 = 100 + 80 * Math.sin(startRadians);
+                        const x2 = 100 + 80 * Math.cos(endRadians);
+                        const y2 = 100 + 80 * Math.sin(endRadians);
+                        
+                        const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                        
+                        return (
+                          <path
+                            key={index}
+                            d={pathData}
+                            fill={colors[index % colors.length]}
+                            stroke="white"
+                            strokeWidth="2"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
+                </div>
+                <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                  {categorySpendingData.map((item, index) => {
+                    const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                    return (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                        <div style={{ width: '8px', height: '8px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                        <span>{item.name}: {fmt(item.value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>No spending data</div>
+            )}
+          </div>
+        </div>
+
+        {showAuth && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <h2 style={{ marginBottom: '1rem' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-              <input 
-                type="date"
-                value={otcDueDate} 
-                onChange={(e) => setOtcDueDate(e.target.value)}
-                style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
-              
-              <select 
-                value={otcAccountId} 
-                onChange={(e) => setOtcAccountId(e.target.value)}
-                style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-              >
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={handleAuth} disabled={authLoading} style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  {authLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
+                </button>
+                <button onClick={() => setShowAuth(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Cancel
+                </button>
+              </div>
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button onClick={() => setIsSignUp(!isSignUp)} style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline' }}>
+                  {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
             </div>
-            
-            <button 
-              onClick={addOneTimeCost}
-              style={{ width: '100%', padding: '0.375rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              Add One-Time Cost
-            </button>
           </div>
+        )}
 
-          {/* List */}
-          {oneTimeCosts
-            .filter(o => selectedCats.includes(o.category))
-            .sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate))
-            .map(otc => (
-              <div key={otc.id} style={{ 
-                background: otc.ignored ? '#f3f4f6' : '#f9fafb', 
-                padding: '0.5rem', 
-                borderRadius: '0.375rem',
-                marginBottom: '0.375rem',
-                opacity: otc.ignored ? 0.6 : 1,
-                position: 'relative'
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <h2 style={{ marginBottom: '1rem' }}>Add Bill</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newBill = {
+                  id: crypto.randomUUID(),
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId'),
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                };
+                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
+                setShowAddBill(false);
+                notify('Bill added successfully!');
               }}>
-                {otc.ignored && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '0.25rem',
-                    right: '0.25rem',
-                    background: '#6b7280',
-                    color: 'white',
-                    fontSize: '0.5rem',
-                    padding: '0.125rem 0.25rem',
-                    borderRadius: '0.125rem'
-                  }}>
-                    IGNORED
-                  </div>
-                )}
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{otc.name}</span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
+                <input name="name" placeholder="Bill name" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="frequency" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <input name="dueDay" type="number" min="1" max="28" placeholder="Due day" defaultValue="1" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="accountId" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
                 </div>
-                <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                  Due {otc.dueDate} • {otc.category}
-                </div>
-                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={!!otc.paid} 
-                      onChange={() => toggleOneTimePaid(otc)} 
-                    />
-                    {otc.paid ? 'Paid' : 'Unpaid'}
-                  </label>
-                  <button 
-                    onClick={() => setEditingOTC(otc)}
-                    style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => toggleOTCIgnored(otc)}
-                    style={{ padding: '0.125rem 0.25rem', background: otc.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                  >
-                    {otc.ignored ? 'Unignore' : 'Ignore'}
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
-
-        {/* Mobile Categories */}
-        <div style={mobileStyles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Categories</h3>
-            <button 
-              onClick={() => setShowIgnored(v => !v)}
-              style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              {showIgnored ? 'Hide' : 'Show'} ignored
-            </button>
+              </form>
+            </div>
           </div>
-          
-          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
-            <input 
-              id="newCat"
-              placeholder="New category" 
-              style={{ flex: 1, padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            />
-            <button 
-              onClick={() => {
-                const el = document.getElementById('newCat');
-                if(el?.value){ addCategory(el.value); el.value = ''; }
-              }}
-              style={{ padding: '0.375rem 0.75rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-            >
-              Add
-            </button>
-          </div>
-          
-          {categories
-            .filter(c => showIgnored || !c.ignored)
-            .sort((a,b) => (a.order || 0) - (b.order || 0))
-            .map(cat => (
-              <div key={cat.id} style={{ 
-                background: '#f9fafb', 
-                padding: '0.5rem', 
-                borderRadius: '0.375rem', 
-                marginBottom: '0.375rem',
-                opacity: cat.ignored ? 0.5 : 1
-              }}>
-                {editingCategoryId === cat.id ? (
-                  <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    <input
-                      type="text"
-                      defaultValue={cat.name}
-                      onFocus={selectAllOnFocus}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          renameCategory(cat.id, e.target.value);
-                          setEditingCategoryId(null);
-                        } else if (e.key === 'Escape') {
-                          setEditingCategoryId(null);
-                        }
-                      }}
-                      style={{ flex: 1, padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                    />
-                    <button
-                      onClick={(e) => {
-                        const input = e.target.previousSibling;
-                        renameCategory(cat.id, input.value);
-                        setEditingCategoryId(null);
-                      }}
-                      style={{ padding: '0.25rem 0.5rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.625rem' }}
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{cat.name}</span>
-                      <span style={{ 
-                        padding: '0.125rem 0.375rem', 
-                        background: cat.ignored ? 'white' : '#059669', 
-                        color: cat.ignored ? '#6b7280' : 'white',
-                        border: cat.ignored ? '1px solid #d1d5db' : 'none',
-                        borderRadius: '9999px', 
-                        fontSize: '0.625rem' 
-                      }}>
-                        {cat.ignored ? 'Ignored' : 'Active'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => moveCategoryUp(cat.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        onClick={() => moveCategoryDown(cat.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() => setEditingCategoryId(cat.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Rename
-                      </button>
-                      <button 
-                        onClick={() => toggleIgnoreCategory(cat.name)}
-                        style={{ padding: '0.125rem 0.25rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        {cat.ignored ? 'Unignore' : 'Ignore'}
-                      </button>
-                      <button 
-                        onClick={() => removeCategory(cat.name)}
-                        style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-        </div>
-
-        {/* Dialogs */}
-        {showAuth && <AuthDialog email={email} setEmail={setEmail} password={password} setPassword={setPassword} isSignUp={isSignUp} setIsSignUp={setIsSignUp} authLoading={authLoading} onClose={() => setShowAuth(false)} onAuth={handleAuth} supabase={supabase} />}
-        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setMasterState(prev => ({...prev, accounts: [...prev.accounts, acc]})); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setMasterState(prev => ({...prev, bills: [...prev.bills, bill]})); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showAddIncome && <AddIncomeDialog onClose={() => setShowAddIncome(false)} onAdd={addIncome} selectAllOnFocus={selectAllOnFocus} />}
-        {showBudgetSettings && <BudgetSettingsDialog categories={activeCats} budgetLimits={budgetLimits} onClose={() => setShowBudgetSettings(false)} onUpdateBudget={updateBudgetLimit} selectAllOnFocus={selectAllOnFocus} />}
-        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setMasterState(prev => ({...prev, bills: prev.bills.map(b => b.id === editingBill.id ? {...b, ...updates} : b)})); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setMasterState(prev => ({...prev, oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)})); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setMasterState(prev => ({...prev, accounts: prev.accounts.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)})); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
+        )}
       </div>
     );
   }
 
-  // Desktop Version
+  // Desktop Version - NO MONTH PICKER ANYWHERE
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         
-        {/* Header with Cloud Status */}
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#1f2937', marginBottom: '0.5rem' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
             💰 Cashfl0.io 💰
           </h1>
-          <p style={{ color: '#4b5563' }}>Complete financial management system</p>
-          
-          {/* Cloud Status Bar */}
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center' }}>
-            {user ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'white', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                  {isSyncing ? (
-                    <>
-                      <span>🔄</span>
-                      <span style={{ fontSize: '0.875rem' }}>Syncing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>☁️</span>
-                      <span style={{ fontSize: '0.875rem' }}>Synced to cloud</span>
-                      {lastSyncTime && (
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          ({new Date(lastSyncTime).toLocaleTimeString()})
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{user.email}</span>
-                  <button
-                    onClick={handleLogout}
-                    style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
-                  >
-                    Logout
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#fef3c7', borderRadius: '0.5rem' }}>
-                  <span>💾</span>
-                  <span style={{ fontSize: '0.875rem', color: '#92400e' }}>Local storage only</span>
-                </div>
-                <button
-                  onClick={() => setShowAuth(true)}
-                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-                >
-                  Login for Cloud Sync
-                </button>
-              </>
-            )}
-            
-            {/* Undo/Redo Buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                onClick={undoRedo.undo}
-                disabled={!undoRedo.canUndo}
-                title="Ctrl+Z"
-                style={{ padding: '0.5rem 1rem', background: undoRedo.canUndo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed' }}
-              >
-                ↶ Undo
-              </button>
-              <button
-                onClick={undoRedo.redo}
-                disabled={!undoRedo.canRedo}
-                title="Ctrl+Alt+Z"
-                style={{ padding: '0.5rem 1rem', background: undoRedo.canRedo ? '#2563eb' : '#d1d5db', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed' }}
-              >
-                ↷ Redo
-              </button>
-            </div>
-          </div>
+          <p style={{ color: '#4b5563' }}>Complete financial management system - NO MONTH PICKER!</p>
         </div>
 
-        {/* Money Needed This Week Card */}
-        <div style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #2563eb 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)', color: 'white' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🎯</span>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Money Needed This Week</h2>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>💵</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Total Due (without using savings)</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
-                {fmt(weekNeedWithoutSavings)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                Full amount due this week
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>📈</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Need to Earn (after using savings)</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: weekNeedWithSavings === 0 ? '#10b981' : 'white' }}>
-                {fmt(weekNeedWithSavings)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                {weekNeedWithSavings === 0 ? 'Fully covered by current balances!' : `After using ${fmt(currentLiquid)} in accounts`}
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>🏦</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Current Total Balance</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
-                {fmt(currentLiquid)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                Across all accounts
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Net Worth Card */}
         <div style={{ background: 'white', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>💰</span>
-              <h2 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Net Worth</h2>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <select 
-                value={netWorthMode} 
-                onChange={(e) => setNetWorthMode(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
-              >
-                <option value="current">Current</option>
-                <option value="afterWeek">After This Week</option>
-                <option value="afterMonth">After This Month</option>
-              </select>
-              <div style={{ fontSize: '1.5rem', fontWeight: '600', color: netWorthValue < 0 ? '#dc2626' : '#059669' }}>
-                {fmt(netWorthValue)}
-              </div>
-              <button 
-                onClick={() => setNwHistory(prev=>[...prev,{ ts:Date.now(), current:currentLiquid, afterWeek: afterWeek, afterMonth: afterMonth, reason:'manual' }])}
-                style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                Save snapshot
-              </button>
-              <button 
-                onClick={() => setShowSnapshots(true)}
-                style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                📊 Snapshots
-              </button>
-            </div>
-          </div>
-
-          {/* Category Tabs */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {['All', ...activeCats].map(cat => (
               <button
@@ -2800,240 +1440,200 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Accounts and Due Items */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Analytics with Pie Charts</h3>
           
-          {/* Accounts */}
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Accounts</h3>
-              <button 
-                onClick={() => setShowAddAccount(true)}
-                style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                ➕ Add Account
-              </button>
-            </div>
-            
-            {accounts.map(account => (
-              <div key={account.id} style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span style={{ padding: '0.125rem 0.5rem', background: account.type === 'Cash' ? '#f3f4f6' : '#dbeafe', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                      {account.type}
-                    </span>
-                    <span style={{ fontWeight: '500' }}>{account.name}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+            <div>
+              <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem', textAlign: 'center' }}>Where Your Money Is</h4>
+              {accountBalanceData.length > 0 ? (
+                <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '300px', height: '300px' }}>
+                    <svg width="300" height="300" viewBox="0 0 300 300">
+                      {(() => {
+                        const total = accountBalanceData.reduce((sum, item) => sum + item.value, 0);
+                        let currentAngle = 0;
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+                        
+                        return accountBalanceData.map((item, index) => {
+                          const percentage = item.value / total;
+                          const angle = percentage * 360;
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+                          
+                          const startRadians = (startAngle - 90) * Math.PI / 180;
+                          const endRadians = (endAngle - 90) * Math.PI / 180;
+                          
+                          const largeArcFlag = angle > 180 ? 1 : 0;
+                          const x1 = 150 + 100 * Math.cos(startRadians);
+                          const y1 = 150 + 100 * Math.sin(startRadians);
+                          const x2 = 150 + 100 * Math.cos(endRadians);
+                          const y2 = 150 + 100 * Math.sin(endRadians);
+                          
+                          const pathData = `M 150 150 L ${x1} ${y1} A 100 100 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                          
+                          return (
+                            <g key={index}>
+                              <path
+                                d={pathData}
+                                fill={colors[index % colors.length]}
+                                stroke="white"
+                                strokeWidth="2"
+                              />
+                              <text
+                                x={150 + 70 * Math.cos((startAngle + endAngle - 180) / 2 * Math.PI / 180)}
+                                y={150 + 70 * Math.sin((startAngle + endAngle - 180) / 2 * Math.PI / 180)}
+                                textAnchor="middle"
+                                fill="white"
+                                fontSize="12"
+                                fontWeight="bold"
+                              >
+                                {percentage > 0.1 ? `${(percentage * 100).toFixed(0)}%` : ''}
+                              </text>
+                            </g>
+                          );
+                        });
+                      })()}
+                    </svg>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={account.balance}
-                    onFocus={selectAllOnFocus}
-                    onChange={(e) => setMasterState(prev => ({
-                      ...prev,
-                      accounts: prev.accounts.map(a => a.id === account.id ? {...a, balance: Number(e.target.value)} : a)
-                    }))}
-                    style={{ width: '100px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }}
-                  />
-                  <button onClick={() => setEditingAccount(account)} style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>
-                    ✏️
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if(confirm(`Delete account "${account.name}"?`)){
-                        setMasterState(prev => ({
-                          ...prev,
-                          accounts: prev.accounts.filter(a => a.id !== account.id)
-                        }));
-                      }
-                    }}
-                    style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}
-                  >
-                    🗑️
-                  </button>
+              ) : (
+                <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+                  No account balances to display
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Due & Overdue */}
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Due & Overdue (next 7 days)</h3>
-              <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
-                Total: {fmt(upcoming.items
-                  .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
-                  .reduce((sum, it) => sum + (it.bill ? it.bill.amount : it.otc.amount), 0)
-                )}
+              )}
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                {accountBalanceData.map((item, index) => {
+                  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+                  return (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '12px', height: '12px', backgroundColor: colors[index % colors.length], borderRadius: '2px' }}></div>
+                      <span style={{ fontSize: '0.875rem' }}>{item.name}: {fmt(item.value)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {(() => {
-              const filteredItems = upcoming.items.filter(it => 
-                selectedCats.includes(it.bill ? it.bill.category : it.otc.category)
-              );
-              
-              if(filteredItems.length === 0) {
-                return <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>Nothing due or overdue this week.</div>;
-              }
-              
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {filteredItems.map((it, idx) => {
-                    const name = it.bill ? it.bill.name : it.otc.name;
-                    const amt = it.bill ? it.bill.amount : it.otc.amount;
-                    const category = it.bill ? it.bill.category : it.otc.category;
-                    const overdue = it.overdue;
-                    
-                    return (
-                      <div key={idx} style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        padding: '0.75rem', 
-                        borderRadius: '0.5rem', 
-                        border: `1px solid ${overdue ? '#fca5a5' : '#d1d5db'}`,
-                        background: overdue ? '#fef2f2' : 'white'
-                      }}>
-                        <div>
-                          <div style={{ fontWeight: '500' }}>{name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                            {it.due.toLocaleDateString()} • {fmt(amt)} • {category}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
-                          style={{
-                            padding: '0.5rem 1rem',
-                            background: '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.375rem',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          Mark Paid
-                        </button>
-                      </div>
-                    );
-                  })}
+            <div>
+              <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem', textAlign: 'center' }}>Spending by Category</h4>
+              {categorySpendingData.length > 0 ? (
+                <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '300px', height: '300px' }}>
+                    <svg width="300" height="300" viewBox="0 0 300 300">
+                      {(() => {
+                        const total = categorySpendingData.reduce((sum, item) => sum + item.value, 0);
+                        let currentAngle = 0;
+                        const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#06b6d4'];
+                        
+                        return categorySpendingData.map((item, index) => {
+                          const percentage = item.value / total;
+                          const angle = percentage * 360;
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+                          
+                          const startRadians = (startAngle - 90) * Math.PI / 180;
+                          const endRadians = (endAngle - 90) * Math.PI / 180;
+                          
+                          const largeArcFlag = angle > 180 ? 1 : 0;
+                          const x1 = 150 + 100 * Math.cos(startRadians);
+                          const y1 = 150 + 100 * Math.sin(startRadians);
+                          const x2 = 150 + 100 * Math.cos(endRadians);
+                          const y2 = 150 + 100 * Math.Sin(endRadians);
+                          
+                          const pathData = `M 150 150 L ${x1} ${y1} A 100 100 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                          
+                          return (
+                            <g key={index}>
+                              <path
+                                d={pathData}
+                                fill={colors[index % colors.length]}
+                                stroke="white"
+                                strokeWidth="2"
+                              />
+                              <text
+                                x={150 + 70 * Math.cos((startAngle + endAngle - 180) / 2 * Math.PI / 180)}
+                                y={150 + 70 * Math.sin((startAngle + endAngle - 180) / 2 * Math.PI / 180)}
+                                textAnchor="middle"
+                                fill="white"
+                                fontSize="12"
+                                fontWeight="bold"
+                              >
+                                {percentage > 0.1 ? `${(percentage * 100).toFixed(0)}%` : ''}
+                              </text>
+                            </g>
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
                 </div>
-              );
-            })()}
+              ) : (
+                <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+                  No spending data to display
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                {categorySpendingData.map((item, index) => {
+                  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#06b6d4'];
+                  return (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '12px', height: '12px', backgroundColor: colors[index % colors.length], borderRadius: '2px' }}></div>
+                      <span style={{ fontSize: '0.875rem' }}>{item.name}: {fmt(item.value)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Bills Management */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-              Bills ({(() => {
-                const [year, month] = activeMonth.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-              })()})
-            </h3>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={autoDeductCash} 
-                  onChange={(e) => setAutoDeductCash(e.target.checked)} 
-                />
-                Auto-deduct Cash when marking paid
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.875rem' }}>Month</label>
-                <input 
-                  type="month" 
-                  value={activeMonth} 
-                  onChange={(e) => setActiveMonth(e.target.value)}
-                  style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-                />
-              </div>
-              <button 
-                onClick={() => setShowAddBill(true)}
-                style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                ➕ Add Bill
-              </button>
-            </div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills (NO MONTH PICKER!)</h3>
+            <button 
+              onClick={() => setShowAddBill(true)}
+              style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+            >
+              ➕ Add Bill
+            </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             {bills
               .filter(b => selectedCats.includes(b.category))
               .sort((a,b) => {
-                if (a.frequency === 'yearly' && b.frequency !== 'yearly') return 1;
-                if (a.frequency !== 'yearly' && b.frequency === 'yearly') return -1;
                 const aDate = getNextOccurrence(a);
                 const bDate = getNextOccurrence(b);
                 return aDate - bDate;
               })
               .map(bill => {
                 const account = accounts.find(a => a.id === bill.accountId);
-                const isPaid = bill.paidMonths.includes(activeMonth);
-                const isSkipped = bill.skipMonths?.includes(activeMonth);
+                const isPaid = bill.paidMonths.includes(yyyyMm());
                 const nextDate = getNextOccurrence(bill);
                 
                 return (
                   <div key={bill.id} style={{ 
-                    background: bill.ignored ? '#f3f4f6' : '#f9fafb', 
+                    background: '#f9fafb', 
                     padding: '1rem', 
                     borderRadius: '0.5rem',
-                    border: `2px solid ${isPaid ? '#10b981' : isSkipped ? '#f59e0b' : '#e5e7eb'}`,
-                    opacity: bill.ignored ? 0.6 : 1,
-                    position: 'relative'
+                    border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`
                   }}>
-                    {bill.ignored && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '0.5rem',
-                        right: '0.5rem',
-                        background: '#6b7280',
-                        color: 'white',
-                        fontSize: '0.625rem',
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.25rem'
-                      }}>
-                        IGNORED
-                      </div>
-                    )}
-                    
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                       <div>
                         <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {bill.frequency === 'monthly' ? `Due: ${bill.dueDay}` : 
-                           bill.frequency === 'yearly' ? `Yearly: ${['January','February','March','April','May','June','July','August','September','October','November','December'][bill.yearlyMonth || 0]} ${bill.dueDay || 1}` :
-                           bill.frequency === 'weekly' ? (
-                             bill.weeklySchedule === 'every' ? 
-                             `Every ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][bill.weeklyDay || 0]}` :
-                             `${bill.weeklySchedule} ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][bill.weeklyDay || 0]} of month`
-                           ) :
-                           bill.frequency === 'biweekly' ? `Bi-weekly from ${new Date(bill.biweeklyStart || Date.now()).toLocaleDateString()}` :
-                           'Monthly'} • {fmt(bill.amount)} • {account?.name}
+                          {bill.frequency} • {fmt(bill.amount)} • {account?.name}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
                           Next: {nextDate.toLocaleDateString()}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => setEditingBill(bill)}
-                          style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => toggleBillIgnored(bill)}
-                          style={{ padding: '0.25rem 0.5rem', background: bill.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                        >
-                          {bill.ignored ? '👁️' : '👁️'}
-                        </button>
                         <button
                           onClick={() => deleteBill(bill.id)}
                           style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
@@ -3044,26 +1644,16 @@ function DashboardContent() {
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={isPaid} 
-                            onChange={() => togglePaid(bill)} 
-                          />
-                          <span style={{ fontSize: '0.875rem' }}>
-                            {isPaid ? '✅ Paid' : '❌ Not paid'}
-                          </span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={!!isSkipped} 
-                            onChange={() => toggleSkipThisMonth(bill)} 
-                          />
-                          <span style={{ fontSize: '0.875rem' }}>Skip this month</span>
-                        </label>
-                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isPaid} 
+                          onChange={() => togglePaid(bill)} 
+                        />
+                        <span style={{ fontSize: '0.875rem' }}>
+                          {isPaid ? '✅ Paid this month' : '❌ Not paid this month'}
+                        </span>
+                      </label>
                     </div>
                   </div>
                 );
@@ -3074,297 +1664,97 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* One-Time Costs */}
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Add One-Time Cost</h3>
-          </div>
-          
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'end', marginBottom: '1.5rem' }}>
-            <div style={{ minWidth: '150px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Name</label>
-              <input 
-                type="text"
-                value={otcName} 
-                onChange={(e) => setOtcName(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+        {showAuth && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <h2 style={{ marginBottom: '1rem' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
-            </div>
-            
-            <div style={{ minWidth: '140px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Category</label>
-              <select 
-                value={otcCategory} 
-                onChange={(e) => setOtcCategory(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {activeCats.sort().map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            
-            <div style={{ minWidth: '100px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Amount</label>
-              <input 
-                type="number" 
-                step="0.01"
-                value={otcAmount}
-                onFocus={selectAllOnFocus}
-                onChange={(e) => setOtcAmount(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
-            </div>
-            
-            <div style={{ minWidth: '140px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Due Date</label>
-              <input 
-                type="date"
-                value={otcDueDate} 
-                onChange={(e) => setOtcDueDate(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </div>
-            
-            <div style={{ minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Account</label>
-              <select 
-                value={otcAccountId} 
-                onChange={(e) => setOtcAccountId(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-            
-            <div style={{ minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>Notes</label>
-              <input 
-                type="text"
-                value={otcNotes} 
-                onChange={(e) => setOtcNotes(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              />
-            </div>
-            
-            <button 
-              onClick={addOneTimeCost}
-              style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-            >
-              Add
-            </button>
-          </div>
-
-          {/* One-Time Costs List */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-            {selectedCats.map(cat => (
-              <div key={cat} style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>{cat}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {oneTimeCosts
-                    .filter(o => o.category === cat)
-                    .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                    .map(otc => (
-                      <div key={otc.id} style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        padding: '0.5rem', 
-                        borderRadius: '0.375rem', 
-                        border: '1px solid #d1d5db',
-                        background: otc.ignored ? '#f3f4f6' : 'white',
-                        opacity: otc.ignored ? 0.6 : 1,
-                        position: 'relative'
-                      }}>
-                        {otc.ignored && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '0.25rem',
-                            right: '0.25rem',
-                            background: '#6b7280',
-                            color: 'white',
-                            fontSize: '0.5rem',
-                            padding: '0.125rem 0.25rem',
-                            borderRadius: '0.125rem'
-                          }}>
-                            IGNORED
-                          </div>
-                        )}
-                        
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{otc.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                            Due {otc.dueDate} • {fmt(otc.amount)}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={!!otc.paid} 
-                              onChange={() => toggleOneTimePaid(otc)} 
-                            />
-                            <span style={{ fontSize: '0.875rem' }}>
-                              {otc.paid ? 'Paid' : 'Unpaid'}
-                            </span>
-                          </label>
-                          <button 
-                            onClick={() => setEditingOTC(otc)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => toggleOTCIgnored(otc)}
-                            style={{ padding: '0.25rem 0.5rem', background: otc.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            {otc.ignored ? 'Unignore' : 'Ignore'}
-                          </button>
-                          <button 
-                            onClick={() => deleteOneTimeCost(otc.id)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  {oneTimeCosts.filter(o => o.category === cat).length === 0 && (
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>No one-time costs.</div>
-                  )}
-                </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={handleAuth} disabled={authLoading} style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  {authLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
+                </button>
+                <button onClick={() => setShowAuth(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Cancel
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Categories Management */}
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Categories</h3>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <input 
-                id="newCat"
-                placeholder="New category" 
-                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', width: '200px' }}
-              />
-              <button 
-                onClick={() => {
-                  const el = document.getElementById('newCat');
-                  if(el?.value){ addCategory(el.value); el.value = ''; }
-                }}
-                style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                ➕ Add
-              </button>
-              <button 
-                onClick={() => setShowIgnored(v => !v)}
-                style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                👁️ {showIgnored ? 'Hide ignored' : 'Show ignored'}
-              </button>
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button onClick={() => setIsSignUp(!isSignUp)} style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline' }}>
+                  {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
             </div>
           </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-            {categories
-              .filter(c => showIgnored || !c.ignored)
-              .sort((a,b) => (a.order || 0) - (b.order || 0))
-              .map(cat => (
-                <div key={cat.id} style={{ 
-                  background: '#f9fafb', 
-                  padding: '1rem', 
-                  borderRadius: '0.5rem', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  opacity: cat.ignored ? 0.5 : 1
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                    <span style={{ 
-                      padding: '0.125rem 0.5rem', 
-                      background: cat.ignored ? 'white' : '#059669', 
-                      color: cat.ignored ? '#6b7280' : 'white',
-                      border: cat.ignored ? '1px solid #d1d5db' : 'none',
-                      borderRadius: '9999px', 
-                      fontSize: '0.75rem' 
-                    }}>
-                      {cat.ignored ? 'Ignored' : 'Active'}
-                    </span>
-                    {editingCategoryId === cat.id ? (
-                      <input
-                        type="text"
-                        defaultValue={cat.name}
-                        onFocus={selectAllOnFocus}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            renameCategory(cat.id, e.target.value);
-                            setEditingCategoryId(null);
-                          } else if (e.key === 'Escape') {
-                            setEditingCategoryId(null);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          renameCategory(cat.id, e.target.value);
-                          setEditingCategoryId(null);
-                        }}
-                        style={{ padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' }}
-                      />
-                    ) : (
-                      <span onClick={() => setEditingCategoryId(cat.id)} style={{ cursor: 'pointer' }}>
-                        {cat.name}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                      onClick={() => moveCategoryUp(cat.id)}
-                      style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                    >
-                      ↑
-                    </button>
-                    <button 
-                      onClick={() => moveCategoryDown(cat.id)}
-                      style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                    >
-                      ↓
-                    </button>
-                    <button 
-                      onClick={() => setEditingCategoryId(cat.id)}
-                      style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                    >
-                      Rename
-                    </button>
-                    <button 
-                      onClick={() => toggleIgnoreCategory(cat.name)}
-                      style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                    >
-                      {cat.ignored ? 'Unignore' : 'Ignore'}
-                    </button>
-                    <button 
-                      onClick={() => removeCategory(cat.name)}
-                      style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
+        )}
 
-        {/* Dialogs */}
-        {showAuth && <AuthDialog email={email} setEmail={setEmail} password={password} setPassword={setPassword} isSignUp={isSignUp} setIsSignUp={setIsSignUp} authLoading={authLoading} onClose={() => setShowAuth(false)} onAuth={handleAuth} supabase={supabase} />}
-        {showAddAccount && <AddAccountDialog onClose={() => setShowAddAccount(false)} onAdd={(acc) => { setMasterState(prev => ({...prev, accounts: [...prev.accounts, acc]})); setShowAddAccount(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showAddBill && <AddBillDialog categories={activeCats} accounts={accounts} onClose={() => setShowAddBill(false)} onAdd={(bill) => { setMasterState(prev => ({...prev, bills: [...prev.bills, bill]})); setShowAddBill(false); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingBill && <EditBillDialog bill={editingBill} categories={activeCats} accounts={accounts} onClose={() => setEditingBill(null)} onSave={(updates) => { setMasterState(prev => ({...prev, bills: prev.bills.map(b => b.id === editingBill.id ? {...b, ...updates} : b)})); setEditingBill(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setMasterState(prev => ({...prev, oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)})); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setMasterState(prev => ({...prev, accounts: prev.accounts.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)})); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
-        {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '500px' }}>
+              <h2 style={{ marginBottom: '1rem' }}>Add Bill</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newBill = {
+                  id: crypto.randomUUID(),
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId'),
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                };
+                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
+                setShowAddBill(false);
+                notify(`Bill "${newBill.name}" added successfully to ${newBill.category}!`, 'success');
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <input name="name" placeholder="Bill name" required style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <select name="category" required style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                    {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select name="frequency" style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Due day" defaultValue="1" style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  <select name="accountId" style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ===================== MAIN EXPORT WITH ERROR BOUNDARY =====================
 export default function Dashboard() {
   return (
     <ErrorBoundary>
