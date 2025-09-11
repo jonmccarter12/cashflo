@@ -2256,4 +2256,184 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
           </div>
           
           <div>
-            <label
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
+            <input 
+              type="number" 
+              step="0.01"
+              value={amount} 
+              onFocus={selectAllOnFocus}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Frequency</label>
+            <select 
+              value={frequency} 
+              onChange={(e) => setFrequency(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Bi-weekly</option>
+            </select>
+          </div>
+        </div>
+        
+        {(frequency === 'monthly' || frequency === 'yearly') && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Day of Month</label>
+            <input 
+              type="number" 
+              min="1" 
+              max="28"
+              value={dueDay} 
+              onFocus={selectAllOnFocus}
+              onChange={(e) => setDueDay(Math.max(1, Math.min(28, Number(e.target.value))))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+        )}
+
+        {frequency === 'yearly' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Month</label>
+            <select 
+              value={yearlyMonth} 
+              onChange={(e) => setYearlyMonth(Number(e.target.value))}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            >
+              <option value={0}>January</option>
+              <option value={1}>February</option>
+              <option value={2}>March</option>
+              <option value={3}>April</option>
+              <option value={4}>May</option>
+              <option value={5}>June</option>
+              <option value={6}>July</option>
+              <option value={7}>August</option>
+              <option value={8}>September</option>
+              <option value={9}>October</option>
+              <option value={10}>November</option>
+              <option value={11}>December</option>
+            </select>
+          </div>
+        )}
+        
+        {frequency === 'weekly' && (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Schedule</label>
+              <select 
+                value={weeklySchedule} 
+                onChange={(e) => setWeeklySchedule(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
+                <option value="every">Every week</option>
+                <option value="first">First week of month</option>
+                <option value="second">Second week of month</option>
+                <option value="third">Third week of month</option>
+                <option value="fourth">Fourth week of month</option>
+                <option value="last">Last week of month</option>
+              </select>
+            </div>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Day of Week</label>
+              <select 
+                value={weeklyDay} 
+                onChange={(e) => setWeeklyDay(Number(e.target.value))}
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
+                <option value={0}>Sunday</option>
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+              </select>
+            </div>
+          </>
+        )}
+        
+        {frequency === 'biweekly' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Start Date</label>
+            <input 
+              type="date" 
+              value={biweeklyStart} 
+              onChange={(e) => setBiweeklyStart(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+            />
+          </div>
+        )}
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
+          <select 
+            value={accountId} 
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          >
+            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+          </select>
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
+          <input 
+            type="text" 
+            value={notes} 
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              if (name && amount && category && accountId) {
+                onAdd({ 
+                  id: crypto.randomUUID(), 
+                  name, 
+                  category, 
+                  amount, 
+                  frequency, 
+                  dueDay, 
+                  yearlyMonth,
+                  weeklyDay, 
+                  weeklySchedule, 
+                  biweeklyStart, 
+                  accountId, 
+                  notes,
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                });
+              }
+            }}
+            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            Add Bill
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
