@@ -187,7 +187,7 @@ function getNextOccurrence(bill, fromDate = new Date()) {
   }
   
   if (bill.frequency === 'yearly') {
-    const dueMonth = bill.yearlyMonth || 0; // 0-11 (Jan-Dec)
+    const dueMonth = bill.yearlyMonth || 0;
     const dueDay = clampDue(bill.dueDay || 1);
     
     date.setMonth(dueMonth);
@@ -207,14 +207,12 @@ function getNextOccurrence(bill, fromDate = new Date()) {
     if (bill.weeklySchedule === 'every') {
       return date;
     } else {
-      // Handle "first", "second", "third", "fourth", "last"
       const targetWeek = bill.weeklySchedule;
       const month = date.getMonth();
       date.setDate(1);
       date.setDate(date.getDate() + ((dayOfWeek - date.getDay() + 7) % 7));
       
       if (targetWeek === 'last') {
-        // Find last occurrence in month
         while (date.getMonth() === month) {
           const next = new Date(date);
           next.setDate(next.getDate() + 7);
@@ -244,7 +242,6 @@ function getNextOccurrence(bill, fromDate = new Date()) {
     return nextDate;
   }
   
-  // Default to monthly
   return getNextOccurrence({ ...bill, frequency: 'monthly' }, fromDate);
 }
 
@@ -272,7 +269,6 @@ export default function Dashboard(){
   React.useEffect(() => {
     if (!supabase) return;
     
-    // Check for existing session on page load
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -282,7 +278,6 @@ export default function Dashboard(){
     
     checkSession();
     
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
@@ -362,7 +357,6 @@ export default function Dashboard(){
   const [selectedCat, setSelectedCat, catSelSync] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
   
   const [activeMonth, setActiveMonth] = React.useState(monthKey);
-  const [billTypeFilter, setBillTypeFilter] = React.useState('all');
   const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
 
@@ -424,7 +418,7 @@ export default function Dashboard(){
           password 
         });
         if (error) throw error;
-        notify('Account created! You can now login.', 'success');
+        notify('Account created! Check your email for verification.', 'success');
         setIsSignUp(false);
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ 
@@ -469,7 +463,7 @@ export default function Dashboard(){
     const items = [];
 
     for(const b of bills){
-      if(b.ignored) continue; // Excluded from calculations
+      if(b.ignored) continue;
       if(!activeCats.includes(b.category)) continue;
       if(b.skipMonths?.includes(activeMonth)) continue;
       
@@ -484,7 +478,7 @@ export default function Dashboard(){
     }
     
     for(const o of oneTimeCosts){
-      if(o.ignored) continue; // Excluded from calculations
+      if(o.ignored) continue;
       if(!activeCats.includes(o.category)) continue;
       if(o.paid) continue;
       const due = new Date(o.dueDate);
@@ -523,13 +517,13 @@ export default function Dashboard(){
   const monthUnpaidTotal = React.useMemo(()=>{
     let sum = 0;
     for(const b of bills){ 
-      if(b.ignored) continue; // Excluded from calculations
+      if(b.ignored) continue;
       if(!activeCats.includes(b.category)) continue; 
       if(b.skipMonths?.includes(activeMonth)) continue; 
       if(!b.paidMonths.includes(activeMonth)) sum += b.amount; 
     }
     for(const o of oneTimeCosts){ 
-      if(o.ignored) continue; // Excluded from calculations
+      if(o.ignored) continue;
       if(!activeCats.includes(o.category)) continue; 
       if(o.dueDate.slice(0,7)===activeMonth && !o.paid) sum += o.amount; 
     }
@@ -545,7 +539,7 @@ export default function Dashboard(){
 
   const selectedCats = selectedCat==='All' ? activeCats : activeCats.filter(c=> c===selectedCat);
 
-  // Actions - Updated to use master state
+  // Actions
   function togglePaid(b){
     const isPaid = b.paidMonths.includes(activeMonth);
     setMasterState(prev => ({
@@ -705,7 +699,6 @@ export default function Dashboard(){
   function moveCategoryUp(id) {
     setMasterState(prev => {
       const cats = [...prev.categories];
-      // Ensure all categories have order values
       cats.forEach((c, i) => {
         if (c.order === undefined) c.order = i;
       });
@@ -713,7 +706,6 @@ export default function Dashboard(){
       
       const index = cats.findIndex(c => c.id === id);
       if (index > 0) {
-        // Swap order values
         const temp = cats[index].order;
         cats[index].order = cats[index - 1].order;
         cats[index - 1].order = temp;
@@ -725,7 +717,6 @@ export default function Dashboard(){
   function moveCategoryDown(id) {
     setMasterState(prev => {
       const cats = [...prev.categories];
-      // Ensure all categories have order values
       cats.forEach((c, i) => {
         if (c.order === undefined) c.order = i;
       });
@@ -733,7 +724,6 @@ export default function Dashboard(){
       
       const index = cats.findIndex(c => c.id === id);
       if (index < cats.length - 1) {
-        // Swap order values
         const temp = cats[index].order;
         cats[index].order = cats[index + 1].order;
         cats[index + 1].order = temp;
@@ -824,7 +814,7 @@ export default function Dashboard(){
           </div>
         </div>
 
-        {/* Mobile Due This Week - MOVED TO TOP */}
+        {/* Mobile Due This Week */}
         <div style={mobileStyles.card}>
           <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
           
@@ -1005,18 +995,6 @@ export default function Dashboard(){
             style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}
           />
           
-          <select
-            value={billTypeFilter}
-            onChange={(e) => setBillTypeFilter(e.target.value)}
-            style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}
-          >
-            <option value="all">All Bills</option>
-            <option value="monthly">Monthly Only</option>
-            <option value="yearly">Yearly Only</option>
-            <option value="weekly">Weekly Only</option>
-            <option value="biweekly">Bi-weekly Only</option>
-          </select>
-          
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
             <input 
               type="checkbox" 
@@ -1027,23 +1005,10 @@ export default function Dashboard(){
           </label>
 
           {bills
-            .filter(b => {
-              // Category filter
-              if (!selectedCats.includes(b.category)) return false;
-              
-              // Bill type filter
-              if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
-              
-              // For yearly bills, only show in the specific month they're due
-              if (b.frequency === 'yearly') {
-                const [year, month] = activeMonth.split('-');
-                const billMonth = (b.yearlyMonth || 0) + 1; // yearlyMonth is 0-11, we need 1-12
-                if (parseInt(month) !== billMonth) return false;
-              }
-              
-              return true;
-            })
+            .filter(b => selectedCats.includes(b.category))
             .sort((a,b) => {
+              if (a.frequency === 'yearly' && b.frequency !== 'yearly') return 1;
+              if (a.frequency !== 'yearly' && b.frequency === 'yearly') return -1;
               const aDate = getNextOccurrence(a);
               const bDate = getNextOccurrence(b);
               return aDate - bDate;
@@ -1187,7 +1152,7 @@ export default function Dashboard(){
 
           {/* List */}
           {oneTimeCosts
-            .filter(o => selectedCats.includes(o.category)) // Show all, including ignored
+            .filter(o => selectedCats.includes(o.category))
             .sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate))
             .map(otc => (
               <div key={otc.id} style={{ 
@@ -1378,7 +1343,7 @@ export default function Dashboard(){
     );
   }
 
-  // Desktop Version
+  // Desktop Version - Continued in part 2...// Desktop Version
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1709,17 +1674,6 @@ export default function Dashboard(){
                 />
                 Auto-deduct Cash when marking paid
               </label>
-              <select
-                value={billTypeFilter}
-                onChange={(e) => setBillTypeFilter(e.target.value)}
-                style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                <option value="all">All Bills</option>
-                <option value="monthly">Monthly Only</option>
-                <option value="yearly">Yearly Only</option>
-                <option value="weekly">Weekly Only</option>
-                <option value="biweekly">Bi-weekly Only</option>
-              </select>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ fontSize: '0.875rem' }}>Month</label>
                 <input 
@@ -1740,23 +1694,10 @@ export default function Dashboard(){
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             {bills
-              .filter(b => {
-                // Category filter
-                if (!selectedCats.includes(b.category)) return false;
-                
-                // Bill type filter
-                if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
-                
-                // For yearly bills, only show in the specific month they're due
-                if (b.frequency === 'yearly') {
-                  const [year, month] = activeMonth.split('-');
-                  const billMonth = (b.yearlyMonth || 0) + 1; // yearlyMonth is 0-11, we need 1-12
-                  if (parseInt(month) !== billMonth) return false;
-                }
-                
-                return true;
-              })
+              .filter(b => selectedCats.includes(b.category))
               .sort((a,b) => {
+                if (a.frequency === 'yearly' && b.frequency !== 'yearly') return 1;
+                if (a.frequency !== 'yearly' && b.frequency === 'yearly') return -1;
                 const aDate = getNextOccurrence(a);
                 const bDate = getNextOccurrence(b);
                 return aDate - bDate;
@@ -1856,16 +1797,7 @@ export default function Dashboard(){
                   </div>
                 );
               })}
-            {bills.filter(b => {
-              if (!selectedCats.includes(b.category)) return false;
-              if (billTypeFilter !== 'all' && b.frequency !== billTypeFilter) return false;
-              if (b.frequency === 'yearly') {
-                const [year, month] = activeMonth.split('-');
-                const billMonth = (b.yearlyMonth || 0) + 1;
-                if (parseInt(month) !== billMonth) return false;
-              }
-              return true;
-            }).length === 0 && (
+            {bills.filter(b => selectedCats.includes(b.category)).length === 0 && (
               <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>No bills in this category yet. Use "Add Bill" to create one.</div>
             )}
           </div>
@@ -1957,7 +1889,7 @@ export default function Dashboard(){
                 <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>{cat}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {oneTimeCosts
-                    .filter(o => o.category === cat) // Show all, including ignored
+                    .filter(o => o.category === cat)
                     .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
                     .map(otc => (
                       <div key={otc.id} style={{ 
@@ -2161,279 +2093,4 @@ export default function Dashboard(){
   );
 }
 
-// Dialog Components
-function AddAccountDialog({ onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = React.useState('');
-  const [type, setType] = React.useState('Cash');
-  const [balance, setBalance] = React.useState(0);
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '400px', maxWidth: '90vw' }}>
-        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Add Account</h3>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
-          <input 
-            type="text" 
-            value={name} 
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Type</label>
-          <select 
-            value={type} 
-            onChange={(e) => setType(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
-          </select>
-        </div>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Balance</label>
-          <input 
-            type="number" 
-            step="0.01"
-            value={balance} 
-            onFocus={selectAllOnFocus}
-            onChange={(e) => setBalance(Number(e.target.value))}
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button 
-            onClick={() => {
-              if (name) {
-                onAdd({ id: crypto.randomUUID(), name, type, balance });
-              }
-            }}
-            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-          >
-            Add Account
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus }) {
-  const [name, setName] = React.useState('');
-  const [category, setCategory] = React.useState(categories[0] || '');
-  const [amount, setAmount] = React.useState(0);
-  const [frequency, setFrequency] = React.useState('monthly');
-  const [dueDay, setDueDay] = React.useState(1);
-  const [yearlyMonth, setYearlyMonth] = React.useState(0);
-  const [weeklyDay, setWeeklyDay] = React.useState(0);
-  const [weeklySchedule, setWeeklySchedule] = React.useState('every');
-  const [biweeklyStart, setBiweeklyStart] = React.useState(new Date().toISOString().slice(0,10));
-  const [accountId, setAccountId] = React.useState(accounts[0]?.id || '');
-  const [notes, setNotes] = React.useState('');
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflowY: 'auto' }}>
-      <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '500px', maxWidth: '90vw', margin: '2rem auto' }}>
-        <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Add Bill</h3>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Name</label>
-            <input 
-              type="text" 
-              value={name} 
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Category</label>
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Amount</label>
-            <input 
-              type="number" 
-              step="0.01"
-              value={amount} 
-              onFocus={selectAllOnFocus}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Frequency</label>
-            <select 
-              value={frequency} 
-              onChange={(e) => setFrequency(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Bi-weekly</option>
-            </select>
-          </div>
-        </div>
-        
-        {(frequency === 'monthly' || frequency === 'yearly') && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Due Day of Month</label>
-            <input 
-              type="number" 
-              min="1" 
-              max="28"
-              value={dueDay} 
-              onFocus={selectAllOnFocus}
-              onChange={(e) => setDueDay(Math.max(1, Math.min(28, Number(e.target.value))))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-        )}
-
-        {frequency === 'yearly' && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Month</label>
-            <select 
-              value={yearlyMonth} 
-              onChange={(e) => setYearlyMonth(Number(e.target.value))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            >
-              <option value={0}>January</option>
-              <option value={1}>February</option>
-              <option value={2}>March</option>
-              <option value={3}>April</option>
-              <option value={4}>May</option>
-              <option value={5}>June</option>
-              <option value={6}>July</option>
-              <option value={7}>August</option>
-              <option value={8}>September</option>
-              <option value={9}>October</option>
-              <option value={10}>November</option>
-              <option value={11}>December</option>
-            </select>
-          </div>
-        )}
-        
-        {frequency === 'weekly' && (
-          <>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Schedule</label>
-              <select 
-                value={weeklySchedule} 
-                onChange={(e) => setWeeklySchedule(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                <option value="every">Every week</option>
-                <option value="first">First week of month</option>
-                <option value="second">Second week of month</option>
-                <option value="third">Third week of month</option>
-                <option value="fourth">Fourth week of month</option>
-                <option value="last">Last week of month</option>
-              </select>
-            </div>
-            
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Day of Week</label>
-              <select 
-                value={weeklyDay} 
-                onChange={(e) => setWeeklyDay(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-              >
-                <option value={0}>Sunday</option>
-                <option value={1}>Monday</option>
-                <option value={2}>Tuesday</option>
-                <option value={3}>Wednesday</option>
-                <option value={4}>Thursday</option>
-                <option value={5}>Friday</option>
-                <option value={6}>Saturday</option>
-              </select>
-            </div>
-          </>
-        )}
-        
-        {frequency === 'biweekly' && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Start Date</label>
-            <input 
-              type="date" 
-              value={biweeklyStart} 
-              onChange={(e) => setBiweeklyStart(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-            />
-          </div>
-        )}
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Account</label>
-          <select 
-            value={accountId} 
-            onChange={(e) => setAccountId(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          >
-            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-          </select>
-        </div>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Notes</label>
-          <input 
-            type="text" 
-            value={notes} 
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
-          />
-        </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button 
-            onClick={() => {
-              if (name && amount && category && accountId) {
-                onAdd({ 
-                  id: crypto.randomUUID(), 
-                  name, 
-                  category, 
-                  amount, 
-                  frequency, 
-                  dueDay, 
-                  yearlyMonth,
-                  weeklyDay, 
-                  weeklySchedule, 
-                  biweeklyStart, 
-                  accountId, 
-                  notes,
-                  paidMonths: [],
-                  skipMonths: [],
-                  ignored: false
-                });
-              }
-            }}
-            style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-          >
-            Add Bill
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Then add all dialog components from the artifact above
