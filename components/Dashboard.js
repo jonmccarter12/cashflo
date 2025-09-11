@@ -2680,6 +2680,19 @@ function DashboardContent() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
             <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span>💵</span>
+                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Total Due (without using savings)</span>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+                {fmt(weekNeedWithoutSavings)}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                Full amount due this week
+              </div>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <span>📈</span>
                 <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Need to Earn (after using savings)</span>
               </div>
@@ -3321,73 +3334,6 @@ function DashboardContent() {
         {editingOTC && <EditOTCDialog otc={editingOTC} categories={activeCats} accounts={accounts} onClose={() => setEditingOTC(null)} onSave={(updates) => { setMasterState(prev => ({...prev, oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? {...o, ...updates} : o)})); setEditingOTC(null); }} selectAllOnFocus={selectAllOnFocus} />}
         {editingAccount && <EditAccountDialog account={editingAccount} onClose={() => setEditingAccount(null)} onSave={(updates) => { setMasterState(prev => ({...prev, accounts: prev.accounts.map(a => a.id === editingAccount.id ? {...a, ...updates} : a)})); setEditingAccount(null); }} selectAllOnFocus={selectAllOnFocus} />}
         {showSnapshots && <SnapshotsDialog snapshots={nwHistory} onClose={() => setShowSnapshots(false)} fmt={fmt} />}
-      </div>
-    </div>
-  );
-}
-
-// ===================== MAIN EXPORT WITH ERROR BOUNDARY =====================
-export default function Dashboard() {
-  return (
-    <ErrorBoundary>
-      <DashboardContent />
-    </ErrorBoundary>
-  );
-}', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>💵</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Total Due (without using savings)</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
-                {fmt(weekNeedWithoutSavings)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                Full amount due this week
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>💵</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Total Due (without using savings)</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
-                {fmt(weekNeedWithoutSavings)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                Full amount due this week
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>📈</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Need to Earn (after using savings)</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: weekNeedWithSavings === 0 ? '#10b981' : 'white' }}>
-                {fmt(weekNeedWithSavings)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                {weekNeedWithSavings === 0 ? 'Fully covered by current balances!' : `After using ${fmt(currentLiquid)} in accounts`}
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', backdropFilter: 'blur(10px)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span>🏦</span>
-                <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Current Total Balance</span>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>
-                {fmt(currentLiquid)}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-                Across all accounts
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Rest of desktop version continues exactly as shown in the original artifact */}
       </div>
     </div>
   );
