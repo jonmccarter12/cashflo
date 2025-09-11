@@ -1927,19 +1927,34 @@ function DashboardContent() {
     try {
       setMasterState(prev => {
         const cats = [...prev.categories];
+        
+        // Ensure all categories have order values
         cats.forEach((c, i) => {
           if (c.order === undefined) c.order = i;
         });
+        
+        // Sort by current order
         cats.sort((a, b) => a.order - b.order);
         
+        // Find the category to move
         const index = cats.findIndex(c => c.id === id);
-        if (index > 0) {
-          const temp = cats[index].order;
-          cats[index].order = cats[index - 1].order;
-          cats[index - 1].order = temp;
-        }
+        
+        // Can't move the first item up
+        if (index <= 0) return prev;
+        
+        // Swap positions in the array
+        const temp = cats[index];
+        cats[index] = cats[index - 1];
+        cats[index - 1] = temp;
+        
+        // Reassign sequential order values
+        cats.forEach((c, i) => {
+          c.order = i;
+        });
+        
         return { ...prev, categories: cats };
       });
+      notify('Category moved up', 'success');
     } catch (error) {
       console.error('Error moving category up:', error);
       notify('Failed to reorder category', 'error');
@@ -1950,19 +1965,34 @@ function DashboardContent() {
     try {
       setMasterState(prev => {
         const cats = [...prev.categories];
+        
+        // Ensure all categories have order values
         cats.forEach((c, i) => {
           if (c.order === undefined) c.order = i;
         });
+        
+        // Sort by current order
         cats.sort((a, b) => a.order - b.order);
         
+        // Find the category to move
         const index = cats.findIndex(c => c.id === id);
-        if (index < cats.length - 1) {
-          const temp = cats[index].order;
-          cats[index].order = cats[index + 1].order;
-          cats[index + 1].order = temp;
-        }
+        
+        // Can't move the last item down
+        if (index < 0 || index >= cats.length - 1) return prev;
+        
+        // Swap positions in the array
+        const temp = cats[index];
+        cats[index] = cats[index + 1];
+        cats[index + 1] = temp;
+        
+        // Reassign sequential order values
+        cats.forEach((c, i) => {
+          c.order = i;
+        });
+        
         return { ...prev, categories: cats };
       });
+      notify('Category moved down', 'success');
     } catch (error) {
       console.error('Error moving category down:', error);
       notify('Failed to reorder category', 'error');
