@@ -1,4 +1,17 @@
-import React from 'react';
+function receiveCredit(creditId, finalAccountId = null) {
+    try {
+      const credit = upcomingCredits.find(c => c.id === creditId);
+      if (!credit) return;
+      
+      const targetAccountId = finalAccountId || credit.accountId;
+      
+      // Add money to account and mark credit as received
+      setMasterState(prev => ({
+        ...prev,
+        accounts: prev.accounts.map(a => 
+          a.id === targetAccountId ? 
+            { ...a, balance: a.balance + credit.amount }        {/* Net Worth Overview */}
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgbaimport React from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // ===================== SUPABASE CONFIG WITH VALIDATION =====================
@@ -2158,9 +2171,9 @@ function DashboardContent() {
               <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e40af', marginBottom: '0.25rem' }}>Current Balance</div>
               <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e40af' }}>{fmt(currentLiquid)}</div>
             </div>
-            <div style={{ textAlign: 'center', padding: '1rem', background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', borderRadius: '0.5rem' }}>
-              <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#15803d', marginBottom: '0.25rem' }}>With Guaranteed Credits</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#15803d' }}>{fmt(currentLiquidWithGuaranteed)}</div>
+            <div style={{ textAlign: 'center', padding: '1rem', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', borderRadius: '0.5rem' }}>
+              <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#92400e', marginBottom: '0.25rem' }}>Money Needed This Week</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: weekNeedWithSavings > 0 ? '#dc2626' : '#15803d' }}>{fmt(weekNeedWithSavings)}</div>
             </div>
             <div style={{ textAlign: 'center', padding: '1rem', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', borderRadius: '0.5rem' }}>
               <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#92400e', marginBottom: '0.25rem' }}>After This Week</div>
