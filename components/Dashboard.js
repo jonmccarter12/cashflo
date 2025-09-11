@@ -565,7 +565,7 @@ function AddBillDialog({ categories, accounts, onClose, onAdd, selectAllOnFocus 
     }
     
     onAdd(newBill);
-    notify('Bill added successfully', 'success');
+    notify(`Bill "${name.trim()}" added successfully to ${category}`, 'success');
   };
   
   return (
@@ -2249,13 +2249,7 @@ function DashboardContent() {
         {/* Mobile Bills */}
         <div style={mobileStyles.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>
-              Bills ({(() => {
-                const [year, month] = activeMonth.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-              })()})
-            </h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>All Bills</h3>
             <button 
               onClick={() => setShowAddBill(true)}
               style={{ padding: '0.25rem 0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
@@ -2263,13 +2257,6 @@ function DashboardContent() {
               + Add
             </button>
           </div>
-
-          <input 
-            type="month" 
-            value={activeMonth} 
-            onChange={(e) => setActiveMonth(e.target.value)}
-            style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}
-          />
           
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
             <input 
@@ -2360,6 +2347,12 @@ function DashboardContent() {
                       style={{ padding: '0.125rem 0.25rem', background: bill.ignored ? '#10b981' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                     >
                       {bill.ignored ? 'Unignore' : 'Ignore'}
+                    </button>
+                    <button
+                      onClick={() => deleteBill(bill.id)}
+                      style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
