@@ -31,7 +31,7 @@ function getSupabaseClient() {
 }
 
 // ===================== HELPERS =====================
-const storageKey = "bills_balance_dashboard_v5";
+const storageKey = "bills_balance_dashboard_v3";
 const yyyyMm = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 const monthKey = yyyyMm();
 const clampDue = (d) => Math.max(1, Math.min(28, Math.round(d||1)));
@@ -111,6 +111,42 @@ function useIsMobile() {
   }, []);
   
   return isMobile;
+}
+
+// Custom hook for undo/redo
+function useUndoRedo(initialState) {
+  const [state, setState] = React.useState(initialState);
+  const [history, setHistory] = React.useState([initialState]);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  
+  const pushState = React.useCallback((newState) => {
+    const updatedHistory = history.slice(0, currentIndex + 1);
+    updatedHistory.push(newState);
+    setHistory(updatedHistory);
+    setCurrentIndex(updatedHistory.length - 1);
+    setState(newState);
+  }, [history, currentIndex]);
+  
+  const undo = React.useCallback(() => {
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      setState(history[newIndex]);
+    }
+  }, [currentIndex, history]);
+  
+  const redo = React.useCallback(() => {
+    if (currentIndex < history.length - 1) {
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      setState(history[newIndex]);
+    }
+  }, [currentIndex, history]);
+  
+  const canUndo = currentIndex > 0;
+  const canRedo = currentIndex < history.length - 1;
+  
+  return [state, pushState, { undo, redo, canUndo, canRedo }];
 }
 
 // FIXED: Custom hook for cloud-synced persistent state with enhanced error handling
@@ -217,22 +253,22 @@ function useCloudState(key, initial, user, supabase){
   return [state, setState, { syncing, lastSync, syncError }];
 }
 
-// Calculate next occurrence for a bill or recurring income
-function getNextOccurrence(item, fromDate = new Date()) {
+// Calculate next occurrence for a bill
+function getNextOccurrence(bill, fromDate = new Date()) {
   try {
     const date = new Date(fromDate);
     
-    if (item.frequency === 'monthly') {
-      date.setDate(clampDue(item.dueDay || item.payDay));
+    if (bill.frequency === 'monthly') {
+      date.setDate(clampDue(bill.dueDay));
       if (date <= fromDate) {
         date.setMonth(date.getMonth() + 1);
       }
       return date;
     }
     
-    if (item.frequency === 'yearly') {
-      const dueMonth = item.yearlyMonth || 0;
-      const dueDay = clampDue(item.dueDay || item.payDay || 1);
+    if (bill.frequency === 'yearly') {
+      const dueMonth = bill.yearlyMonth || 0;
+      const dueDay = clampDue(bill.dueDay || 1);
       
       date.setMonth(dueMonth);
       date.setDate(dueDay);
@@ -243,15 +279,15 @@ function getNextOccurrence(item, fromDate = new Date()) {
       return date;
     }
     
-    if (item.frequency === 'weekly') {
-      const dayOfWeek = item.weeklyDay || 0;
+    if (bill.frequency === 'weekly') {
+      const dayOfWeek = bill.weeklyDay || 0;
       const daysUntil = (dayOfWeek - date.getDay() + 7) % 7 || 7;
       date.setDate(date.getDate() + daysUntil);
       
-      if (item.weeklySchedule === 'every') {
+      if (bill.weeklySchedule === 'every') {
         return date;
       } else {
-        const targetWeek = item.weeklySchedule;
+        const targetWeek = bill.weeklySchedule;
         const month = date.getMonth();
         date.setDate(1);
         date.setDate(date.getDate() + ((dayOfWeek - date.getDay() + 7) % 7));
@@ -270,14 +306,14 @@ function getNextOccurrence(item, fromDate = new Date()) {
         
         if (date <= fromDate) {
           date.setMonth(date.getMonth() + 1);
-          return getNextOccurrence(item, date);
+          return getNextOccurrence(bill, date);
         }
         return date;
       }
     }
     
-    if (item.frequency === 'biweekly') {
-      const baseDate = new Date(item.biweeklyStart || Date.now());
+    if (bill.frequency === 'biweekly') {
+      const baseDate = new Date(bill.biweeklyStart || Date.now());
       const daysDiff = Math.floor((fromDate - baseDate) / (1000 * 60 * 60 * 24));
       const cyclesSince = Math.floor(daysDiff / 14);
       const nextCycle = cyclesSince + (daysDiff % 14 > 0 ? 1 : 0);
@@ -286,9 +322,59 @@ function getNextOccurrence(item, fromDate = new Date()) {
       return nextDate;
     }
     
-    return getNextOccurrence({ ...item, frequency: 'monthly' }, fromDate);
+    return getNextOccurrence({ ...bill, frequency: 'monthly' }, fromDate);
   } catch (error) {
     console.error('Error calculating next occurrence:', error);
+    return new Date();
+  }
+}
+
+// Calculate next occurrence for recurring income
+function getNextIncomeOccurrence(income, fromDate = new Date()) {
+  try {
+    const date = new Date(fromDate);
+    
+    if (income.frequency === 'monthly') {
+      date.setDate(clampDue(income.payDay));
+      if (date <= fromDate) {
+        date.setMonth(date.getMonth() + 1);
+      }
+      return date;
+    }
+    
+    if (income.frequency === 'weekly') {
+      const dayOfWeek = income.weeklyDay || 5; // Default to Friday
+      const daysUntil = (dayOfWeek - date.getDay() + 7) % 7 || 7;
+      date.setDate(date.getDate() + daysUntil);
+      return date;
+    }
+    
+    if (income.frequency === 'biweekly') {
+      const baseDate = new Date(income.biweeklyStart || Date.now());
+      const daysDiff = Math.floor((fromDate - baseDate) / (1000 * 60 * 60 * 24));
+      const cyclesSince = Math.floor(daysDiff / 14);
+      const nextCycle = cyclesSince + (daysDiff % 14 > 0 ? 1 : 0);
+      const nextDate = new Date(baseDate);
+      nextDate.setDate(nextDate.getDate() + (nextCycle * 14));
+      return nextDate;
+    }
+    
+    if (income.frequency === 'yearly') {
+      const payMonth = income.yearlyMonth || 0;
+      const payDay = clampDue(income.payDay || 1);
+      
+      date.setMonth(payMonth);
+      date.setDate(payDay);
+      
+      if (date <= fromDate) {
+        date.setFullYear(date.getFullYear() + 1);
+      }
+      return date;
+    }
+    
+    return getNextIncomeOccurrence({ ...income, frequency: 'monthly' }, fromDate);
+  } catch (error) {
+    console.error('Error calculating next income occurrence:', error);
     return new Date();
   }
 }
@@ -304,6 +390,9 @@ function DashboardContent() {
   const [authLoading, setAuthLoading] = React.useState(false);
   const [showAuth, setShowAuth] = React.useState(false);
   const [isSignUp, setIsSignUp] = React.useState(false);
+  
+  // Navigation state
+  const [currentView, setCurrentView] = React.useState('dashboard');
   
   // FIXED: Supabase client using singleton pattern
   const supabase = React.useMemo(() => {
@@ -341,14 +430,14 @@ function DashboardContent() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  // Categories with cloud sync and budgets
+  // Categories with cloud sync - Now includes budgets
   const [categoriesBase, setCategoriesBase, categoriesSync] = useCloudState(
     `${storageKey}:categories`, 
     [
       { id: crypto.randomUUID(), name: 'Personal', order: 0, budget: 500 },
       { id: crypto.randomUUID(), name: 'Studio', order: 1, budget: 1200 },
       { id: crypto.randomUUID(), name: 'Smoke Shop', order: 2, budget: 800 },
-      { id: crypto.randomUUID(), name: 'Botting', order: 3, budget: 600 },
+      { id: crypto.randomUUID(), name: 'Botting', order: 3, budget: 300 },
     ],
     user,
     supabase
@@ -367,78 +456,52 @@ function DashboardContent() {
   );
   
   const [billsBase, setBillsBase, billsSync] = useCloudState(`${storageKey}:bills`, [], user, supabase);
-  const [recurringIncomeBase, setRecurringIncomeBase, recurringIncomeSync] = useCloudState(`${storageKey}:recurringIncome`, [], user, supabase);
   const [oneTimeCostsBase, setOneTimeCostsBase, oneTimeCostsSync] = useCloudState(`${storageKey}:otc`, [], user, supabase);
   const [upcomingCreditsBase, setUpcomingCreditsBase, upcomingCreditsSync] = useCloudState(`${storageKey}:credits`, [], user, supabase);
-  const [receivedCreditsBase, setReceivedCreditsBase, receivedCreditsSync] = useCloudState(`${storageKey}:receivedCredits`, [], user, supabase);
+  const [recurringIncomeBase, setRecurringIncomeBase, recurringIncomeSync] = useCloudState(`${storageKey}:income`, [], user, supabase);
   const [nwHistory, setNwHistory, nwHistorySync] = useCloudState(`${storageKey}:nwHistory`, [], user, supabase);
 
-  // Master state 
-  const [masterState, setMasterState] = React.useState({
+  // Master state with undo/redo
+  const [masterState, setMasterState, undoRedo] = useUndoRedo({
     accounts: accountsBase,
     bills: billsBase,
-    recurringIncome: recurringIncomeBase,
     oneTimeCosts: oneTimeCostsBase,
     categories: categoriesBase,
     upcomingCredits: upcomingCreditsBase,
-    receivedCredits: receivedCreditsBase
+    recurringIncome: recurringIncomeBase
   });
 
-  // Wait for all data to be loaded from localStorage before syncing
-  const allDataLoaded = categoriesSync?.isLoaded && accountsSync?.isLoaded && billsSync?.isLoaded && recurringIncomeSync?.isLoaded && oneTimeCostsSync?.isLoaded && upcomingCreditsSync?.isLoaded && receivedCreditsSync?.isLoaded && nwHistorySync?.isLoaded;
-
-  // Sync master state with cloud state (only after all data is loaded)
+  // Sync master state with cloud state
   React.useEffect(() => {
-    if (!allDataLoaded) return;
     setMasterState({
       accounts: accountsBase,
       bills: billsBase,
-      recurringIncome: recurringIncomeBase,
       oneTimeCosts: oneTimeCostsBase,
       categories: categoriesBase,
       upcomingCredits: upcomingCreditsBase,
-      receivedCredits: receivedCreditsBase
+      recurringIncome: recurringIncomeBase
     });
-  }, [accountsBase, billsBase, recurringIncomeBase, oneTimeCostsBase, categoriesBase, upcomingCreditsBase, receivedCreditsBase, allDataLoaded]);
+  }, [accountsBase, billsBase, oneTimeCostsBase, categoriesBase, upcomingCreditsBase, recurringIncomeBase]);
 
-  // Sync changes back to cloud state (only after all data is loaded)
+  // Sync changes back to cloud state
   React.useEffect(() => {
-    if (!allDataLoaded) return;
     setAccountsBase(masterState.accounts);
     setBillsBase(masterState.bills);
-    setRecurringIncomeBase(masterState.recurringIncome);
     setOneTimeCostsBase(masterState.oneTimeCosts);
     setCategoriesBase(masterState.categories);
     setUpcomingCreditsBase(masterState.upcomingCredits);
-    setReceivedCreditsBase(masterState.receivedCredits);
-  }, [masterState, allDataLoaded]);
+    setRecurringIncomeBase(masterState.recurringIncome || []);
+  }, [masterState]);
 
   // Extract current state
-  const { accounts, bills, recurringIncome, oneTimeCosts, categories, upcomingCredits, receivedCredits } = masterState;
+  const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome = [] } = masterState;
   
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
-
-  // Category color palette
-  const categoryColors = {
-    'Personal': '#3b82f6',    // Blue
-    'Studio': '#10b981',      // Green  
-    'Smoke Shop': '#f59e0b',  // Amber
-    'Botting': '#8b5cf6',     // Purple
-    'Income': '#06b6d4',      // Cyan
-    'Uncategorized': '#6b7280' // Gray
-  };
-
-  // Get color for category
-  const getCategoryColor = (categoryName) => {
-    return categoryColors[categoryName] || '#6b7280';
-  };
 
   // Settings/UI with cloud sync
   const [autoDeductCash, setAutoDeductCash] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
   const [showIgnored, setShowIgnored] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
   const [selectedCat, setSelectedCat] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
-  const [showPaidCredits, setShowPaidCredits] = React.useState(false);
-  const [currentView, setCurrentView] = React.useState('dashboard'); // 'dashboard', 'calendar', 'timeline'
   
   const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
@@ -446,14 +509,14 @@ function DashboardContent() {
   // Dialog states
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showAddBill, setShowAddBill] = React.useState(false);
-  const [showAddIncome, setShowAddIncome] = React.useState(false);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
+  const [showAddIncome, setShowAddIncome] = React.useState(false);
   const [showSnapshots, setShowSnapshots] = React.useState(false);
   const [editingAccount, setEditingAccount] = React.useState(null);
   const [editingBill, setEditingBill] = React.useState(null);
-  const [editingIncome, setEditingIncome] = React.useState(null);
   const [editingOTC, setEditingOTC] = React.useState(null);
   const [editingCredit, setEditingCredit] = React.useState(null);
+  const [editingIncome, setEditingIncome] = React.useState(null);
 
   // One-time cost form state
   const [otcName, setOtcName] = React.useState("");
@@ -464,18 +527,17 @@ function DashboardContent() {
   const [otcNotes, setOtcNotes] = React.useState("");
 
   // Check if any data is syncing
-  const isSyncing = categoriesSync?.syncing || accountsSync?.syncing || billsSync?.syncing || recurringIncomeSync?.syncing || oneTimeCostsSync?.syncing || upcomingCreditsSync?.syncing || receivedCreditsSync?.syncing || nwHistorySync?.syncing;
+  const isSyncing = categoriesSync?.syncing || accountsSync?.syncing || billsSync?.syncing || oneTimeCostsSync?.syncing || upcomingCreditsSync?.syncing || nwHistorySync?.syncing || recurringIncomeSync?.syncing;
   
   // FIXED: Get last sync time with proper null/undefined checking
   const lastSyncTime = React.useMemo(() => {
     const times = [
       categoriesSync?.lastSync, 
       accountsSync?.lastSync, 
-      billsSync?.lastSync,
-      recurringIncomeSync?.lastSync, 
+      billsSync?.lastSync, 
       oneTimeCostsSync?.lastSync, 
       upcomingCreditsSync?.lastSync,
-      receivedCreditsSync?.lastSync,
+      recurringIncomeSync?.lastSync,
       nwHistorySync?.lastSync
     ]
       .filter(t => t !== null && t !== undefined && t instanceof Date && !isNaN(t.getTime()))
@@ -483,7 +545,23 @@ function DashboardContent() {
     
     if (times.length === 0) return null;
     return new Date(Math.max(...times));
-  }, [categoriesSync, accountsSync, billsSync, recurringIncomeSync, oneTimeCostsSync, upcomingCreditsSync, receivedCreditsSync, nwHistorySync]);
+  }, [categoriesSync, accountsSync, billsSync, oneTimeCostsSync, upcomingCreditsSync, recurringIncomeSync, nwHistorySync]);
+
+  // Keyboard shortcuts for undo/redo
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        undoRedo.undo();
+      } else if (e.ctrlKey && e.altKey && e.key === 'z') {
+        e.preventDefault();
+        undoRedo.redo();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoRedo]);
 
   // Auth functions with comprehensive error handling
   async function handleAuth() {
@@ -550,67 +628,54 @@ function DashboardContent() {
     if(accounts.length && !accounts.find(a => a.id === otcAccountId)) setOtcAccountId(accounts[0].id);
   }, [accounts, otcAccountId]);
 
-  // Enhanced budget status calculation with spending tracking
-  const budgetStatus = React.useMemo(() => {
-    const currentMonth = yyyyMm();
-    const status = {};
-    
-    categories.forEach(category => {
-      if (category.ignored || !category.budget) return;
-      
-      // Calculate spending this month for this category
-      const billSpending = bills
-        .filter(b => b.category === category.name && b.paidMonths?.includes(currentMonth))
-        .reduce((sum, b) => sum + (b.amount || 0), 0);
-      
-      const otcSpending = oneTimeCosts
-        .filter(o => o.category === category.name && o.paid && o.dueDate.slice(0,7) === currentMonth)
-        .reduce((sum, o) => sum + (o.amount || 0), 0);
-      
-      const totalSpent = billSpending + otcSpending;
-      const remaining = category.budget - totalSpent;
-      const percentUsed = category.budget > 0 ? (totalSpent / category.budget) * 100 : 0;
-      
-      status[category.name] = {
-        budget: category.budget,
-        spent: totalSpent,
-        remaining,
-        percentUsed,
-        status: percentUsed >= 100 ? 'over' : percentUsed >= 80 ? 'warning' : 'good'
-      };
-    });
-    
-    return status;
-  }, [categories, bills, oneTimeCosts]);
-
   // Calculate monthly recurring income total
   const monthlyRecurringIncomeTotal = React.useMemo(() => {
-    const currentMonth = yyyyMm();
-    return recurringIncome
-      .filter(i => !i.ignored && i.frequency === 'monthly')
-      .reduce((sum, i) => sum + (i.amount || 0), 0);
+    try {
+      const currentMonth = yyyyMm();
+      let total = 0;
+      
+      for (const income of recurringIncome) {
+        if (income.ignored) continue;
+        
+        if (income.frequency === 'monthly') {
+          total += Number(income.amount) || 0;
+        } else if (income.frequency === 'biweekly') {
+          // Biweekly = 26 payments per year, so ~2.17 per month
+          total += (Number(income.amount) || 0) * 2.17;
+        } else if (income.frequency === 'weekly') {
+          // Weekly = 52 payments per year, so ~4.33 per month
+          total += (Number(income.amount) || 0) * 4.33;
+        } else if (income.frequency === 'yearly') {
+          // Yearly = 1 payment per year, so /12 per month
+          total += (Number(income.amount) || 0) / 12;
+        }
+      }
+      
+      return total;
+    } catch (error) {
+      console.error('Error calculating monthly recurring income:', error);
+      return 0;
+    }
   }, [recurringIncome]);
 
-  // Calculate current liquid including recurring income and guaranteed credits
-  const currentLiquidWithProjectedIncome = React.useMemo(() => {
+  // Calculate liquid including guaranteed credits
+  const currentLiquidWithGuaranteed = React.useMemo(() => {
     try {
       const baseBalance = accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
       const guaranteedCredits = upcomingCredits
         .filter(c => c.guaranteed && !c.ignored)
         .reduce((s, c) => s + (Number(c.amount) || 0), 0);
-      
-      // Add monthly recurring income for current month if not yet received
-      const currentMonth = yyyyMm();
-      const pendingMonthlyIncome = recurringIncome
-        .filter(i => !i.ignored && i.frequency === 'monthly' && !i.receivedMonths?.includes(currentMonth))
-        .reduce((s, i) => s + (Number(i.amount) || 0), 0);
-      
-      return baseBalance + guaranteedCredits + pendingMonthlyIncome;
+      return baseBalance + guaranteedCredits;
     } catch (error) {
-      console.error('Error calculating liquid with projected income:', error);
+      console.error('Error calculating liquid with guaranteed:', error);
       return accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     }
-  }, [accounts, upcomingCredits, recurringIncome]);
+  }, [accounts, upcomingCredits]);
+
+  // Calculate liquid with all expected income (including recurring)
+  const projectedWithIncome = React.useMemo(() => {
+    return currentLiquidWithGuaranteed + monthlyRecurringIncomeTotal;
+  }, [currentLiquidWithGuaranteed, monthlyRecurringIncomeTotal]);
 
   // Derived calculations with error handling
   const currentLiquid = React.useMemo(()=> {
@@ -635,25 +700,12 @@ function DashboardContent() {
         if(!activeCats.includes(b.category)) continue;
         
         const nextDate = getNextOccurrence(b, now);
-        const paid = b.paidMonths?.includes(currentMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
+        const paid = b.paidMonths.includes(currentMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
         const overdue = nextDate < now && !paid;
         const withinWeek = nextDate <= horizon && !paid;
         
         if(overdue || withinWeek) {
-          items.push({ bill:b, due: nextDate, overdue, type: 'expense' });
-        }
-      }
-
-      for(const i of recurringIncome){
-        if(i.ignored) continue;
-        
-        const nextDate = getNextOccurrence(i, now);
-        const received = i.receivedMonths?.includes(currentMonth) && (i.frequency === 'monthly' || i.frequency === 'yearly');
-        const overdue = nextDate < now && !received;
-        const withinWeek = nextDate <= horizon && !received;
-        
-        if(overdue || withinWeek) {
-          items.push({ income:i, due: nextDate, overdue, type: 'income' });
+          items.push({ bill:b, due: nextDate, overdue });
         }
       }
       
@@ -664,30 +716,25 @@ function DashboardContent() {
         const due = new Date(o.dueDate);
         const overdue = due < new Date();
         const withinWeek = due <= horizon;
-        if(overdue || withinWeek) items.push({ otc:o, due, overdue, type: 'expense' });
+        if(overdue || withinWeek) items.push({ otc:o, due, overdue });
       }
       
       items.sort((a,b)=> (a.overdue===b.overdue? a.due.getTime()-b.due.getTime() : a.overdue? -1: 1));
 
       const byAcc = {};
-      const ensure = (id)=> (byAcc[id] ||= { account: accounts.find(a=>a.id===id), total:0, income:0, items:[] });
+      const ensure = (id)=> (byAcc[id] ||= { account: accounts.find(a=>a.id===id), total:0, items:[] });
       for(const it of items){
-        const amt = it.bill? it.bill.amount : it.income? it.income.amount : it.otc.amount;
-        const accId = it.bill? it.bill.accountId : it.income? it.income.accountId : it.otc.accountId;
+        const amt = it.bill? it.bill.amount : it.otc.amount;
+        const accId = it.bill? it.bill.accountId : it.otc.accountId;
         const g = ensure(accId); 
-        if (it.type === 'income') {
-          g.income += amt;
-        } else {
-          g.total += amt;
-        }
+        g.total += amt; 
         g.items.push(it);
       }
       const byAccount = Object.values(byAcc).map(g=> ({ 
         account: g.account, 
-        totalDue: g.total,
-        totalIncome: g.income || 0, 
-        balance: g.account?.balance || 0, 
-        deficit: Math.max(0, g.total - (g.account?.balance || 0) - (g.income || 0)), 
+        totalDue: g.total, 
+        balance: g.account.balance, 
+        deficit: Math.max(0, g.total - g.account.balance), 
         items: g.items 
       }));
 
@@ -695,14 +742,13 @@ function DashboardContent() {
         items, 
         byAccount, 
         totalDeficit: byAccount.reduce((s,d)=> s+d.deficit, 0), 
-        weekDueTotal: items.filter(i => i.type === 'expense').reduce((s,it)=> s + (it.bill? it.bill.amount : it.otc.amount), 0),
-        weekIncomeTotal: items.filter(i => i.type === 'income').reduce((s,it)=> s + it.income.amount, 0)
+        weekDueTotal: items.reduce((s,it)=> s + (it.bill? it.bill.amount : it.otc.amount), 0) 
       };
     } catch (error) {
       console.error('Error calculating upcoming:', error);
-      return { items: [], byAccount: [], totalDeficit: 0, weekDueTotal: 0, weekIncomeTotal: 0 };
+      return { items: [], byAccount: [], totalDeficit: 0, weekDueTotal: 0 };
     }
-  }, [accounts, bills, recurringIncome, oneTimeCosts, activeCats]);
+  }, [accounts, bills, oneTimeCosts, activeCats]);
 
   const monthUnpaidTotal = React.useMemo(()=>{
     try {
@@ -711,7 +757,7 @@ function DashboardContent() {
       for(const b of bills){ 
         if(b.ignored) continue;
         if(!activeCats.includes(b.category)) continue; 
-        if(!b.paidMonths?.includes(currentMonth)) sum += Number(b.amount) || 0; 
+        if(!b.paidMonths.includes(currentMonth)) sum += Number(b.amount) || 0; 
       }
       for(const o of oneTimeCosts){ 
         if(o.ignored) continue;
@@ -725,13 +771,40 @@ function DashboardContent() {
     }
   },[bills, oneTimeCosts, activeCats]);
 
-  const afterWeek = currentLiquidWithProjectedIncome - upcoming.weekDueTotal + upcoming.weekIncomeTotal;
-  const afterMonth = currentLiquidWithProjectedIncome - monthUnpaidTotal;
-  const netWorthValue = netWorthMode==='current'? currentLiquidWithProjectedIncome : netWorthMode==='afterWeek'? afterWeek : afterMonth;
+  const afterWeek = projectedWithIncome - upcoming.weekDueTotal;
+  const afterMonth = projectedWithIncome - monthUnpaidTotal;
+  const netWorthValue = netWorthMode==='current'? currentLiquidWithGuaranteed : netWorthMode==='afterWeek'? afterWeek : afterMonth;
+
+  const weekNeedWithoutSavings = upcoming.weekDueTotal;
+  const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquidWithGuaranteed);
 
   const selectedCats = selectedCat==='All' ? 
     [...activeCats, ...bills.map(b => b.category).filter(cat => !activeCats.includes(cat))] : 
     activeCats.filter(c=> c===selectedCat);
+
+  // Category spending calculations for budgets
+  const categorySpending = React.useMemo(() => {
+    const spending = {};
+    const currentMonth = yyyyMm();
+    
+    categories.forEach(cat => {
+      spending[cat.name] = 0;
+    });
+    
+    bills.forEach(bill => {
+      if (!bill.ignored && bill.paidMonths.includes(currentMonth)) {
+        spending[bill.category] = (spending[bill.category] || 0) + Number(bill.amount);
+      }
+    });
+    
+    oneTimeCosts.forEach(otc => {
+      if (!otc.ignored && otc.paid && otc.dueDate.slice(0, 7) === currentMonth) {
+        spending[otc.category] = (spending[otc.category] || 0) + Number(otc.amount);
+      }
+    });
+    
+    return spending;
+  }, [bills, oneTimeCosts, categories]);
 
   // Analytics data calculations
   const accountBalanceData = React.useMemo(() => {
@@ -786,97 +859,178 @@ function DashboardContent() {
       }));
   }, [nwHistory, currentLiquid, afterWeek, afterMonth]);
 
-  // ENHANCED: Cash flow timeline data for next 30 days
-  const cashFlowTimeline = React.useMemo(() => {
-    const timeline = [];
-    const today = new Date();
-    
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const dayData = {
-        date: date,
-        dateStr: date.toLocaleDateString(),
-        income: [],
-        expenses: [],
-        netFlow: 0,
-        runningBalance: 0
+  // Generate 30-day timeline
+  const timeline = React.useMemo(() => {
+    try {
+      const days = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let runningBalance = currentLiquidWithGuaranteed;
+      
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        
+        const income = [];
+        const expenses = [];
+        
+        // Check recurring income
+        recurringIncome.forEach(inc => {
+          if (inc.ignored) return;
+          const nextDate = getNextIncomeOccurrence(inc, date);
+          if (nextDate.toDateString() === date.toDateString()) {
+            income.push({ type: 'income', name: inc.name, amount: inc.amount });
+            runningBalance += Number(inc.amount);
+          }
+        });
+        
+        // Check upcoming credits
+        upcomingCredits.forEach(credit => {
+          if (credit.ignored) return;
+          const creditDate = new Date(credit.expectedDate);
+          if (creditDate.toDateString() === date.toDateString()) {
+            income.push({ type: 'credit', name: credit.name, amount: credit.amount });
+            if (credit.guaranteed) {
+              // Already counted in initial balance
+            } else {
+              runningBalance += Number(credit.amount);
+            }
+          }
+        });
+        
+        // Check bills
+        bills.forEach(bill => {
+          if (bill.ignored || !activeCats.includes(bill.category)) return;
+          const nextDate = getNextOccurrence(bill, date);
+          if (nextDate.toDateString() === date.toDateString()) {
+            const currentMonth = yyyyMm(date);
+            const isPaid = bill.paidMonths.includes(currentMonth);
+            if (!isPaid) {
+              expenses.push({ type: 'bill', name: bill.name, amount: bill.amount });
+              runningBalance -= Number(bill.amount);
+            }
+          }
+        });
+        
+        // Check one-time costs
+        oneTimeCosts.forEach(otc => {
+          if (otc.ignored || otc.paid || !activeCats.includes(otc.category)) return;
+          const otcDate = new Date(otc.dueDate);
+          if (otcDate.toDateString() === date.toDateString()) {
+            expenses.push({ type: 'otc', name: otc.name, amount: otc.amount });
+            runningBalance -= Number(otc.amount);
+          }
+        });
+        
+        days.push({
+          date,
+          income,
+          expenses,
+          balance: runningBalance,
+          dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          dayNumber: date.getDate()
+        });
+      }
+      
+      return days;
+    } catch (error) {
+      console.error('Error generating timeline:', error);
+      return [];
+    }
+  }, [currentLiquidWithGuaranteed, recurringIncome, upcomingCredits, bills, oneTimeCosts, activeCats]);
+
+  // RECURRING INCOME FUNCTIONS
+  function addRecurringIncome(name, amount, frequency, payDay, accountId, notes = '') {
+    try {
+      if (!name || !amount || !frequency || !accountId) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+      
+      const newIncome = {
+        id: crypto.randomUUID(),
+        name: name.trim(),
+        amount: Number(amount),
+        frequency,
+        payDay: frequency === 'monthly' ? Number(payDay) : undefined,
+        weeklyDay: frequency === 'weekly' ? Number(payDay) : undefined,
+        biweeklyStart: frequency === 'biweekly' ? new Date().toISOString().slice(0, 10) : undefined,
+        yearlyMonth: frequency === 'yearly' ? 0 : undefined,
+        accountId,
+        notes: notes.trim(),
+        ignored: false,
+        receivedMonths: []
       };
       
-      // Check for bills due this day
-      bills.forEach(bill => {
-        if (bill.ignored || !activeCats.includes(bill.category)) return;
-        const nextDue = getNextOccurrence(bill, today);
-        if (nextDue.toDateString() === date.toDateString()) {
-          dayData.expenses.push({
-            name: bill.name,
-            amount: bill.amount,
-            category: bill.category,
-            type: 'bill'
-          });
-        }
-      });
-      
-      // Check for recurring income due this day
-      recurringIncome.forEach(income => {
-        if (income.ignored) return;
-        const nextPay = getNextOccurrence(income, today);
-        if (nextPay.toDateString() === date.toDateString()) {
-          dayData.income.push({
-            name: income.name,
-            amount: income.amount,
-            category: income.category || 'Income',
-            type: 'recurring'
-          });
-        }
-      });
-      
-      // Check for one-time costs due this day
-      oneTimeCosts.forEach(otc => {
-        if (otc.ignored || otc.paid || !activeCats.includes(otc.category)) return;
-        const dueDate = new Date(otc.dueDate);
-        if (dueDate.toDateString() === date.toDateString()) {
-          dayData.expenses.push({
-            name: otc.name,
-            amount: otc.amount,
-            category: otc.category,
-            type: 'one-time'
-          });
-        }
-      });
-      
-      // Check for upcoming credits due this day
-      upcomingCredits.forEach(credit => {
-        if (credit.ignored) return;
-        const creditDate = new Date(credit.expectedDate);
-        if (creditDate.toDateString() === date.toDateString()) {
-          dayData.income.push({
-            name: credit.name,
-            amount: credit.amount,
-            category: 'Credit',
-            type: 'credit',
-            guaranteed: credit.guaranteed
-          });
-        }
-      });
-      
-      // Calculate net flow for this day
-      const totalIncome = dayData.income.reduce((sum, item) => sum + item.amount, 0);
-      const totalExpenses = dayData.expenses.reduce((sum, item) => sum + item.amount, 0);
-      dayData.netFlow = totalIncome - totalExpenses;
-      
-      timeline.push(dayData);
+      setMasterState(prev => ({
+        ...prev,
+        recurringIncome: [...(prev.recurringIncome || []), newIncome]
+      }));
+      notify(`Recurring income "${name}" added`, 'success');
+    } catch (error) {
+      console.error('Error adding recurring income:', error);
+      notify('Failed to add recurring income', 'error');
     }
-    
-    // Calculate running balances
-    let runningBalance = currentLiquid;
-    timeline.forEach(day => {
-      runningBalance += day.netFlow;
-      day.runningBalance = runningBalance;
-    });
-    
-    return timeline;
-  }, [bills, recurringIncome, oneTimeCosts, upcomingCredits, activeCats, currentLiquid]);
+  }
+
+  function toggleIncomeReceived(income) {
+    try {
+      const currentMonth = yyyyMm();
+      const isReceived = income.receivedMonths?.includes(currentMonth);
+      
+      setMasterState(prev => ({
+        ...prev,
+        recurringIncome: prev.recurringIncome.map(inc => 
+          inc.id === income.id ? {
+            ...inc,
+            receivedMonths: isReceived 
+              ? inc.receivedMonths.filter(m => m !== currentMonth)
+              : [...(inc.receivedMonths || []), currentMonth]
+          } : inc
+        )
+      }));
+      
+      // Auto-add to account if it's cash and not already received
+      const acc = accounts.find(a => a.id === income.accountId);
+      if (autoDeductCash[0] && acc?.type === 'Cash') {
+        if (!isReceived) {
+          setMasterState(prev => ({
+            ...prev,
+            accounts: prev.accounts.map(a => 
+              a.id === acc.id ? { ...a, balance: a.balance + income.amount } : a
+            )
+          }));
+        } else {
+          setMasterState(prev => ({
+            ...prev,
+            accounts: prev.accounts.map(a => 
+              a.id === acc.id ? { ...a, balance: a.balance - income.amount } : a
+            )
+          }));
+        }
+      }
+      
+      notify(`${income.name} marked as ${isReceived ? 'not received' : 'received'}`, 'success');
+    } catch (error) {
+      console.error('Error toggling income received:', error);
+      notify('Failed to update income status', 'error');
+    }
+  }
+
+  function deleteIncome(incomeId) {
+    if (confirm('Delete this recurring income?')) {
+      try {
+        setMasterState(prev => ({
+          ...prev,
+          recurringIncome: prev.recurringIncome.filter(inc => inc.id !== incomeId)
+        }));
+        notify('Recurring income deleted');
+      } catch (error) {
+        console.error('Error deleting income:', error);
+        notify('Failed to delete income', 'error');
+      }
+    }
+  }
 
   // UPCOMING CREDITS FUNCTIONS
   function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed = false, notes = '') {
@@ -913,7 +1067,7 @@ function DashboardContent() {
       
       const targetAccountId = finalAccountId || credit.accountId;
       
-      // Add money to account, mark credit as received, and add to history
+      // Add money to account and mark credit as received
       setMasterState(prev => ({
         ...prev,
         accounts: prev.accounts.map(a => 
@@ -921,12 +1075,7 @@ function DashboardContent() {
             { ...a, balance: a.balance + credit.amount } : 
             a
         ),
-        upcomingCredits: prev.upcomingCredits.filter(c => c.id !== creditId),
-        receivedCredits: [...prev.receivedCredits, {
-          ...credit,
-          receivedDate: new Date().toISOString(),
-          actualAccountId: targetAccountId
-        }]
+        upcomingCredits: prev.upcomingCredits.filter(c => c.id !== creditId)
       }));
       
       const account = accounts.find(a => a.id === targetAccountId);
@@ -980,107 +1129,16 @@ function DashboardContent() {
     }
   }
 
-  // ENHANCED: Recurring income functions
-  function addRecurringIncome(name, amount, frequency, payDay, accountId, category) {
-    try {
-      if (!name || !amount || !frequency || !payDay || !accountId) {
-        notify('Please fill in all required fields', 'error');
-        return;
-      }
-      
-      const newIncome = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        amount: Number(amount),
-        frequency,
-        payDay: Number(payDay),
-        accountId,
-        category: category || 'Income',
-        receivedMonths: [],
-        ignored: false
-      };
-      
-      // Add additional fields based on frequency
-      if (frequency === 'biweekly') {
-        newIncome.biweeklyStart = new Date().toISOString().slice(0, 10);
-      } else if (frequency === 'weekly') {
-        newIncome.weeklyDay = 1; // Monday
-        newIncome.weeklySchedule = 'every';
-      } else if (frequency === 'yearly') {
-        newIncome.yearlyMonth = new Date().getMonth();
-      }
-      
-      setMasterState(prev => ({
-        ...prev,
-        recurringIncome: [...prev.recurringIncome, newIncome]
-      }));
-      notify(`Recurring income "${name}" added`, 'success');
-    } catch (error) {
-      console.error('Error adding recurring income:', error);
-      notify('Failed to add recurring income', 'error');
-    }
-  }
-
-  function toggleIncomeReceived(income) {
-    try {
-      const currentMonth = yyyyMm();
-      const isReceived = income.receivedMonths?.includes(currentMonth);
-      setMasterState(prev => ({
-        ...prev,
-        recurringIncome: prev.recurringIncome.map(i => i.id === income.id ? {
-          ...i,
-          receivedMonths: isReceived ? 
-            (i.receivedMonths || []).filter(m => m !== currentMonth) :
-            [...(i.receivedMonths || []), currentMonth]
-        } : i)
-      }));
-
-      const acc = accounts.find(a => a.id === income.accountId);
-      if (autoDeductCash[0] && acc?.type === 'Cash') {
-        if (!isReceived) {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a => a.id === acc.id ? { ...a, balance: a.balance + income.amount } : a)
-          }));
-        } else {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a => a.id === acc.id ? { ...a, balance: a.balance - income.amount } : a)
-          }));
-        }
-      }
-      notify(`${income.name} marked as ${isReceived ? 'not received' : 'received'}`, 'success');
-    } catch (error) {
-      console.error('Error toggling income received:', error);
-      notify('Failed to update income status', 'error');
-    }
-  }
-
-  function deleteRecurringIncome(incomeId) {
-    if (confirm('Delete this recurring income?')) {
-      try {
-        setMasterState(prev => ({
-          ...prev,
-          recurringIncome: prev.recurringIncome.filter(i => i.id !== incomeId)
-        }));
-        notify('Recurring income deleted');
-      } catch (error) {
-        console.error('Error deleting recurring income:', error);
-        notify('Failed to delete recurring income', 'error');
-      }
-    }
-  }
-
   // Actions with error handling
   function togglePaid(b){
     try {
       const currentMonth = yyyyMm();
-      const isPaid = b.paidMonths?.includes(currentMonth);
+      const isPaid = b.paidMonths.includes(currentMonth);
       setMasterState(prev => ({
         ...prev,
         bills: prev.bills.map(x=> x.id===b.id ? { 
           ...x, 
-          paidMonths: isPaid? (x.paidMonths || []).filter(m=>m!==currentMonth) : [...(x.paidMonths || []), currentMonth] 
+          paidMonths: isPaid? x.paidMonths.filter(m=>m!==currentMonth) : [...x.paidMonths, currentMonth] 
         } : x)
       }));
       
@@ -1235,7 +1293,7 @@ function DashboardContent() {
     }
   }
 
-  function addCategory(name, budget = 0){ 
+  function addCategory(name){ 
     try {
       const nm=name.trim(); 
       if(!nm) {
@@ -1249,33 +1307,12 @@ function DashboardContent() {
       const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
       setMasterState(prev => ({
         ...prev,
-        categories: [...prev.categories, { id: crypto.randomUUID(), name: nm, order: maxOrder + 1, budget: Number(budget) || 0 }]
+        categories: [...prev.categories, { id: crypto.randomUUID(), name: nm, order: maxOrder + 1, budget: 0 }]
       }));
       notify('Category added');
     } catch (error) {
       console.error('Error adding category:', error);
       notify('Failed to add category', 'error');
-    }
-  }
-
-  function updateCategoryBudget(categoryId, newBudget) {
-    try {
-      setMasterState(prev => ({
-        ...prev,
-        categories: prev.categories.map(c => 
-          c.id === categoryId ? { ...c, budget: Number(newBudget) || 0 } : c
-        )
-      }));
-      
-      // Check if budget warning should be shown
-      const category = categories.find(c => c.id === categoryId);
-      const status = budgetStatus[category?.name];
-      if (status && status.percentUsed >= 80) {
-        notify(`Warning: ${category.name} budget is ${Math.round(status.percentUsed)}% used`, 'warning');
-      }
-    } catch (error) {
-      console.error('Error updating category budget:', error);
-      notify('Failed to update budget', 'error');
     }
   }
 
@@ -1391,6 +1428,20 @@ function DashboardContent() {
     }
   }
 
+  function updateCategoryBudget(id, newBudget) {
+    try {
+      setMasterState(prev => ({
+        ...prev,
+        categories: prev.categories.map(c => 
+          c.id === id ? { ...c, budget: Number(newBudget) || 0 } : c
+        )
+      }));
+    } catch (error) {
+      console.error('Error updating category budget:', error);
+      notify('Failed to update budget', 'error');
+    }
+  }
+
   function addAccount(name, type, balance = 0) {
     try {
       if (!name || !type) {
@@ -1446,1241 +1497,231 @@ function DashboardContent() {
     e.target.select();
   };
 
-  // ENHANCED: Cash Flow Calendar Component with better income/expense tracking
-  function CashFlowCalendar() {
-    const today = new Date();
-    const [currentDate, setCurrentDate] = React.useState(today);
-    
-    // Get first day of month and number of days
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    
-    // Generate calendar data
-    const calendarData = React.useMemo(() => {
-      const days = [];
-      const monthStr = yyyyMm(currentDate);
-      
-      // Add empty cells for days before month starts
-      for (let i = 0; i < startingDayOfWeek; i++) {
-        days.push({ isEmpty: true });
-      }
-      
-      // Add days of the month with financial data
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        const dayData = { day, date, income: [], expenses: [], isEmpty: false };
-        
-        // Check bills due this day
-        bills.forEach(bill => {
-          if (bill.ignored || !activeCats.includes(bill.category)) return;
-          if ((bill.dueDay || 1) === day) {
-            const isPaid = bill.paidMonths?.includes(monthStr);
-            dayData.expenses.push({
-              type: 'bill',
-              item: bill,
-              amount: bill.amount,
-              paid: isPaid,
-              overdue: !isPaid && date < today
-            });
-          }
-        });
-        
-        // Check recurring income due this day
-        recurringIncome.forEach(income => {
-          if (income.ignored) return;
-          if ((income.payDay || 1) === day) {
-            const received = income.receivedMonths?.includes(monthStr);
-            dayData.income.push({
-              type: 'income',
-              item: income,
-              amount: income.amount,
-              received,
-              overdue: !received && date < today
-            });
-          }
-        });
-        
-        // Check one-time costs due this day
-        oneTimeCosts.forEach(otc => {
-          if (otc.ignored || !activeCats.includes(otc.category)) return;
-          const otcDate = new Date(otc.dueDate);
-          if (otcDate.getDate() === day && 
-              otcDate.getMonth() === currentDate.getMonth() && 
-              otcDate.getFullYear() === currentDate.getFullYear()) {
-            dayData.expenses.push({
-              type: 'otc',
-              item: otc,
-              amount: otc.amount,
-              paid: otc.paid,
-              overdue: !otc.paid && date < today
-            });
-          }
-        });
-        
-        // Check upcoming credits due this day  
-        upcomingCredits.forEach(credit => {
-          if (credit.ignored) return;
-          const creditDate = new Date(credit.expectedDate);
-          if (creditDate.getDate() === day && 
-              creditDate.getMonth() === currentDate.getMonth() && 
-              creditDate.getFullYear() === currentDate.getFullYear()) {
-            dayData.income.push({
-              type: 'credit',
-              item: credit,
-              amount: credit.amount,
-              received: false,
-              overdue: creditDate < today,
-              guaranteed: credit.guaranteed
-            });
-          }
-        });
-        
-        days.push(dayData);
-      }
-      
-      return days;
-    }, [currentDate, bills, recurringIncome, oneTimeCosts, upcomingCredits, activeCats]);
-    
-    const navigateMonth = (direction) => {
-      setCurrentDate(prev => {
-        const newDate = new Date(prev);
-        newDate.setMonth(newDate.getMonth() + direction);
-        return newDate;
-      });
-    };
-    
-    const monthNames = ["January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"];
-    
-    if (isMobile) {
-      return (
-        <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <button
-              onClick={() => navigateMonth(-1)}
-              style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem' }}
-            >
-              ←
-            </button>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-            <button
-              onClick={() => navigateMonth(1)}
-              style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem' }}
-            >
-              →
-            </button>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '0.5rem' }}>
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '600', padding: '0.25rem' }}>
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
-            {calendarData.map((dayData, index) => {
-              if (dayData.isEmpty) {
-                return <div key={index} style={{ minHeight: '60px' }}></div>;
-              }
-              
-              const totalIncome = dayData.income.reduce((sum, item) => sum + item.amount, 0);
-              const totalExpenses = dayData.expenses.reduce((sum, item) => sum + item.amount, 0);
-              const netFlow = totalIncome - totalExpenses;
-              const isToday = dayData.date.toDateString() === today.toDateString();
-              
-              return (
-                <div key={index} style={{
-                  background: isToday ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
-                  border: isToday ? '2px solid rgba(255,255,255,0.8)' : '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '0.25rem',
-                  padding: '0.25rem',
-                  minHeight: '60px',
-                  fontSize: '0.625rem'
-                }}>
-                  <div style={{ fontWeight: '600', marginBottom: '0.125rem' }}>{dayData.day}</div>
-                  {dayData.income.length > 0 && (
-                    <div style={{ color: '#10b981', marginBottom: '0.125rem' }}>
-                      +{fmt(totalIncome)}
-                    </div>
-                  )}
-                  {dayData.expenses.length > 0 && (
-                    <div style={{ color: '#ef4444', marginBottom: '0.125rem' }}>
-                      -{fmt(totalExpenses)}
-                    </div>
-                  )}
-                  {(totalIncome > 0 || totalExpenses > 0) && (
-                    <div style={{ color: netFlow >= 0 ? '#10b981' : '#ef4444', fontSize: '0.5rem', fontWeight: '600' }}>
-                      Net: {fmt(netFlow)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-    
-    // Desktop calendar
-    return (
-      <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <button
-            onClick={() => navigateMonth(-1)}
-            style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', cursor: 'pointer' }}
-          >
-            ← Previous
-          </button>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <button
-            onClick={() => navigateMonth(1)}
-            style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', cursor: 'pointer' }}
-          >
-            Next →
-          </button>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '1rem' }}>
-          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
-            <div key={day} style={{ textAlign: 'center', fontSize: '0.875rem', fontWeight: '600', padding: '0.5rem' }}>
-              {day}
-            </div>
-          ))}
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-          {calendarData.map((dayData, index) => {
-            if (dayData.isEmpty) {
-              return <div key={index} style={{ minHeight: '120px' }}></div>;
-            }
-            
-            const totalIncome = dayData.income.reduce((sum, item) => sum + item.amount, 0);
-            const totalExpenses = dayData.expenses.reduce((sum, item) => sum + item.amount, 0);
-            const netFlow = totalIncome - totalExpenses;
-            const isToday = dayData.date.toDateString() === today.toDateString();
-            
-            return (
-              <div key={index} style={{
-                background: isToday ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
-                border: isToday ? '2px solid rgba(255,255,255,0.8)' : '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '0.375rem',
-                padding: '0.5rem',
-                minHeight: '120px',
-                fontSize: '0.75rem'
-              }}>
-                <div style={{ fontWeight: '700', marginBottom: '0.5rem', fontSize: '1rem' }}>{dayData.day}</div>
-                
-                {dayData.income.length > 0 && (
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ color: '#10b981', fontWeight: '600', marginBottom: '0.25rem' }}>
-                      Income: +{fmt(totalIncome)}
-                    </div>
-                    {dayData.income.slice(0, 2).map((item, i) => (
-                      <div key={i} style={{ fontSize: '0.625rem', opacity: 0.9 }}>
-                        {item.item.name}: +{fmt(item.amount)}
-                        {item.guaranteed && <span style={{ color: '#fbbf24' }}> ⭐</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {dayData.expenses.length > 0 && (
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ color: '#ef4444', fontWeight: '600', marginBottom: '0.25rem' }}>
-                      Expenses: -{fmt(totalExpenses)}
-                    </div>
-                    {dayData.expenses.slice(0, 2).map((item, i) => (
-                      <div key={i} style={{ fontSize: '0.625rem', opacity: 0.9 }}>
-                        {item.item.name}: -{fmt(item.amount)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {(totalIncome > 0 || totalExpenses > 0) && (
-                  <div style={{ 
-                    borderTop: '1px solid rgba(255,255,255,0.2)', 
-                    paddingTop: '0.25rem', 
-                    color: netFlow >= 0 ? '#10b981' : '#ef4444', 
-                    fontSize: '0.75rem', 
-                    fontWeight: '700' 
-                  }}>
-                    Net: {fmt(netFlow)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // NEW: Timeline View Component
-  function TimelineView() {
-    return (
-      <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-        <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: '700', marginBottom: '1.5rem', textAlign: 'center' }}>
-          30-Day Cash Flow Timeline
-        </h2>
-        
-        <div style={{ 
-          maxHeight: isMobile ? '400px' : '500px', 
-          overflowY: 'auto',
-          background: 'rgba(255,255,255,0.1)',
-          borderRadius: '0.5rem',
-          padding: '1rem'
-        }}>
-          {cashFlowTimeline.map((day, index) => {
-            const isToday = day.date.toDateString() === new Date().toDateString();
-            const hasActivity = day.income.length > 0 || day.expenses.length > 0;
-            const totalIncome = day.income.reduce((sum, item) => sum + item.amount, 0);
-            const totalExpenses = day.expenses.reduce((sum, item) => sum + item.amount, 0);
-            
-            if (!hasActivity && !isToday) return null;
-            
-            return (
-              <div key={index} style={{
-                background: isToday ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
-                border: isToday ? '2px solid rgba(255,255,255,0.8)' : '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '0.5rem',
-                padding: isMobile ? '0.75rem' : '1rem',
-                marginBottom: '0.75rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <div>
-                    <div style={{ fontSize: isMobile ? '0.875rem' : '1rem', fontWeight: '700' }}>
-                      {day.dateStr} {isToday && '(Today)'}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                      Balance: {fmt(day.runningBalance)}
-                      {day.runningBalance < 0 && <span style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>⚠️ Negative</span>}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.875rem', color: day.netFlow >= 0 ? '#10b981' : '#ef4444', fontWeight: '600' }}>
-                      Net: {fmt(day.netFlow)}
-                    </div>
-                  </div>
-                </div>
-                
-                {day.income.length > 0 && (
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#10b981', marginBottom: '0.25rem' }}>
-                      Income (+{fmt(totalIncome)}):
-                    </div>
-                    {day.income.map((item, i) => (
-                      <div key={i} style={{ 
-                        fontSize: '0.75rem', 
-                        opacity: 0.9, 
-                        marginLeft: '1rem',
-                        marginBottom: '0.125rem'
-                      }}>
-                        • {item.name}: +{fmt(item.amount)}
-                        {item.guaranteed && <span style={{ color: '#fbbf24' }}> ⭐ Guaranteed</span>}
-                        <span style={{ opacity: 0.7 }}> ({item.type})</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {day.expenses.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ef4444', marginBottom: '0.25rem' }}>
-                      Expenses (-{fmt(totalExpenses)}):
-                    </div>
-                    {day.expenses.map((item, i) => (
-                      <div key={i} style={{ 
-                        fontSize: '0.75rem', 
-                        opacity: 0.9, 
-                        marginLeft: '1rem',
-                        marginBottom: '0.125rem'
-                      }}>
-                        • {item.name}: -{fmt(item.amount)}
-                        <span style={{ opacity: 0.7 }}> ({item.category}, {item.type})</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // Auth Dialog
-  if (showAuth) {
-    return (
-      <div style={{ 
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-        background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: '1rem'
-      }}>
-        <div style={{ 
-          background: 'white', padding: '2rem', borderRadius: '1rem', 
-          maxWidth: '400px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1.5rem', textAlign: 'center' }}>
-            {isSignUp ? 'Create Account' : 'Sign In'}
-          </h2>
-          
-          <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }}>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ 
-                width: '100%', padding: '0.75rem', marginBottom: '1rem', 
-                border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem'
-              }}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ 
-                width: '100%', padding: '0.75rem', marginBottom: '1.5rem', 
-                border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem'
-              }}
-              required
-            />
-            
-            <button
-              type="submit"
-              disabled={authLoading}
-              style={{ 
-                width: '100%', padding: '0.75rem', background: '#2563eb', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', fontSize: '1rem', fontWeight: '600',
-                cursor: authLoading ? 'not-allowed' : 'pointer', opacity: authLoading ? 0.5 : 1
-              }}
-            >
-              {authLoading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
-            </button>
-          </form>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              style={{ 
-                background: 'none', border: 'none', color: '#2563eb', 
-                cursor: 'pointer', textDecoration: 'underline'
-              }}
-            >
-              {isSignUp ? 'Already have an account?' : 'Need an account?'}
-            </button>
-            <button
-              onClick={() => setShowAuth(false)}
-              style={{ 
-                background: 'none', border: 'none', color: '#6b7280', 
-                cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // View routing
-  if (currentView === 'calendar') {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: isMobile ? '0.75rem' : '1.5rem' }}>
-        <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: isMobile ? '1.25rem' : '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
-              Cash Flow Calendar
-            </h1>
-            <p style={{ color: '#4b5563' }}>Visual timeline of income and expenses</p>
-            
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  background: '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.375rem', 
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.875rem' : '1rem'
-                }}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentView('timeline')}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  background: '#8b5cf6', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.375rem', 
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.875rem' : '1rem'
-                }}
-              >
-                Timeline View
-              </button>
-            </div>
-          </div>
-
-          <CashFlowCalendar />
-        </div>
-      </div>
-    );
-  }
-
-  if (currentView === 'timeline') {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: isMobile ? '0.75rem' : '1.5rem' }}>
-        <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: isMobile ? '1.25rem' : '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
-              Cash Flow Timeline
-            </h1>
-            <p style={{ color: '#4b5563' }}>30-day projection with running balances</p>
-            
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  background: '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.375rem', 
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.875rem' : '1rem'
-                }}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentView('calendar')}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  background: '#8b5cf6', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.375rem', 
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.875rem' : '1rem'
-                }}
-              >
-                Calendar View
-              </button>
-            </div>
-          </div>
-
-          <TimelineView />
-        </div>
-      </div>
-    );
-  }
-
-  // Dialog components for adding/editing
-  const AddAccountDialog = () => showAddAccount && (
-    <div style={{ 
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem'
-    }}>
-      <div style={{ 
-        background: 'white', padding: '2rem', borderRadius: '1rem', 
-        maxWidth: '400px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1.5rem' }}>Add Account</h2>
-        
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          addAccount(formData.get('name'), formData.get('type'), formData.get('balance'));
-          setShowAddAccount(false);
-          e.target.reset();
-        }}>
-          <input
-            name="name"
-            placeholder="Account name"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="type"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select type</option>
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
-            <option value="Credit">Credit</option>
-            <option value="Investment">Investment</option>
-          </select>
-          <input
-            name="balance"
-            type="number"
-            step="0.01"
-            placeholder="Initial balance"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-          />
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="submit"
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Add Account
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddAccount(false)}
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#6b7280', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  const AddIncomeDialog = () => showAddIncome && (
-    <div style={{ 
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem'
-    }}>
-      <div style={{ 
-        background: 'white', padding: '2rem', borderRadius: '1rem', 
-        maxWidth: '400px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-        maxHeight: '90vh', overflowY: 'auto'
-      }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1.5rem' }}>Add Recurring Income</h2>
-        
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          addRecurringIncome(
-            formData.get('name'),
-            formData.get('amount'),
-            formData.get('frequency'),
-            formData.get('payDay'),
-            formData.get('accountId'),
-            formData.get('category')
-          );
-          setShowAddIncome(false);
-          e.target.reset();
-        }}>
-          <input
-            name="name"
-            placeholder="Income name (e.g., Salary, Rental Income)"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <input
-            name="amount"
-            type="number"
-            step="0.01"
-            placeholder="Amount"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="frequency"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select frequency</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-          <input
-            name="payDay"
-            type="number"
-            min="1"
-            max="28"
-            placeholder="Pay day of month (1-28)"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="accountId"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select account</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>{account.name}</option>
-            ))}
-          </select>
-          <input
-            name="category"
-            placeholder="Category (optional, defaults to Income)"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-          />
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="submit"
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Add Income
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddIncome(false)}
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#6b7280', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  const AddCreditDialog = () => showAddCredit && (
-    <div style={{ 
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem'
-    }}>
-      <div style={{ 
-        background: 'white', padding: '2rem', borderRadius: '1rem', 
-        maxWidth: '400px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1.5rem' }}>Add Upcoming Credit</h2>
-        
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          addUpcomingCredit(
-            formData.get('name'),
-            formData.get('amount'),
-            formData.get('expectedDate'),
-            formData.get('accountId'),
-            formData.get('guaranteed') === 'on',
-            formData.get('notes')
-          );
-          setShowAddCredit(false);
-          e.target.reset();
-        }}>
-          <input
-            name="name"
-            placeholder="Credit name"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <input
-            name="amount"
-            type="number"
-            step="0.01"
-            placeholder="Amount"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <input
-            name="expectedDate"
-            type="date"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="accountId"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select account</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>{account.name}</option>
-            ))}
-          </select>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <input
-              name="guaranteed"
-              type="checkbox"
-              style={{ marginRight: '0.5rem' }}
-            />
-            Guaranteed (include in projections)
-          </label>
-          <textarea
-            name="notes"
-            placeholder="Notes (optional)"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', minHeight: '80px', resize: 'vertical' }}
-          />
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="submit"
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Add Credit
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddCredit(false)}
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#6b7280', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  const AddBillDialog = () => showAddBill && (
-    <div style={{ 
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem'
-    }}>
-      <div style={{ 
-        background: 'white', padding: '2rem', borderRadius: '1rem', 
-        maxWidth: '400px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-        maxHeight: '90vh', overflowY: 'auto'
-      }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1.5rem' }}>Add Bill</h2>
-        
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const newBill = {
-            id: crypto.randomUUID(),
-            name: formData.get('name'),
-            amount: Number(formData.get('amount')),
-            frequency: formData.get('frequency'),
-            dueDay: Number(formData.get('dueDay')),
-            accountId: formData.get('accountId'),
-            category: formData.get('category'),
-            paidMonths: [],
-            ignored: false
-          };
-          setMasterState(prev => ({
-            ...prev,
-            bills: [...prev.bills, newBill]
-          }));
-          setShowAddBill(false);
-          e.target.reset();
-          notify(`Bill "${newBill.name}" added`, 'success');
-        }}>
-          <input
-            name="name"
-            placeholder="Bill name"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <input
-            name="amount"
-            type="number"
-            step="0.01"
-            placeholder="Amount"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="frequency"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select frequency</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-          <input
-            name="dueDay"
-            type="number"
-            min="1"
-            max="28"
-            placeholder="Due day of month (1-28)"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          />
-          <select
-            name="accountId"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select account</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>{account.name}</option>
-            ))}
-          </select>
-          <select
-            name="category"
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-            required
-          >
-            <option value="">Select category</option>
-            {activeCats.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="submit"
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Add Bill
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddBill(false)}
-              style={{ 
-                flex: 1, padding: '0.75rem', background: '#6b7280', color: 'white', 
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  // Main Dashboard View (Mobile)
   if (isMobile) {
     return (
-      <ErrorBoundary>
-        <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '0.75rem' }}>
-          {/* Header */}
-          <div style={{ textAlign: 'center', background: 'white', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
-              Cashfl0w.io
-            </h1>
-            
-            <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
-              {user ? (
-                <div>
-                  {isSyncing ? 'Syncing...' : 'Synced'} • {user.email}
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '0.75rem' }}>
+        {/* Navigation Tabs */}
+        <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', display: 'flex', gap: '0.25rem' }}>
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)' : 'white',
+              color: currentView === 'dashboard' ? 'white' : '#374151',
+              border: currentView === 'dashboard' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.25rem',
+              fontSize: '0.75rem',
+              fontWeight: '600'
+            }}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setCurrentView('timeline')}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              background: currentView === 'timeline' ? 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)' : 'white',
+              color: currentView === 'timeline' ? 'white' : '#374151',
+              border: currentView === 'timeline' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.25rem',
+              fontSize: '0.75rem',
+              fontWeight: '600'
+            }}
+          >
+            Timeline
+          </button>
+        </div>
+
+        {currentView === 'dashboard' ? (
+          <>
+            <div style={{ textAlign: 'center', background: 'white', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
+                💰 Cashfl0.io 💰
+              </h1>
+              
+              <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                {user ? (
+                  <div>
+                    {isSyncing ? '🔄 Syncing...' : '☁️ Synced'} • {user.email}
+                    <button
+                      onClick={handleLogout}
+                      style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    onClick={handleLogout}
-                    style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                    onClick={() => setShowAuth(true)}
+                    style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                   >
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAuth(true)}
-                  style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                >
-                  Login for Cloud
-                </button>
-              )}
-            </div>
-            
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', justifyContent: 'center' }}>
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                style={{ 
-                  padding: '0.25rem 0.5rem', 
-                  background: currentView === 'dashboard' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.25rem', 
-                  fontSize: '0.75rem' 
-                }}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentView('calendar')}
-                style={{ 
-                  padding: '0.25rem 0.5rem', 
-                  background: currentView === 'calendar' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.25rem', 
-                  fontSize: '0.75rem' 
-                }}
-              >
-                Calendar
-              </button>
-              <button
-                onClick={() => setCurrentView('timeline')}
-                style={{ 
-                  padding: '0.25rem 0.5rem', 
-                  background: currentView === 'timeline' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.25rem', 
-                  fontSize: '0.75rem' 
-                }}
-              >
-                Timeline
-              </button>
-            </div>
-          </div>
-
-          {/* Net Worth Card */}
-          <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Financial Overview</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.75rem' }}>
-              <div style={{ textAlign: 'center', padding: '0.5rem', background: '#f0f9ff', borderRadius: '0.25rem' }}>
-                <div style={{ fontWeight: '600', color: '#0369a1' }}>Current Balance</div>
-                <div style={{ fontSize: '0.875rem', fontWeight: '700' }}>{fmt(currentLiquid)}</div>
-              </div>
-              <div style={{ textAlign: 'center', padding: '0.5rem', background: '#f0fdf4', borderRadius: '0.25rem' }}>
-                <div style={{ fontWeight: '600', color: '#16a34a' }}>With Income</div>
-                <div style={{ fontSize: '0.875rem', fontWeight: '700' }}>{fmt(currentLiquidWithProjectedIncome)}</div>
-              </div>
-              <div style={{ textAlign: 'center', padding: '0.5rem', background: '#fef3c7', borderRadius: '0.25rem' }}>
-                <div style={{ fontWeight: '600', color: '#d97706' }}>After Week</div>
-                <div style={{ fontSize: '0.875rem', fontWeight: '700', color: afterWeek < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterWeek)}</div>
-              </div>
-              <div style={{ textAlign: 'center', padding: '0.5rem', background: '#fce7f3', borderRadius: '0.25rem' }}>
-                <div style={{ fontWeight: '600', color: '#be185d' }}>After Month</div>
-                <div style={{ fontSize: '0.875rem', fontWeight: '700', color: afterMonth < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterMonth)}</div>
-              </div>
-            </div>
-            <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', textAlign: 'center' }}>
-              <div style={{ color: '#6b7280' }}>Monthly Income: {fmt(monthlyRecurringIncomeTotal)}</div>
-            </div>
-          </div>
-
-          {/* Enhanced Budget Status */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Budget Status</h3>
-            {Object.entries(budgetStatus).map(([categoryName, status]) => {
-              const categoryColor = getCategoryColor(categoryName);
-              return (
-                <div key={categoryName} style={{ 
-                  background: 'rgba(255,255,255,0.1)', 
-                  padding: '0.5rem', 
-                  borderRadius: '0.25rem',
-                  borderLeft: `4px solid ${categoryColor}`,
-                  marginBottom: '0.5rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{categoryName}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>
-                      {fmt(status.spent)} / {fmt(status.budget)}
-                    </span>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '0.125rem', height: '4px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      width: `${Math.min(100, status.percentUsed)}%`, 
-                      height: '100%', 
-                      background: status.status === 'over' ? '#ef4444' : status.status === 'warning' ? '#f59e0b' : '#10b981',
-                      transition: 'width 0.3s ease'
-                    }}></div>
-                  </div>
-                  <div style={{ fontSize: '0.625rem', opacity: 0.9, marginTop: '0.25rem' }}>
-                    {status.remaining >= 0 ? `${fmt(status.remaining)} remaining` : `${fmt(Math.abs(status.remaining))} over budget`}
-                    {status.status === 'warning' && <span style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>⚠️ Close to limit</span>}
-                    {status.status === 'over' && <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>🚨 Over budget!</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Accounts Section */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Accounts</h3>
-              <button 
-                onClick={() => setShowAddAccount(true)}
-                style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-              >
-                + Account
-              </button>
-            </div>
-            
-            {accounts.map(account => (
-              <div key={account.id} style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                padding: '0.5rem', 
-                background: 'rgba(255,255,255,0.1)', 
-                borderRadius: '0.25rem',
-                marginBottom: '0.25rem'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{account.name}</div>
-                  <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>{account.type}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <input
-                    type="number"
-                    value={account.balance}
-                    onChange={(e) => updateAccountBalance(account.id, e.target.value)}
-                    onFocus={selectAllOnFocus}
-                    style={{ 
-                      width: '80px', 
-                      padding: '0.125rem 0.25rem', 
-                      border: '1px solid rgba(255,255,255,0.3)', 
-                      borderRadius: '0.25rem',
-                      fontSize: '0.75rem',
-                      textAlign: 'right',
-                      background: 'rgba(255,255,255,0.1)',
-                      color: 'white'
-                    }}
-                  />
-                  <button
-                    onClick={() => deleteAccount(account.id)}
-                    style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Enhanced Recurring Income Section */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Recurring Income</h3>
-              <button 
-                onClick={() => setShowAddIncome(true)}
-                style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-              >
-                + Income
-              </button>
-            </div>
-            
-            <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem', textAlign: 'center' }}>
-              <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.5rem', borderRadius: '0.25rem' }}>
-                <div style={{ fontWeight: '600' }}>Monthly Total: {fmt(monthlyRecurringIncomeTotal)}</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                  {recurringIncome.filter(i => !i.ignored && i.frequency === 'monthly').length} income source(s)
-                </div>
-              </div>
-            </div>
-            
-            {recurringIncome
-              .filter(i => !i.ignored)
-              .sort((a, b) => (a.payDay || 1) - (b.payDay || 1))
-              .map(income => {
-                const account = accounts.find(a => a.id === income.accountId);
-                const isReceived = income.receivedMonths?.includes(yyyyMm());
-                const nextDate = getNextOccurrence(income);
-                
-                return (
-                  <div key={income.id} style={{ 
-                    background: isReceived ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.1)',
-                    padding: '0.5rem', 
-                    borderRadius: '0.375rem',
-                    border: `2px solid ${isReceived ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.2)'}`,
-                    marginBottom: '0.375rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{income.name}</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>
-                        +{fmt(income.amount)}
-                      </span>
-                    </div>
-                    
-                    <div style={{ fontSize: '0.625rem', opacity: 0.9, marginBottom: '0.375rem' }}>
-                      {income.frequency} • Pay Day: {income.payDay} • {account?.name} • Next: {nextDate.toLocaleDateString()}
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={isReceived} 
-                          onChange={() => toggleIncomeReceived(income)} 
-                        />
-                        {isReceived ? 'Received' : 'Not received'}
-                      </label>
-                      <button
-                        onClick={() => setEditingIncome(income)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteRecurringIncome(income.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            
-            {recurringIncome.filter(i => !i.ignored).length === 0 && (
-              <div style={{ opacity: 0.8, textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
-                No recurring income. Add salary or other regular income!
-              </div>
-            )}
-          </div>
-
-          {/* Upcoming Credits Section */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>
-                {showPaidCredits ? 'Paid Credits History' : 'Upcoming Credits'}
-              </h3>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                <button 
-                  onClick={() => setShowPaidCredits(!showPaidCredits)}
-                  style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                >
-                  {showPaidCredits ? 'Show Upcoming' : 'Show Paid'}
-                </button>
-                {!showPaidCredits && (
-                  <button 
-                    onClick={() => setShowAddCredit(true)}
-                    style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                  >
-                    + Credit
+                    Login for Cloud
                   </button>
                 )}
               </div>
             </div>
-            
-            {!showPaidCredits ? (
-              // Upcoming Credits View
-              upcomingCredits
+
+            {/* Net Worth Card */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Financial Overview</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.75rem' }}>
+                <div style={{ textAlign: 'center', padding: '0.5rem', background: '#f0f9ff', borderRadius: '0.25rem' }}>
+                  <div style={{ fontWeight: '600', color: '#0369a1' }}>Current Balance</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '700' }}>{fmt(currentLiquid)}</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.5rem', background: '#f0fdf4', borderRadius: '0.25rem' }}>
+                  <div style={{ fontWeight: '600', color: '#16a34a' }}>With Income</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '700' }}>{fmt(projectedWithIncome)}</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.5rem', background: '#fef3c7', borderRadius: '0.25rem' }}>
+                  <div style={{ fontWeight: '600', color: '#d97706' }}>After Week</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '700', color: afterWeek < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterWeek)}</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.5rem', background: '#fce7f3', borderRadius: '0.25rem' }}>
+                  <div style={{ fontWeight: '600', color: '#be185d' }}>After Month</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '700', color: afterMonth < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterMonth)}</div>
+                </div>
+              </div>
+              {monthlyRecurringIncomeTotal > 0 && (
+                <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#e0f2fe', borderRadius: '0.25rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>Monthly Recurring Income</div>
+                  <div style={{ fontSize: '1rem', fontWeight: '700', color: '#0369a1' }}>{fmt(monthlyRecurringIncomeTotal)}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Accounts Section */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Accounts</h3>
+                <button 
+                  onClick={() => setShowAddAccount(true)}
+                  style={{ padding: '0.25rem 0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                >
+                  + Account
+                </button>
+              </div>
+              
+              {accounts.map(account => (
+                <div key={account.id} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  padding: '0.5rem', 
+                  background: '#f9fafb', 
+                  borderRadius: '0.25rem',
+                  marginBottom: '0.25rem'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{account.name}</div>
+                    <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>{account.type}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <input
+                      type="number"
+                      value={account.balance}
+                      onChange={(e) => updateAccountBalance(account.id, e.target.value)}
+                      onFocus={selectAllOnFocus}
+                      style={{ 
+                        width: '80px', 
+                        padding: '0.125rem 0.25rem', 
+                        border: '1px solid #d1d5db', 
+                        borderRadius: '0.25rem',
+                        fontSize: '0.75rem',
+                        textAlign: 'right'
+                      }}
+                    />
+                    <button
+                      onClick={() => deleteAccount(account.id)}
+                      style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recurring Income Section */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Recurring Income</h3>
+                <button 
+                  onClick={() => setShowAddIncome(true)}
+                  style={{ padding: '0.25rem 0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                >
+                  + Income
+                </button>
+              </div>
+              
+              {recurringIncome && recurringIncome
+                .filter(inc => !inc.ignored)
+                .map(income => {
+                  const account = accounts.find(a => a.id === income.accountId);
+                  const currentMonth = yyyyMm();
+                  const isReceived = income.receivedMonths?.includes(currentMonth);
+                  const nextDate = getNextIncomeOccurrence(income);
+                  
+                  return (
+                    <div key={income.id} style={{ 
+                      background: '#f0fdf4',
+                      padding: '0.5rem', 
+                      borderRadius: '0.375rem',
+                      border: `2px solid ${isReceived ? '#16a34a' : '#bbf7d0'}`,
+                      marginBottom: '0.375rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{income.name}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
+                          +{fmt(income.amount)}
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
+                        {income.frequency} • Next: {nextDate.toLocaleDateString()} • {account?.name}
+                        {isReceived && <span style={{ color: '#16a34a', fontWeight: '600' }}> • RECEIVED THIS MONTH</span>}
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => toggleIncomeReceived(income)}
+                          style={{ padding: '0.125rem 0.25rem', background: isReceived ? '#f59e0b' : '#16a34a', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          {isReceived ? 'Mark Not Received' : 'Mark Received'}
+                        </button>
+                        <button
+                          onClick={() => deleteIncome(income.id)}
+                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              
+              {(!recurringIncome || recurringIncome.filter(inc => !inc.ignored).length === 0) && (
+                <div style={{ color: '#6b7280', textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
+                  No recurring income. Add your salary or regular income!
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming Credits Section */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Upcoming Credits</h3>
+                <button 
+                  onClick={() => setShowAddCredit(true)}
+                  style={{ padding: '0.25rem 0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                >
+                  + Credit
+                </button>
+              </div>
+              
+              {upcomingCredits
                 .filter(c => !c.ignored)
                 .sort((a, b) => new Date(a.expectedDate) - new Date(b.expectedDate))
                 .map(credit => {
@@ -2689,22 +1730,22 @@ function DashboardContent() {
                   
                   return (
                     <div key={credit.id} style={{ 
-                      background: credit.guaranteed ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)',
+                      background: credit.guaranteed ? '#f0fdf4' : '#f8fafc',
                       padding: '0.5rem', 
                       borderRadius: '0.375rem',
-                      border: `2px solid ${credit.guaranteed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)'}`,
+                      border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
                       marginBottom: '0.375rem'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                         <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{credit.name}</span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
                           +{fmt(credit.amount)}
                         </span>
                       </div>
                       
-                      <div style={{ fontSize: '0.625rem', opacity: 0.9, marginBottom: '0.375rem' }}>
-                        {isOverdue ? 'OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
-                        {credit.guaranteed && <span style={{ fontWeight: '600' }}> • GUARANTEED</span>}
+                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
+                        {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
+                        {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
                       </div>
                       
                       <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
@@ -2718,1316 +1759,331 @@ function DashboardContent() {
                               )
                             }));
                           }}
-                          style={{ fontSize: '0.625rem', padding: '0.125rem 0.25rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                          style={{ fontSize: '0.625rem', padding: '0.125rem 0.25rem', border: '1px solid #d1d5db', borderRadius: '0.125rem' }}
                         >
-                          {accounts.map(a => <option key={a.id} value={a.id} style={{ color: 'black' }}>{a.name}</option>)}
+                          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                         </select>
                         <button
                           onClick={() => receiveCredit(credit.id)}
-                          style={{ padding: '0.125rem 0.25rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                          style={{ padding: '0.125rem 0.25rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           Receive
                         </button>
                         <button
                           onClick={() => toggleCreditGuaranteed(credit.id)}
-                          style={{ padding: '0.125rem 0.25rem', background: credit.guaranteed ? 'rgba(245,158,11,0.8)' : 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                          style={{ padding: '0.125rem 0.25rem', background: credit.guaranteed ? '#f59e0b' : '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           {credit.guaranteed ? 'Unguarantee' : 'Guarantee'}
                         </button>
                         <button
                           onClick={() => deleteCredit(credit.id)}
-                          style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           Delete
                         </button>
-                      </div>
-                    </div>
-                  );
-                })
-            ) : (
-              // Paid Credits History View
-              (() => {
-                const creditsByCategory = receivedCredits.reduce((acc, credit) => {
-                  const category = credit.category || 'Uncategorized';
-                  if (!acc[category]) acc[category] = [];
-                  acc[category].push(credit);
-                  return acc;
-                }, {});
-
-                return Object.entries(creditsByCategory)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([category, credits]) => {
-                    const categoryColor = getCategoryColor(category);
-                    const categoryTotal = credits.reduce((sum, c) => sum + c.amount, 0);
-                    
-                    return (
-                      <div key={category} style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ 
-                          background: 'rgba(255,255,255,0.15)',
-                          padding: '0.5rem',
-                          borderRadius: '0.25rem',
-                          marginBottom: '0.25rem',
-                          borderLeft: `4px solid ${categoryColor}`
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{category}</span>
-                            <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>+{fmt(categoryTotal)}</span>
-                          </div>
-                          <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>{credits.length} credit{credits.length !== 1 ? 's' : ''}</div>
-                        </div>
-                        
-                        {credits
-                          .sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate))
-                          .slice(0, 3)
-                          .map(credit => {
-                            const account = accounts.find(a => a.id === credit.actualAccountId);
-                            return (
-                              <div key={credit.id} style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                padding: '0.375rem',
-                                borderRadius: '0.25rem',
-                                marginBottom: '0.25rem',
-                                fontSize: '0.75rem'
-                              }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                  <span>{credit.name}</span>
-                                  <span>+{fmt(credit.amount)}</span>
-                                </div>
-                                <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
-                                  {new Date(credit.receivedDate).toLocaleDateString()} • {account?.name}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    );
-                  })
-              })()
-            )}
-            
-            {!showPaidCredits && upcomingCredits.filter(c => !c.ignored).length === 0 && (
-              <div style={{ opacity: 0.8, textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
-                No upcoming credits. Add one to track expected income!
-              </div>
-            )}
-            
-            {showPaidCredits && receivedCredits.length === 0 && (
-              <div style={{ opacity: 0.8, textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
-                No received credits yet. Credits will appear here after you mark them as received.
-              </div>
-            )}
-          </div>
-
-          {/* Due This Week */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
-            
-            {upcoming.items
-              .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.income ? 'Income' : it.otc.category))
-              .map((it, idx) => {
-                const name = it.bill ? it.bill.name : it.income ? it.income.name : it.otc.name;
-                const amt = it.bill ? it.bill.amount : it.income ? it.income.amount : it.otc.amount;
-                const isIncome = it.type === 'income';
-                
-                return (
-                  <div key={idx} style={{ 
-                    background: it.overdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
-                    padding: '0.5rem', 
-                    borderRadius: '0.375rem',
-                    border: `1px solid ${it.overdue ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)'}`,
-                    marginBottom: '0.375rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{name}</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600', color: isIncome ? '#10b981' : '#ef4444' }}>
-                        {isIncome ? '+' : ''}{fmt(amt)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.625rem', opacity: 0.9 }}>
-                      {it.overdue ? 'OVERDUE' : ''} {it.due.toLocaleDateString()}
-                    </div>
-                    <button
-                      onClick={() => it.bill ? togglePaid(it.bill) : it.income ? toggleIncomeReceived(it.income) : toggleOneTimePaid(it.otc)}
-                      style={{
-                        width: '100%',
-                        marginTop: '0.25rem',
-                        padding: '0.25rem',
-                        background: 'rgba(255,255,255,0.2)',
-                        color: 'white',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      Mark {isIncome ? 'Received' : 'Paid'}
-                    </button>
-                  </div>
-                );
-              })}
-            
-            {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.income ? 'Income' : it.otc.category)).length === 0 && (
-              <div style={{ opacity: 0.8, textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
-                Nothing due this week!
-              </div>
-            )}
-          </div>
-
-          {/* Category Filter */}
-          <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem', background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-            {['All', ...activeCats].map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCat(cat)}
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  borderRadius: '0.25rem',
-                  border: '1px solid #d1d5db',
-                  background: selectedCat === cat ? '#1f2937' : 'white',
-                  color: selectedCat === cat ? 'white' : '#374151',
-                  fontSize: '0.75rem',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* All Bills */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>All Bills</h3>
-            
-            {bills
-              .filter(b => selectedCats.includes(b.category))
-              .sort((a,b) => {
-                const aDate = getNextOccurrence(a);
-                const bDate = getNextOccurrence(b);
-                return aDate - bDate;
-              })
-              .map(bill => {
-                const account = accounts.find(a => a.id === bill.accountId);
-                const isPaid = bill.paidMonths?.includes(yyyyMm());
-                const nextDate = getNextOccurrence(bill);
-                const categoryColor = getCategoryColor(bill.category);
-                
-                return (
-                  <div key={bill.id} style={{ 
-                    background: isPaid ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.1)', 
-                    padding: '0.5rem', 
-                    borderRadius: '0.375rem',
-                    border: `2px solid ${isPaid ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.2)'}`,
-                    borderLeft: `4px solid ${categoryColor}`,
-                    marginBottom: '0.375rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
-                    </div>
-                    
-                    <div style={{ fontSize: '0.625rem', opacity: 0.9, marginBottom: '0.375rem' }}>
-                      {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={isPaid} 
-                          onChange={() => togglePaid(bill)} 
-                        />
-                        {isPaid ? 'Paid' : 'Not paid'}
-                      </label>
-                      <button
-                        onClick={() => setEditingBill(bill)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteBill(bill.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              <button 
-                onClick={() => setShowAddBill(true)}
-                style={{ width: '100%', padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
-              >
-                + Add Bill
-              </button>
-          </div>
-
-          {/* One-Time Costs */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>One-Time Costs</h3>
-            
-            <div style={{ marginBottom: '0.75rem' }}>
-              <input
-                placeholder="Cost name"
-                value={otcName}
-                onChange={(e) => setOtcName(e.target.value)}
-                style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-              />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  value={otcAmount}
-                  onChange={(e) => setOtcAmount(Number(e.target.value))}
-                  style={{ padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                />
-                <input
-                  type="date"
-                  value={otcDueDate}
-                  onChange={(e) => setOtcDueDate(e.target.value)}
-                  style={{ padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                <select
-                  value={otcCategory}
-                  onChange={(e) => setOtcCategory(e.target.value)}
-                  style={{ padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                >
-                  {activeCats.map(c => <option key={c} value={c} style={{ color: 'black' }}>{c}</option>)}
-                </select>
-                <select
-                  value={otcAccountId}
-                  onChange={(e) => setOtcAccountId(e.target.value)}
-                  style={{ padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                >
-                  {accounts.map(a => <option key={a.id} value={a.id} style={{ color: 'black' }}>{a.name}</option>)}
-                </select>
-              </div>
-              <textarea
-                placeholder="Notes (optional)"
-                value={otcNotes}
-                onChange={(e) => setOtcNotes(e.target.value)}
-                style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', resize: 'vertical', minHeight: '60px', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-              />
-              <button
-                onClick={addOneTimeCost}
-                style={{ width: '100%', padding: '0.375rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-              >
-                Add One-Time Cost
-              </button>
-            </div>
-
-            {oneTimeCosts
-              .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
-              .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-              .map(otc => {
-                const account = accounts.find(a => a.id === otc.accountId);
-                const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
-                const categoryColor = getCategoryColor(otc.category);
-                
-                return (
-                  <div key={otc.id} style={{ 
-                    background: otc.paid ? 'rgba(16,185,129,0.2)' : (isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)'),
-                    padding: '0.5rem', 
-                    borderRadius: '0.375rem',
-                    border: `2px solid ${otc.paid ? 'rgba(16,185,129,0.4)' : (isOverdue ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)')}`,
-                    borderLeft: `4px solid ${categoryColor}`,
-                    marginBottom: '0.375rem',
-                    opacity: otc.ignored ? 0.5 : 1
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{otc.name}</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
-                    </div>
-                    
-                    <div style={{ fontSize: '0.625rem', opacity: 0.9, marginBottom: '0.375rem' }}>
-                      Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name} • {otc.category}
-                      {isOverdue && <span style={{ color: '#fbbf24', fontWeight: '600' }}> • OVERDUE</span>}
-                      {otc.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{otc.notes}</div>}
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={otc.paid} 
-                          onChange={() => toggleOneTimePaid(otc)} 
-                        />
-                        {otc.paid ? 'Paid' : 'Not paid'}
-                      </label>
-                      <button
-                        onClick={() => toggleOTCIgnored(otc)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(107,114,128,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        {otc.ignored ? 'Show' : 'Hide'}
-                      </button>
-                      <button
-                        onClick={() => deleteOneTimeCost(otc.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-
-          {/* Categories Management */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem', color: 'white' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Categories</h3>
-            
-            <div style={{ marginBottom: '0.75rem' }}>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const name = e.target.categoryName.value.trim();
-                const budget = e.target.categoryBudget.value;
-                if (name) {
-                  addCategory(name, budget);
-                  e.target.categoryName.value = '';
-                  e.target.categoryBudget.value = '';
-                }
-              }}>
-                <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                  <input
-                    name="categoryName"
-                    placeholder="New category name"
-                    style={{ flex: 1, padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                  />
-                  <input
-                    name="categoryBudget"
-                    type="number"
-                    placeholder="Budget"
-                    style={{ width: '80px', padding: '0.375rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  style={{ width: '100%', padding: '0.375rem 0.75rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                >
-                  Add Category
-                </button>
-              </form>
-            </div>
-
-            {categories
-              .sort((a, b) => (a.order || 0) - (b.order || 0))
-              .map(cat => {
-                const categoryColor = getCategoryColor(cat.name);
-                return (
-                  <div key={cat.id} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    padding: '0.5rem', 
-                    background: cat.ignored ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)', 
-                    borderRadius: '0.25rem',
-                    marginBottom: '0.25rem',
-                    opacity: cat.ignored ? 0.6 : 1,
-                    borderLeft: `4px solid ${categoryColor}`
-                  }}>
-                    {editingCategoryId === cat.id ? (
-                      <input
-                        type="text"
-                        defaultValue={cat.name}
-                        onBlur={(e) => {
-                          renameCategory(cat.id, e.target.value);
-                          setEditingCategoryId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            renameCategory(cat.id, e.target.value);
-                            setEditingCategoryId(null);
-                          }
-                          if (e.key === 'Escape') {
-                            setEditingCategoryId(null);
-                          }
-                        }}
-                        autoFocus
-                        style={{ fontSize: '0.875rem', padding: '0.125rem 0.25rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                        <span 
-                          style={{ fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer' }}
-                          onClick={() => setEditingCategoryId(cat.id)}
-                        >
-                          {cat.name}
-                        </span>
-                        <input
-                          type="number"
-                          value={cat.budget || 0}
-                          onChange={(e) => updateCategoryBudget(cat.id, e.target.value)}
-                          placeholder="Budget"
-                          style={{ width: '60px', padding: '0.125rem 0.25rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                        />
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button
-                        onClick={() => moveCategoryUp(cat.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        onClick={() => moveCategoryDown(cat.id)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() => toggleIgnoreCategory(cat.name)}
-                        style={{ padding: '0.125rem 0.25rem', background: cat.ignored ? 'rgba(16,185,129,0.8)' : 'rgba(245,158,11,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        {cat.ignored ? 'Show' : 'Hide'}
-                      </button>
-                      <button
-                        onClick={() => removeCategory(cat.name)}
-                        style={{ padding: '0.125rem 0.25rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-
-          {/* Settings */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', 
-            padding: '1rem', 
-            borderRadius: '0.5rem', 
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
-            marginBottom: '0.75rem',
-            color: 'white'
-          }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Settings & Actions</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={autoDeductCash[0]} 
-                  onChange={(e) => setAutoDeductCash(e.target.checked)} 
-                  style={{ accentColor: 'white' }}
-                />
-                Auto-deduct from Cash accounts when marking bills as paid
-              </label>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={showIgnored[0]} 
-                  onChange={(e) => setShowIgnored(e.target.checked)} 
-                  style={{ accentColor: 'white' }}
-                />
-                Show ignored items
-              </label>
-            </div>
-          </div>
-
-          {/* Dialogs */}
-          <AddAccountDialog />
-          <AddIncomeDialog />
-          <AddCreditDialog />
-          <AddBillDialog />
-
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  // Desktop View
-  return (
-    <ErrorBoundary>
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
-        <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* Header */}
-          <div style={{ textAlign: 'center', background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Cashfl0w.io
-            </h1>
-            <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Complete Financial Management Dashboard</p>
-            
-            <div style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
-              {user ? (
-                <div>
-                  {isSyncing ? 'Syncing...' : 'Synced'} • {user.email}
-                  <button
-                    onClick={handleLogout}
-                    style={{ marginLeft: '1rem', padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                  >
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAuth(true)}
-                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                >
-                  Login for Cloud Sync
-                </button>
-              )}
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                style={{ 
-                  padding: '0.75rem 1.5rem', 
-                  background: currentView === 'dashboard' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.5rem', 
-                  fontSize: '1rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentView('calendar')}
-                style={{ 
-                  padding: '0.75rem 1.5rem', 
-                  background: currentView === 'calendar' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.5rem', 
-                  fontSize: '1rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Calendar
-              </button>
-              <button
-                onClick={() => setCurrentView('timeline')}
-                style={{ 
-                  padding: '0.75rem 1.5rem', 
-                  background: currentView === 'timeline' ? '#2563eb' : '#6b7280', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '0.5rem', 
-                  fontSize: '1rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Timeline
-              </button>
-            </div>
-          </div>
-
-          {/* Net Worth & Budget Overview */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            
-            {/* Financial Overview */}
-            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Financial Overview</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div style={{ textAlign: 'center', padding: '1rem', background: '#f0f9ff', borderRadius: '0.5rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#0369a1', marginBottom: '0.5rem' }}>Current Balance</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>{fmt(currentLiquid)}</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a', marginBottom: '0.5rem' }}>With Projected Income</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>{fmt(currentLiquidWithProjectedIncome)}</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#d97706', marginBottom: '0.5rem' }}>After This Week</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: afterWeek < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterWeek)}</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: '1rem', background: '#fce7f3', borderRadius: '0.5rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#be185d', marginBottom: '0.5rem' }}>After This Month</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: afterMonth < 0 ? '#dc2626' : '#16a34a' }}>{fmt(afterMonth)}</div>
-                </div>
-              </div>
-              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '1rem', color: '#6b7280' }}>Monthly Recurring Income: <span style={{ fontWeight: '600', color: '#16a34a' }}>{fmt(monthlyRecurringIncomeTotal)}</span></div>
-              </div>
-            </div>
-
-            {/* Enhanced Budget Status */}
-            <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Budget Status</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {Object.entries(budgetStatus).map(([categoryName, status]) => {
-                  const categoryColor = getCategoryColor(categoryName);
-                  return (
-                    <div key={categoryName} style={{ 
-                      background: 'rgba(255,255,255,0.1)', 
-                      padding: '0.75rem', 
-                      borderRadius: '0.5rem',
-                      borderLeft: `4px solid ${categoryColor}`
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '1rem', fontWeight: '500' }}>{categoryName}</span>
-                        <span style={{ fontSize: '1rem', fontWeight: '600' }}>
-                          {fmt(status.spent)} / {fmt(status.budget)}
-                        </span>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '0.25rem', height: '6px', overflow: 'hidden', marginBottom: '0.5rem' }}>
-                        <div style={{ 
-                          width: `${Math.min(100, status.percentUsed)}%`, 
-                          height: '100%', 
-                          background: status.status === 'over' ? '#ef4444' : status.status === 'warning' ? '#f59e0b' : '#10b981',
-                          transition: 'width 0.3s ease'
-                        }}></div>
-                      </div>
-                      <div style={{ fontSize: '0.875rem', opacity: 0.9, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>
-                          {status.remaining >= 0 ? `${fmt(status.remaining)} remaining` : `${fmt(Math.abs(status.remaining))} over budget`}
-                        </span>
-                        {status.status === 'warning' && <span style={{ color: '#fbbf24' }}>⚠️ Close to limit</span>}
-                        {status.status === 'over' && <span style={{ color: '#ef4444' }}>🚨 Over budget!</span>}
                       </div>
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Main Dashboard Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            
-            {/* Left Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               
-              {/* Accounts */}
-              <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Accounts</h3>
-                  <button 
-                    onClick={() => setShowAddAccount(true)}
-                    style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}
-                  >
-                    + Add Account
-                  </button>
+              {upcomingCredits.filter(c => !c.ignored).length === 0 && (
+                <div style={{ color: '#6b7280', textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
+                  No upcoming credits. Add one to track expected income!
                 </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {accounts.map(account => (
-                    <div key={account.id} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      padding: '0.75rem', 
-                      background: 'rgba(255,255,255,0.1)', 
-                      borderRadius: '0.5rem'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '1rem', fontWeight: '500' }}>{account.name}</div>
-                        <div style={{ fontSize: '0.875rem', opacity: 0.8 }}>{account.type}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="number"
-                          value={account.balance}
-                          onChange={(e) => updateAccountBalance(account.id, e.target.value)}
-                          onFocus={selectAllOnFocus}
-                          style={{ 
-                            width: '120px', 
-                            padding: '0.375rem', 
-                            border: '1px solid rgba(255,255,255,0.3)', 
-                            borderRadius: '0.375rem',
-                            fontSize: '0.875rem',
-                            textAlign: 'right',
-                            background: 'rgba(255,255,255,0.1)',
-                            color: 'white'
-                          }}
-                        />
-                        <button
-                          onClick={() => deleteAccount(account.id)}
-                          style={{ padding: '0.375rem 0.75rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Enhanced Recurring Income */}
-              <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Recurring Income</h3>
-                  <button 
-                    onClick={() => setShowAddIncome(true)}
-                    style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}
-                  >
-                    + Add Income
-                  </button>
-                </div>
-                
-                <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-                    <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>Monthly Total: {fmt(monthlyRecurringIncomeTotal)}</div>
-                    <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
-                      {recurringIncome.filter(i => !i.ignored && i.frequency === 'monthly').length} income source(s)
-                    </div>
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {recurringIncome
-                    .filter(i => !i.ignored)
-                    .sort((a, b) => (a.payDay || 1) - (b.payDay || 1))
-                    .map(income => {
-                      const account = accounts.find(a => a.id === income.accountId);
-                      const isReceived = income.receivedMonths?.includes(yyyyMm());
-                      const nextDate = getNextOccurrence(income);
-                      
-                      return (
-                        <div key={income.id} style={{ 
-                          background: isReceived ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.1)',
-                          padding: '0.75rem', 
-                          borderRadius: '0.5rem',
-                          border: `2px solid ${isReceived ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.2)'}`
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '1rem', fontWeight: '500' }}>{income.name}</span>
-                            <span style={{ fontSize: '1rem', fontWeight: '600' }}>
-                              +{fmt(income.amount)}
-                            </span>
-                          </div>
-                          
-                          <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.75rem' }}>
-                            {income.frequency} • Pay Day: {income.payDay} • {account?.name} • Next: {nextDate.toLocaleDateString()}
-                          </div>
-                          
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                              <input 
-                                type="checkbox" 
-                                checked={isReceived} 
-                                onChange={() => toggleIncomeReceived(income)} 
-                              />
-                              {isReceived ? 'Received this month' : 'Not received yet'}
-                            </label>
-                            <button
-                              onClick={() => setEditingIncome(income)}
-                              style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => deleteRecurringIncome(income.id)}
-                              style={{ padding: '0.25rem 0.5rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  
-                  {recurringIncome.filter(i => !i.ignored).length === 0 && (
-                    <div style={{ opacity: 0.8, textAlign: 'center', padding: '2rem', fontSize: '1rem' }}>
-                      No recurring income. Add salary or other regular income to track your expected money flow!
-                    </div>
-                  )}
-                </div>
-              </div>
-
+              )}
             </div>
-            
-            {/* Right Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Due This Week</h3>
               
-              {/* Upcoming Credits */}
-              <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>
-                    {showPaidCredits ? 'Paid Credits History' : 'Upcoming Credits'}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                      onClick={() => setShowPaidCredits(!showPaidCredits)}
-                      style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}
-                    >
-                      {showPaidCredits ? 'Show Upcoming' : 'Show History'}
-                    </button>
-                    {!showPaidCredits && (
-                      <button 
-                        onClick={() => setShowAddCredit(true)}
-                        style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}
-                      >
-                        + Add Credit
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
-                  {!showPaidCredits ? (
-                    // Upcoming Credits View
-                    upcomingCredits
-                      .filter(c => !c.ignored)
-                      .sort((a, b) => new Date(a.expectedDate) - new Date(b.expectedDate))
-                      .map(credit => {
-                        const account = accounts.find(a => a.id === credit.accountId);
-                        const isOverdue = new Date(credit.expectedDate) < new Date();
-                        
-                        return (
-                          <div key={credit.id} style={{ 
-                            background: credit.guaranteed ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)',
-                            padding: '0.75rem', 
-                            borderRadius: '0.5rem',
-                            border: `2px solid ${credit.guaranteed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)'}`
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                              <span style={{ fontSize: '1rem', fontWeight: '500' }}>{credit.name}</span>
-                              <span style={{ fontSize: '1rem', fontWeight: '600' }}>
-                                +{fmt(credit.amount)}
-                              </span>
-                            </div>
-                            
-                            <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.75rem' }}>
-                              {isOverdue ? <span style={{ color: '#fbbf24', fontWeight: '600' }}>OVERDUE • </span> : ''}
-                              Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
-                              {credit.guaranteed && <span style={{ fontWeight: '600', color: '#fbbf24' }}> • GUARANTEED ⭐</span>}
-                            </div>
-                            
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                              <select
-                                value={credit.accountId}
-                                onChange={(e) => {
-                                  setMasterState(prev => ({
-                                    ...prev,
-                                    upcomingCredits: prev.upcomingCredits.map(c => 
-                                      c.id === credit.id ? { ...c, accountId: e.target.value } : c
-                                    )
-                                  }));
-                                }}
-                                style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                              >
-                                {accounts.map(a => <option key={a.id} value={a.id} style={{ color: 'black' }}>{a.name}</option>)}
-                              </select>
-                              <button
-                                onClick={() => receiveCredit(credit.id)}
-                                style={{ padding: '0.25rem 0.75rem', background: 'rgba(16,185,129,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                              >
-                                Mark Received
-                              </button>
-                              <button
-                                onClick={() => toggleCreditGuaranteed(credit.id)}
-                                style={{ padding: '0.25rem 0.75rem', background: credit.guaranteed ? 'rgba(245,158,11,0.8)' : 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                              >
-                                {credit.guaranteed ? 'Unguarantee' : 'Guarantee'}
-                              </button>
-                              <button
-                                onClick={() => deleteCredit(credit.id)}
-                                style={{ padding: '0.25rem 0.75rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    // Paid Credits History View
-                    (() => {
-                      const creditsByCategory = receivedCredits.reduce((acc, credit) => {
-                        const category = credit.category || 'Uncategorized';
-                        if (!acc[category]) acc[category] = [];
-                        acc[category].push(credit);
-                        return acc;
-                      }, {});
-
-                      return Object.entries(creditsByCategory)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([category, credits]) => {
-                          const categoryColor = getCategoryColor(category);
-                          const categoryTotal = credits.reduce((sum, c) => sum + c.amount, 0);
-                          
-                          return (
-                            <div key={category} style={{ marginBottom: '1rem' }}>
-                              <div style={{ 
-                                background: 'rgba(255,255,255,0.15)',
-                                padding: '0.75rem',
-                                borderRadius: '0.5rem',
-                                marginBottom: '0.5rem',
-                                borderLeft: `4px solid ${categoryColor}`
-                              }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ fontSize: '1rem', fontWeight: '600' }}>{category}</span>
-                                  <span style={{ fontSize: '1rem', fontWeight: '600' }}>+{fmt(categoryTotal)}</span>
-                                </div>
-                                <div style={{ fontSize: '0.875rem', opacity: 0.8 }}>{credits.length} credit{credits.length !== 1 ? 's' : ''}</div>
-                              </div>
-                              
-                              {credits
-                                .sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate))
-                                .slice(0, 5)
-                                .map(credit => {
-                                  const account = accounts.find(a => a.id === credit.actualAccountId);
-                                  return (
-                                    <div key={credit.id} style={{
-                                      background: 'rgba(255,255,255,0.1)',
-                                      padding: '0.5rem',
-                                      borderRadius: '0.375rem',
-                                      marginBottom: '0.25rem',
-                                      fontSize: '0.875rem'
-                                    }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>{credit.name}</span>
-                                        <span>+{fmt(credit.amount)}</span>
-                                      </div>
-                                      <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                                        {new Date(credit.receivedDate).toLocaleDateString()} • {account?.name}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          );
-                        })
-                    })()
-                  )}
-                  
-                  {!showPaidCredits && upcomingCredits.filter(c => !c.ignored).length === 0 && (
-                    <div style={{ opacity: 0.8, textAlign: 'center', padding: '2rem', fontSize: '1rem' }}>
-                      No upcoming credits. Add expected income like freelance payments or refunds!
-                    </div>
-                  )}
-                  
-                  {showPaidCredits && receivedCredits.length === 0 && (
-                    <div style={{ opacity: 0.8, textAlign: 'center', padding: '2rem', fontSize: '1rem' }}>
-                      No received credits yet. Credits will appear here after you mark them as received.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Due This Week */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Due This Week</h3>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
               {upcoming.items
-                .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.income ? 'Income' : it.otc.category))
+                .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
                 .map((it, idx) => {
-                  const name = it.bill ? it.bill.name : it.income ? it.income.name : it.otc.name;
-                  const amt = it.bill ? it.bill.amount : it.income ? it.income.amount : it.otc.amount;
-                  const isIncome = it.type === 'income';
+                  const name = it.bill ? it.bill.name : it.otc.name;
+                  const amt = it.bill ? it.bill.amount : it.otc.amount;
                   
                   return (
                     <div key={idx} style={{ 
-                      background: it.overdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
-                      padding: '1rem', 
-                      borderRadius: '0.5rem',
-                      border: `2px solid ${it.overdue ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)'}`
+                      background: it.overdue ? '#fef2f2' : '#f9fafb',
+                      padding: '0.5rem', 
+                      borderRadius: '0.375rem',
+                      border: `1px solid ${it.overdue ? '#fca5a5' : '#d1d5db'}`,
+                      marginBottom: '0.375rem'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '1rem', fontWeight: '500' }}>{name}</span>
-                        <span style={{ fontSize: '1rem', fontWeight: '600', color: isIncome ? '#10b981' : '#ef4444' }}>
-                          {isIncome ? '+' : ''}{fmt(amt)}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{name}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: it.overdue ? '#dc2626' : '#000' }}>
+                          {fmt(amt)}
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.75rem' }}>
-                        {it.overdue && <span style={{ color: '#fbbf24', fontWeight: '600' }}>OVERDUE • </span>}
-                        Due: {it.due.toLocaleDateString()}
+                      <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
+                        {it.overdue ? '⚠️ OVERDUE' : ''} {it.due.toLocaleDateString()}
                       </div>
                       <button
-                        onClick={() => it.bill ? togglePaid(it.bill) : it.income ? toggleIncomeReceived(it.income) : toggleOneTimePaid(it.otc)}
+                        onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
                         style={{
                           width: '100%',
-                          padding: '0.5rem',
-                          background: isIncome ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.8)',
+                          marginTop: '0.25rem',
+                          padding: '0.25rem',
+                          background: '#2563eb',
                           color: 'white',
-                          border: '1px solid rgba(255,255,255,0.3)',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer'
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.75rem'
                         }}
                       >
-                        Mark as {isIncome ? 'Received' : 'Paid'}
+                        Mark Paid
                       </button>
                     </div>
                   );
                 })}
               
-              {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.income ? 'Income' : it.otc.category)).length === 0 && (
-                <div style={{ opacity: 0.8, textAlign: 'center', padding: '2rem', fontSize: '1rem', gridColumn: '1 / -1' }}>
-                  Nothing due this week! You're all caught up.
+              {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category)).length === 0 && (
+                <div style={{ color: '#6b7280', textAlign: 'center', padding: '1rem', fontSize: '0.875rem' }}>
+                  Nothing due this week!
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Category Filter */}
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', background: 'white', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            {['All', ...activeCats].map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCat(cat)}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.5rem',
-                  border: '2px solid #d1d5db',
-                  background: selectedCat === cat ? '#1f2937' : 'white',
-                  color: selectedCat === cat ? 'white' : '#374151',
-                  fontSize: '1rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+            <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem', background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              {['All', ...activeCats].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCat(cat)}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    borderRadius: '0.25rem',
+                    border: '1px solid #d1d5db',
+                    background: selectedCat === cat ? '#1f2937' : 'white',
+                    color: selectedCat === cat ? 'white' : '#374151',
+                    fontSize: '0.75rem',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
 
-          {/* Bills and One-Time Costs Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            
-            {/* All Bills */}
-            <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Bills</h3>
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>All Bills</h3>
+              
+              {bills
+                .filter(b => selectedCats.includes(b.category))
+                .sort((a,b) => {
+                  const aDate = getNextOccurrence(a);
+                  const bDate = getNextOccurrence(b);
+                  return aDate - bDate;
+                })
+                .map(bill => {
+                  const account = accounts.find(a => a.id === bill.accountId);
+                  const isPaid = bill.paidMonths.includes(yyyyMm());
+                  const nextDate = getNextOccurrence(bill);
+                  
+                  return (
+                    <div key={bill.id} style={{ 
+                      background: '#f9fafb', 
+                      padding: '0.5rem', 
+                      borderRadius: '0.375rem',
+                      border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
+                      marginBottom: '0.375rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
+                      </div>
+                      
+                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
+                        {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={isPaid} 
+                            onChange={() => togglePaid(bill)} 
+                          />
+                          {isPaid ? '✅ Paid' : 'Not paid'}
+                        </label>
+                        <button
+                          onClick={() => setEditingBill(bill)}
+                          style={{ padding: '0.125rem 0.25rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteBill(bill.id)}
+                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
                 <button 
                   onClick={() => setShowAddBill(true)}
-                  style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
                 >
                   + Add Bill
                 </button>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '500px', overflowY: 'auto' }}>
-                {bills
-                  .filter(b => selectedCats.includes(b.category))
-                  .sort((a,b) => {
-                    const aDate = getNextOccurrence(a);
-                    const bDate = getNextOccurrence(b);
-                    return aDate - bDate;
-                  })
-                  .map(bill => {
-                    const account = accounts.find(a => a.id === bill.accountId);
-                    const isPaid = bill.paidMonths?.includes(yyyyMm());
-                    const nextDate = getNextOccurrence(bill);
-                    const categoryColor = getCategoryColor(bill.category);
-                    
-                    return (
-                      <div key={bill.id} style={{ 
-                        background: isPaid ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.1)', 
-                        padding: '0.75rem', 
-                        borderRadius: '0.5rem',
-                        border: `2px solid ${isPaid ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.2)'}`,
-                        borderLeft: `4px solid ${categoryColor}`
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</span>
-                          <span style={{ fontSize: '1rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
-                        </div>
-                        
-                        <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.75rem' }}>
-                          {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th' : ''} • {account?.name}<br />
-                          Next due: {nextDate.toLocaleDateString()}
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={isPaid} 
-                              onChange={() => togglePaid(bill)} 
-                            />
-                            {isPaid ? 'Paid this month' : 'Not paid yet'}
-                          </label>
-                          <button
-                            onClick={() => setEditingBill(bill)}
-                            style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteBill(bill.id)}
-                            style={{ padding: '0.25rem 0.5rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
             </div>
 
             {/* One-Time Costs */}
-            <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>One-Time Costs</h3>
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>One-Time Costs</h3>
               
-              <div style={{ marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
                 <input
                   placeholder="Cost name"
                   value={otcName}
                   onChange={(e) => setOtcName(e.target.value)}
-                  style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                  style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                 />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
                   <input
                     type="number"
                     placeholder="Amount"
                     value={otcAmount}
                     onChange={(e) => setOtcAmount(Number(e.target.value))}
-                    style={{ padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                   />
                   <input
                     type="date"
                     value={otcDueDate}
                     onChange={(e) => setOtcDueDate(e.target.value)}
-                    style={{ padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
                   <select
                     value={otcCategory}
                     onChange={(e) => setOtcCategory(e.target.value)}
-                    style={{ padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                   >
-                    {activeCats.map(c => <option key={c} value={c} style={{ color: 'black' }}>{c}</option>)}
+                    {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <select
                     value={otcAccountId}
                     onChange={(e) => setOtcAccountId(e.target.value)}
-                    style={{ padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                   >
-                    {accounts.map(a => <option key={a.id} value={a.id} style={{ color: 'black' }}>{a.name}</option>)}
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
                 <textarea
                   placeholder="Notes (optional)"
                   value={otcNotes}
                   onChange={(e) => setOtcNotes(e.target.value)}
-                  style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', resize: 'vertical', minHeight: '80px', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                  style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', resize: 'vertical', minHeight: '60px' }}
                 />
                 <button
                   onClick={addOneTimeCost}
-                  style={{ width: '100%', padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '0.375rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                 >
                   Add One-Time Cost
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
-                {oneTimeCosts
-                  .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
-                  .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-                  .map(otc => {
-                    const account = accounts.find(a => a.id === otc.accountId);
-                    const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
-                    const categoryColor = getCategoryColor(otc.category);
-                    
-                    return (
-                      <div key={otc.id} style={{ 
-                        background: otc.paid ? 'rgba(16,185,129,0.2)' : (isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)'),
-                        padding: '0.75rem', 
-                        borderRadius: '0.5rem',
-                        border: `2px solid ${otc.paid ? 'rgba(16,185,129,0.4)' : (isOverdue ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)')}`,
-                        borderLeft: `4px solid ${categoryColor}`,
-                        opacity: otc.ignored ? 0.5 : 1
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: '500', fontSize: '1rem' }}>{otc.name}</span>
-                          <span style={{ fontSize: '1rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
-                        </div>
-                        
-                        <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.75rem' }}>
-                          Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name} • {otc.category}
-                          {isOverdue && <span style={{ color: '#fbbf24', fontWeight: '600' }}> • OVERDUE</span>}
-                          {otc.notes && <div style={{ marginTop: '0.25rem', fontStyle: 'italic' }}>{otc.notes}</div>}
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={otc.paid} 
-                              onChange={() => toggleOneTimePaid(otc)} 
-                            />
-                            {otc.paid ? 'Paid' : 'Not paid'}
-                          </label>
-                          <button
-                            onClick={() => toggleOTCIgnored(otc)}
-                            style={{ padding: '0.25rem 0.5rem', background: 'rgba(107,114,128,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                          >
-                            {otc.ignored ? 'Show' : 'Hide'}
-                          </button>
-                          <button
-                            onClick={() => deleteOneTimeCost(otc.id)}
-                            style={{ padding: '0.25rem 0.5rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+              {oneTimeCosts
+                .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
+                .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+                .map(otc => {
+                  const account = accounts.find(a => a.id === otc.accountId);
+                  const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
+                  
+                  return (
+                    <div key={otc.id} style={{ 
+                      background: otc.paid ? '#f0fdf4' : (isOverdue ? '#fef2f2' : '#f9fafb'),
+                      padding: '0.5rem', 
+                      borderRadius: '0.375rem',
+                      border: `2px solid ${otc.paid ? '#16a34a' : (isOverdue ? '#fca5a5' : '#e5e7eb')}`,
+                      marginBottom: '0.375rem',
+                      opacity: otc.ignored ? 0.5 : 1
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{otc.name}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
                       </div>
-                    );
-                  })}
+                      
+                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
+                        Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name} • {otc.category}
+                        {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                        {otc.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{otc.notes}</div>}
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={otc.paid} 
+                            onChange={() => toggleOneTimePaid(otc)} 
+                          />
+                          {otc.paid ? '✅ Paid' : 'Not paid'}
+                        </label>
+                        <button
+                          onClick={() => toggleOTCIgnored(otc)}
+                          style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          {otc.ignored ? 'Show' : 'Hide'}
+                        </button>
+                        <button
+                          onClick={() => deleteOneTimeCost(otc.id)}
+                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Categories Management with Budgets */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Categories & Budgets</h3>
+              
+              <div style={{ marginBottom: '0.75rem' }}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const name = e.target.categoryName.value.trim();
+                  if (name) {
+                    addCategory(name);
+                    e.target.categoryName.value = '';
+                  }
+                }}>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <input
+                      name="categoryName"
+                      placeholder="New category name"
+                      style={{ flex: 1, padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                    />
+                    <button
+                      type="submit"
+                      style={{ padding: '0.375rem 0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </form>
               </div>
-            </div>
 
-          </div>
-
-          {/* Categories Management */}
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: 'white' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Categories Management</h3>
-            
-            <div style={{ marginBottom: '1.5rem' }}>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const name = e.target.categoryName.value.trim();
-                const budget = e.target.categoryBudget.value;
-                if (name) {
-                  addCategory(name, budget);
-                  e.target.categoryName.value = '';
-                  e.target.categoryBudget.value = '';
-                }
-              }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <input
-                    name="categoryName"
-                    placeholder="New category name"
-                    style={{ padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                  />
-                  <input
-                    name="categoryBudget"
-                    type="number"
-                    placeholder="Monthly Budget"
-                    style={{ width: '150px', padding: '0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                  />
-                  <button
-                    type="submit"
-                    style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.375rem', fontSize: '0.875rem', cursor: 'pointer' }}
-                  >
-                    Add Category
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0.75rem' }}>
               {categories
                 .sort((a, b) => (a.order || 0) - (b.order || 0))
                 .map(cat => {
-                  const categoryColor = getCategoryColor(cat.name);
+                  const spent = categorySpending[cat.name] || 0;
+                  const budget = cat.budget || 0;
+                  const percentUsed = budget > 0 ? (spent / budget) * 100 : 0;
+                  const budgetColor = percentUsed >= 100 ? '#dc2626' : percentUsed >= 80 ? '#f59e0b' : '#16a34a';
+                  
                   return (
                     <div key={cat.id} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      padding: '0.75rem', 
-                      background: cat.ignored ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)', 
-                      borderRadius: '0.5rem',
-                      opacity: cat.ignored ? 0.6 : 1,
-                      borderLeft: `4px solid ${categoryColor}`
+                      padding: '0.5rem', 
+                      background: cat.ignored ? '#f3f4f6' : '#f9fafb', 
+                      borderRadius: '0.25rem',
+                      marginBottom: '0.5rem',
+                      opacity: cat.ignored ? 0.6 : 1
                     }}>
                       {editingCategoryId === cat.id ? (
                         <input
@@ -4047,105 +2103,2115 @@ function DashboardContent() {
                             }
                           }}
                           autoFocus
-                          style={{ fontSize: '1rem', padding: '0.25rem 0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                          style={{ fontSize: '0.875rem', padding: '0.125rem 0.25rem', border: '1px solid #d1d5db', borderRadius: '0.125rem', width: '100%', marginBottom: '0.25rem' }}
                         />
                       ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                          <span 
-                            style={{ fontSize: '1rem', fontWeight: '500', cursor: 'pointer' }}
-                            onClick={() => setEditingCategoryId(cat.id)}
-                          >
-                            {cat.name}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ fontSize: '0.875rem', opacity: 0.8 }}>Budget:</span>
-                            <input
-                              type="number"
-                              value={cat.budget || 0}
-                              onChange={(e) => updateCategoryBudget(cat.id, e.target.value)}
-                              placeholder="Budget"
-                              style={{ width: '100px', padding: '0.25rem 0.5rem', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
-                            />
-                          </div>
+                        <div 
+                          style={{ fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer', marginBottom: '0.25rem' }}
+                          onClick={() => setEditingCategoryId(cat.id)}
+                        >
+                          {cat.name}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.625rem', color: '#6b7280' }}>Budget:</span>
+                        <input
+                          type="number"
+                          value={cat.budget || 0}
+                          onChange={(e) => updateCategoryBudget(cat.id, e.target.value)}
+                          onFocus={selectAllOnFocus}
+                          style={{ width: '60px', padding: '0.125rem', border: '1px solid #d1d5db', borderRadius: '0.125rem', fontSize: '0.625rem', textAlign: 'right' }}
+                        />
+                        <span style={{ fontSize: '0.625rem', color: budgetColor, fontWeight: '600' }}>
+                          {fmt(spent)} / {fmt(budget)} ({percentUsed.toFixed(0)}%)
+                        </span>
+                      </div>
+                      
+                      {budget > 0 && (
+                        <div style={{ background: '#e5e7eb', borderRadius: '0.125rem', height: '6px', marginBottom: '0.25rem', overflow: 'hidden' }}>
+                          <div style={{ 
+                            background: budgetColor, 
+                            height: '100%', 
+                            width: `${Math.min(100, percentUsed)}%`,
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
                         <button
                           onClick={() => moveCategoryUp(cat.id)}
-                          style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
+                          style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           ↑
                         </button>
                         <button
                           onClick={() => moveCategoryDown(cat.id)}
-                          style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
+                          style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           ↓
                         </button>
                         <button
                           onClick={() => toggleIgnoreCategory(cat.name)}
-                          style={{ padding: '0.25rem 0.5rem', background: cat.ignored ? 'rgba(16,185,129,0.8)' : 'rgba(245,158,11,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
+                          style={{ padding: '0.125rem 0.25rem', background: cat.ignored ? '#16a34a' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
                           {cat.ignored ? 'Show' : 'Hide'}
                         </button>
                         <button
                           onClick={() => removeCategory(cat.name)}
-                          style={{ padding: '0.25rem 0.5rem', background: 'rgba(220,38,38,0.8)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
+                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
                         >
-                          Delete
+                          🗑️
                         </button>
                       </div>
                     </div>
                   );
                 })}
             </div>
-          </div>
 
-          {/* Settings */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', 
-            padding: '1.5rem', 
-            borderRadius: '1rem', 
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
-            color: 'white'
-          }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Settings & Preferences</h3>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={autoDeductCash[0]} 
-                  onChange={(e) => setAutoDeductCash(e.target.checked)} 
-                  style={{ accentColor: 'white', transform: 'scale(1.2)' }}
-                />
-                Auto-deduct from Cash accounts when marking items as paid
-              </label>
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Analytics - Pie Charts</h3>
               
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={showIgnored[0]} 
-                  onChange={(e) => setShowIgnored(e.target.checked)} 
-                  style={{ accentColor: 'white', transform: 'scale(1.2)' }}
-                />
-                Show ignored/hidden items in lists
-              </label>
+              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Account Balances</h4>
+                {accountBalanceData.length > 0 ? (
+                  <>
+                    <div style={{ width: '200px', height: '200px', margin: '0 auto' }}>
+                      <svg width="200" height="200" viewBox="0 0 200 200">
+                        {(() => {
+                          const total = accountBalanceData.reduce((sum, item) => sum + item.value, 0);
+                          let currentAngle = 0;
+                          const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                          
+                          return accountBalanceData.map((item, index) => {
+                            const percentage = item.value / total;
+                            const angle = percentage * 360;
+                            const startAngle = currentAngle;
+                            const endAngle = currentAngle + angle;
+                            currentAngle = endAngle;
+                            
+                            const startRadians = (startAngle - 90) * Math.PI / 180;
+                            const endRadians = (endAngle - 90) * Math.PI / 180;
+                            
+                            const largeArcFlag = angle > 180 ? 1 : 0;
+                            const x1 = 100 + 80 * Math.cos(startRadians);
+                            const y1 = 100 + 80 * Math.sin(startRadians);
+                            const x2 = 100 + 80 * Math.cos(endRadians);
+                            const y2 = 100 + 80 * Math.sin(endRadians);
+                            
+                            const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                            
+                            return (
+                              <path
+                                key={index}
+                                d={pathData}
+                                fill={colors[index % colors.length]}
+                                stroke="white"
+                                strokeWidth="2"
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                      {accountBalanceData.map((item, index) => {
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                        return (
+                          <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                            <div style={{ width: '8px', height: '8px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                            <span>{item.name}: {fmt(item.value)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>No account data</div>
+                )}
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Category Spending</h4>
+                {categorySpendingData.length > 0 ? (
+                  <>
+                    <div style={{ width: '200px', height: '200px', margin: '0 auto' }}>
+                      <svg width="200" height="200" viewBox="0 0 200 200">
+                        {(() => {
+                          const total = categorySpendingData.reduce((sum, item) => sum + item.value, 0);
+                          let currentAngle = 0;
+                          const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                          
+                          return categorySpendingData.map((item, index) => {
+                            const percentage = item.value / total;
+                            const angle = percentage * 360;
+                            const startAngle = currentAngle;
+                            const endAngle = currentAngle + angle;
+                            currentAngle = endAngle;
+                            
+                            const startRadians = (startAngle - 90) * Math.PI / 180;
+                            const endRadians = (endAngle - 90) * Math.PI / 180;
+                            
+                            const largeArcFlag = angle > 180 ? 1 : 0;
+                            const x1 = 100 + 80 * Math.cos(startRadians);
+                            const y1 = 100 + 80 * Math.sin(startRadians);
+                            const x2 = 100 + 80 * Math.cos(endRadians);
+                            const y2 = 100 + 80 * Math.sin(endRadians);
+                            
+                            const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                            
+                            return (
+                              <path
+                                key={index}
+                                d={pathData}
+                                fill={colors[index % colors.length]}
+                                stroke="white"
+                                strokeWidth="2"
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                      {categorySpendingData.map((item, index) => {
+                        const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                        return (
+                          <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                            <div style={{ width: '8px', height: '8px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                            <span>{item.name}: {fmt(item.value)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>No spending data</div>
+                )}
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', 
+              padding: '1rem', 
+              borderRadius: '0.5rem', 
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
+              marginBottom: '0.75rem',
+              color: 'white'
+            }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Settings & Actions</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={autoDeductCash[0]} 
+                    onChange={(e) => setAutoDeductCash(e.target.checked)} 
+                    style={{ accentColor: 'white' }}
+                  />
+                  Auto-deduct from Cash accounts when marking bills as paid
+                </label>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={showIgnored[0]} 
+                    onChange={(e) => setShowIgnored(e.target.checked)} 
+                    style={{ accentColor: 'white' }}
+                  />
+                  Show ignored items
+                </label>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button
+                    onClick={undoRedo.undo}
+                    disabled={!undoRedo.canUndo}
+                    style={{ 
+                      flex: 1, 
+                      padding: '0.5rem', 
+                      background: undoRedo.canUndo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
+                      color: 'white', 
+                      border: undoRedo.canUndo ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)', 
+                      borderRadius: '0.25rem', 
+                      fontSize: '0.75rem',
+                      cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed',
+                      opacity: undoRedo.canUndo ? 1 : 0.6
+                    }}
+                  >
+                    Undo (Ctrl+Z)
+                  </button>
+                  <button
+                    onClick={undoRedo.redo}
+                    disabled={!undoRedo.canRedo}
+                    style={{ 
+                      flex: 1, 
+                      padding: '0.5rem', 
+                      background: undoRedo.canRedo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
+                      color: 'white', 
+                      border: undoRedo.canRedo ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)', 
+                      borderRadius: '0.25rem', 
+                      fontSize: '0.75rem',
+                      cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed',
+                      opacity: undoRedo.canRedo ? 1 : 0.6
+                    }}
+                  >
+                    Redo (Ctrl+Alt+Z)
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowSnapshots(true)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.5rem', 
+                    background: 'rgba(255,255,255,0.2)', 
+                    color: 'white', 
+                    border: '1px solid rgba(255,255,255,0.3)', 
+                    borderRadius: '0.25rem', 
+                    fontSize: '0.75rem', 
+                    marginTop: '0.5rem' 
+                  }}
+                >
+                  View Net Worth History
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Timeline View (Mobile)
+          <div style={{ background: 'white', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>30-Day Cash Flow Timeline</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {timeline.map((day, idx) => {
+                const hasActivity = day.income.length > 0 || day.expenses.length > 0;
+                const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
+                
+                return (
+                  <div key={idx} style={{ 
+                    padding: '0.5rem', 
+                    background: isWeekend ? '#f9fafb' : 'white',
+                    border: `1px solid ${day.balance < 0 ? '#fca5a5' : '#e5e7eb'}`,
+                    borderRadius: '0.375rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasActivity ? '0.375rem' : 0 }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '600' }}>
+                          {day.dayOfWeek}, {day.date.toLocaleDateString()}
+                        </div>
+                        {idx === 0 && <div style={{ fontSize: '0.625rem', color: '#16a34a', fontWeight: '600' }}>TODAY</div>}
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        fontWeight: '700',
+                        color: day.balance < 0 ? '#dc2626' : '#000'
+                      }}>
+                        {fmt(day.balance)}
+                      </div>
+                    </div>
+                    
+                    {hasActivity && (
+                      <div style={{ fontSize: '0.625rem' }}>
+                        {day.income.map((inc, i) => (
+                          <div key={`inc-${i}`} style={{ color: '#16a34a', marginBottom: '0.125rem' }}>
+                            + {inc.name}: {fmt(inc.amount)}
+                          </div>
+                        ))}
+                        {day.expenses.map((exp, i) => (
+                          <div key={`exp-${i}`} style={{ color: '#dc2626', marginBottom: '0.125rem' }}>
+                            - {exp.name}: {fmt(exp.amount)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+        )}
 
-          {/* Dialogs */}
-          <AddAccountDialog />
-          <AddIncomeDialog />
-          <AddCreditDialog />
-          <AddBillDialog />
+        {/* MOBILE DIALOGS */}
+        {showAuth && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
+              </div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={handleAuth} disabled={authLoading} style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  {authLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
+                </button>
+                <button onClick={() => setShowAuth(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Cancel
+                </button>
+              </div>
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button onClick={() => setIsSignUp(!isSignUp)} style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline' }}>
+                  {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-        </div>
+        {showAddAccount && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Account</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addAccount(formData.get('name'), formData.get('type'), formData.get('balance'));
+                setShowAddAccount(false);
+              }}>
+                <input name="name" placeholder="Account name" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="type" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="Bank">Bank Account</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit">Credit Card</option>
+                  <option value="Investment">Investment</option>
+                  <option value="Other">Other</option>
+                </select>
+                <input name="balance" type="number" step="0.01" placeholder="Starting balance" defaultValue="0" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Account</button>
+                  <button type="button" onClick={() => setShowAddAccount(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddIncome && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Recurring Income</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addRecurringIncome(
+                  formData.get('name'),
+                  formData.get('amount'),
+                  formData.get('frequency'),
+                  formData.get('payDay'),
+                  formData.get('accountId'),
+                  formData.get('notes')
+                );
+                setShowAddIncome(false);
+              }}>
+                <input name="name" placeholder="Income name (e.g., Salary)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="biweekly">Bi-weekly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <input name="payDay" type="number" min="1" max="28" placeholder="Pay day (1-28)" defaultValue="15" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Income</button>
+                  <button type="button" onClick={() => setShowAddIncome(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddCredit && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Upcoming Credit</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addUpcomingCredit(
+                  formData.get('name'), 
+                  formData.get('amount'), 
+                  formData.get('expectedDate'), 
+                  formData.get('accountId'),
+                  formData.get('guaranteed') === 'on',
+                  formData.get('notes')
+                );
+                setShowAddCredit(false);
+              }}>
+                <input name="name" placeholder="Credit name (e.g., Refund)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="expectedDate" type="date" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                  <input name="guaranteed" type="checkbox" />
+                  Guaranteed (include in calculations)
+                </label>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Credit</button>
+                  <button type="button" onClick={() => setShowAddCredit(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newBill = {
+                  id: crypto.randomUUID(),
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId'),
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                };
+                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
+                setShowAddBill(false);
+                notify('Bill added successfully!');
+              }}>
+                <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="frequency" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue="15" required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {editingBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedBill = {
+                  ...editingBill,
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId')
+                };
+                setMasterState(prev => ({
+                  ...prev,
+                  bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
+                }));
+                setEditingBill(null);
+                notify('Bill updated successfully!');
+              }}>
+                <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingBill.amount} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="frequency" defaultValue={editingBill.frequency} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month" defaultValue={editingBill.dueDay} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" defaultValue={editingBill.accountId} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Update Bill</button>
+                  <button type="button" onClick={() => setEditingBill(null)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showSnapshots && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Net Worth History</h2>
+                <button onClick={() => setShowSnapshots(false)} style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem' }}>✕</button>
+              </div>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <button 
+                  onClick={() => {
+                    setNwHistory(prev => [...prev, {
+                      ts: Date.now(),
+                      current: currentLiquid,
+                      afterWeek,
+                      afterMonth,
+                      reason: 'manual_snapshot'
+                    }]);
+                    notify('Snapshot saved!');
+                  }}
+                  style={{ width: '100%', padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}
+                >
+                  📸 Take Snapshot Now
+                </button>
+              </div>
+
+              {netWorthTrend.length > 0 ? (
+                <div>
+                  {netWorthTrend.slice(-20).reverse().map((snap, idx) => (
+                    <div key={idx} style={{ 
+                      padding: '0.75rem', 
+                      background: '#f9fafb', 
+                      borderRadius: '0.375rem', 
+                      marginBottom: '0.5rem',
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{snap.date}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#2563eb' }}>{fmt(snap.current)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <span>After Week: <span style={{ color: snap.afterWeek >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(snap.afterWeek)}</span></span>
+                        <span>After Month: <span style={{ color: snap.afterMonth >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(snap.afterMonth)}</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#6b7280', padding: '2rem' }}>
+                  No snapshots yet. Take your first snapshot!
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-    </ErrorBoundary>
+    );
+  }
+
+  // Desktop Version - COMPLETE ORIGINAL FUNCTIONALITY
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '1.5rem' }}>
+      <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Navigation Tabs */}
+        <div style={{ background: 'white', padding: '0.75rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            style={{
+              padding: '0.75rem 2rem',
+              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)' : 'white',
+              color: currentView === 'dashboard' ? 'white' : '#374151',
+              border: currentView === 'dashboard' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setCurrentView('timeline')}
+            style={{
+              padding: '0.75rem 2rem',
+              background: currentView === 'timeline' ? 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)' : 'white',
+              color: currentView === 'timeline' ? 'white' : '#374151',
+              border: currentView === 'timeline' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Timeline
+          </button>
+        </div>
+
+        {currentView === 'dashboard' ? (
+          <>
+            <div style={{ textAlign: 'center' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
+                💰 Cashfl0.io 💰
+              </h1>
+              <p style={{ color: '#4b5563' }}>Complete financial management system</p>
+              
+              <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                {user ? (
+                  <div>
+                    {isSyncing ? '🔄 Syncing...' : '☁️ Synced'} • {user.email}
+                    <button
+                      onClick={handleLogout}
+                      style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.875rem' }}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAuth(true)}
+                    style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  >
+                    Login for Cloud Sync
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Money Needed This Week Header */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', 
+              padding: '2rem', 
+              borderRadius: '1rem', 
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+              color: 'white'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>💸</span>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>Financial Overview</h2>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>💸</span>
+                    <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Week Total Due</span>
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '700' }}>{fmt(weekNeedWithoutSavings)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Full amount due this week</div>
+                </div>
+                
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>🏦</span>
+                    <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Current Balance</span>
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '700' }}>{fmt(currentLiquidWithGuaranteed)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Including guaranteed credits</div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>💰</span>
+                    <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>With All Income</span>
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '700' }}>{fmt(projectedWithIncome)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Balance + recurring income</div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>📊</span>
+                    <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>After Month</span>
+                  </div>
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontWeight: '700',
+                    color: afterMonth < 0 ? '#fbbf24' : '#10b981'
+                  }}>
+                    {fmt(afterMonth)}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                    {afterMonth < 0 ? 'Need to earn more' : 'Surplus expected'}
+                  </div>
+                </div>
+              </div>
+
+              {monthlyRecurringIncomeTotal > 0 && (
+                <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Monthly Recurring Income</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>{fmt(monthlyRecurringIncomeTotal)}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Three Column Layout: Accounts, Income Sources, Due This Week */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+              
+              {/* Accounts Column */}
+              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Accounts</h3>
+                  <button 
+                    onClick={() => setShowAddAccount(true)}
+                    style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {accounts.map(account => (
+                    <div key={account.id} style={{ 
+                      background: '#f9fafb', 
+                      padding: '1rem', 
+                      borderRadius: '0.5rem',
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                        <div>
+                          <div style={{ fontWeight: '500', fontSize: '1rem' }}>{account.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{account.type}</div>
+                        </div>
+                        <button
+                          onClick={() => deleteAccount(account.id)}
+                          style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>$</span>
+                        <input
+                          type="number"
+                          value={account.balance}
+                          onChange={(e) => updateAccountBalance(account.id, e.target.value)}
+                          onFocus={selectAllOnFocus}
+                          style={{ 
+                            flex: 1, 
+                            padding: '0.5rem', 
+                            border: '1px solid #d1d5db', 
+                            borderRadius: '0.375rem',
+                            fontSize: '1rem',
+                            textAlign: 'right',
+                            fontWeight: '600'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#0369a1', fontWeight: '500' }}>Total Balance</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0369a1' }}>{fmt(currentLiquidWithGuaranteed)}</div>
+                </div>
+              </div>
+
+              {/* Income Sources Column (Recurring + Credits) */}
+              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Income Sources</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      onClick={() => setShowAddIncome(true)}
+                      style={{ padding: '0.5rem 1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                    >
+                      + Recurring
+                    </button>
+                    <button 
+                      onClick={() => setShowAddCredit(true)}
+                      style={{ padding: '0.5rem 1rem', background: '#0369a1', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                    >
+                      + Credit
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '600px', overflowY: 'auto' }}>
+                  {/* Recurring Income */}
+                  {recurringIncome && recurringIncome
+                    .filter(inc => !inc.ignored)
+                    .map(income => {
+                      const account = accounts.find(a => a.id === income.accountId);
+                      const currentMonth = yyyyMm();
+                      const isReceived = income.receivedMonths?.includes(currentMonth);
+                      const nextDate = getNextIncomeOccurrence(income);
+                      
+                      return (
+                        <div key={income.id} style={{ 
+                          background: '#f0fdf4', 
+                          padding: '1rem', 
+                          borderRadius: '0.5rem',
+                          border: `2px solid ${isReceived ? '#16a34a' : '#bbf7d0'}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                            <div>
+                              <div style={{ fontWeight: '500', fontSize: '1rem' }}>🔄 {income.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                {income.frequency} • Next: {nextDate.toLocaleDateString()}
+                                {isReceived && <span style={{ color: '#16a34a', fontWeight: '600' }}> • RECEIVED</span>}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                              +{fmt(income.amount)}
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <button
+                              onClick={() => toggleIncomeReceived(income)}
+                              style={{ padding: '0.25rem 0.5rem', background: isReceived ? '#f59e0b' : '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              {isReceived ? 'Not Received' : 'Mark Received'}
+                            </button>
+                            <button
+                              onClick={() => deleteIncome(income.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Upcoming Credits */}
+                  {upcomingCredits
+                    .filter(c => !c.ignored)
+                    .sort((a, b) => new Date(a.expectedDate) - new Date(b.expectedDate))
+                    .map(credit => {
+                      const account = accounts.find(a => a.id === credit.accountId);
+                      const isOverdue = new Date(credit.expectedDate) < new Date();
+                      
+                      return (
+                        <div key={credit.id} style={{ 
+                          background: credit.guaranteed ? '#f0fdf4' : '#f8fafc', 
+                          padding: '1rem', 
+                          borderRadius: '0.5rem',
+                          border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                            <div>
+                              <div style={{ fontWeight: '500', fontSize: '1rem' }}>💳 {credit.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                {new Date(credit.expectedDate).toLocaleDateString()}
+                                {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                                {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                              +{fmt(credit.amount)}
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <select
+                              value={credit.accountId}
+                              onChange={(e) => {
+                                setMasterState(prev => ({
+                                  ...prev,
+                                  upcomingCredits: prev.upcomingCredits.map(c => 
+                                    c.id === credit.id ? { ...c, accountId: e.target.value } : c
+                                  )
+                                }));
+                              }}
+                              style={{ flex: 1, padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+                            >
+                              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            </select>
+                            <button
+                              onClick={() => receiveCredit(credit.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              Receive
+                            </button>
+                            <button
+                              onClick={() => toggleCreditGuaranteed(credit.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: credit.guaranteed ? '#f59e0b' : '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              {credit.guaranteed ? 'Unlock' : 'Lock'}
+                            </button>
+                            <button
+                              onClick={() => deleteCredit(credit.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  
+                  {(!recurringIncome || recurringIncome.filter(inc => !inc.ignored).length === 0) && upcomingCredits.filter(c => !c.ignored).length === 0 && (
+                    <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                      No income sources. Add recurring income or expected credits!
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Due This Week Column */}
+              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Due This Week</h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '500px', overflowY: 'auto' }}>
+                  {upcoming.items
+                    .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
+                    .map((it, idx) => {
+                      const name = it.bill ? it.bill.name : it.otc.name;
+                      const amt = it.bill ? it.bill.amount : it.otc.amount;
+                      const account = accounts.find(a => a.id === (it.bill ? it.bill.accountId : it.otc.accountId));
+                      
+                      return (
+                        <div key={idx} style={{ 
+                          background: it.overdue ? '#fef2f2' : '#f9fafb',
+                          padding: '1rem', 
+                          borderRadius: '0.5rem',
+                          border: `2px solid ${it.overdue ? '#fca5a5' : '#d1d5db'}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                            <div>
+                              <div style={{ fontWeight: '500', fontSize: '1rem' }}>{name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                {it.overdue ? '⚠️ OVERDUE' : ''} {it.due.toLocaleDateString()}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                {account?.name}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: it.overdue ? '#dc2626' : '#000' }}>
+                              {fmt(amt)}
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              background: '#2563eb',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.375rem',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            Mark as Paid
+                          </button>
+                        </div>
+                      );
+                    })}
+                  
+                  {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category)).length === 0 && (
+                    <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                      Nothing due this week! Great job!
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{ marginTop: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem', border: '1px solid #fcd34d' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: '500' }}>Week Total</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#92400e' }}>{fmt(upcoming.weekDueTotal)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['All', ...activeCats].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCat(cat)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '0.375rem',
+                      border: '1px solid #d1d5db',
+                      background: selectedCat === cat ? '#1f2937' : 'white',
+                      color: selectedCat === cat ? 'white' : '#374151',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Categories & Budgets Section */}
+            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Categories & Budget Management</h3>
+              
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const name = e.target.categoryName.value.trim();
+                  if (name) {
+                    addCategory(name);
+                    e.target.categoryName.value = '';
+                  }
+                }} style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                  <input
+                    name="categoryName"
+                    placeholder="New category name"
+                    style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  />
+                  <button
+                    type="submit"
+                    style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  >
+                    Add Category
+                  </button>
+                </form>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={showIgnored[0]} 
+                    onChange={(e) => setShowIgnored(e.target.checked)} 
+                  />
+                  Show ignored
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+                {categories
+                  .filter(cat => !cat.ignored || showIgnored[0])
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map(cat => {
+                    const spent = categorySpending[cat.name] || 0;
+                    const budget = cat.budget || 0;
+                    const percentUsed = budget > 0 ? (spent / budget) * 100 : 0;
+                    const budgetColor = percentUsed >= 100 ? '#dc2626' : percentUsed >= 80 ? '#f59e0b' : '#16a34a';
+                    
+                    return (
+                      <div key={cat.id} style={{ 
+                        padding: '1rem', 
+                        background: cat.ignored ? '#f3f4f6' : '#f9fafb', 
+                        borderRadius: '0.5rem',
+                        border: '1px solid #e5e7eb',
+                        opacity: cat.ignored ? 0.6 : 1
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                          {editingCategoryId === cat.id ? (
+                            <input
+                              type="text"
+                              defaultValue={cat.name}
+                              onBlur={(e) => {
+                                renameCategory(cat.id, e.target.value);
+                                setEditingCategoryId(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  renameCategory(cat.id, e.target.value);
+                                  setEditingCategoryId(null);
+                                }
+                                if (e.key === 'Escape') {
+                                  setEditingCategoryId(null);
+                                }
+                              }}
+                              autoFocus
+                              style={{ fontSize: '1rem', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', flex: 1 }}
+                            />
+                          ) : (
+                            <span 
+                              style={{ fontSize: '1rem', fontWeight: '600', cursor: 'pointer', flex: 1 }}
+                              onClick={() => setEditingCategoryId(cat.id)}
+                            >
+                              {cat.name}
+                            </span>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            <button
+                              onClick={() => moveCategoryUp(cat.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              onClick={() => moveCategoryDown(cat.id)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              ↓
+                            </button>
+                            <button
+                              onClick={() => toggleIgnoreCategory(cat.name)}
+                              style={{ padding: '0.25rem 0.5rem', background: cat.ignored ? '#16a34a' : '#f59e0b', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              {cat.ignored ? 'Show' : 'Hide'}
+                            </button>
+                            <button
+                              onClick={() => removeCategory(cat.name)}
+                              style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Budget:</span>
+                          <input
+                            type="number"
+                            value={cat.budget || 0}
+                            onChange={(e) => updateCategoryBudget(cat.id, e.target.value)}
+                            onFocus={selectAllOnFocus}
+                            style={{ width: '100px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem', textAlign: 'right' }}
+                          />
+                          <span style={{ fontSize: '0.875rem', color: budgetColor, fontWeight: '600' }}>
+                            {fmt(spent)} / {fmt(budget)} ({percentUsed.toFixed(0)}%)
+                          </span>
+                        </div>
+                        
+                        {budget > 0 && (
+                          <div style={{ background: '#e5e7eb', borderRadius: '0.25rem', height: '8px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              background: budgetColor, 
+                              height: '100%', 
+                              width: `${Math.min(100, percentUsed)}%`,
+                              transition: 'width 0.3s ease'
+                            }} />
+                          </div>
+                        )}
+                        
+                        {percentUsed >= 100 && budget > 0 && (
+                          <div style={{ marginTop: '0.5rem', padding: '0.25rem 0.5rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.25rem', fontSize: '0.75rem', color: '#dc2626' }}>
+                            ⚠️ Over budget by {fmt(spent - budget)}!
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Bills Management Section */}
+            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills</h3>
+                <button 
+                  onClick={() => setShowAddBill(true)}
+                  style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                >
+                  + Add Bill
+                </button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+                {bills
+                  .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+                  .sort((a,b) => {
+                    const aDate = getNextOccurrence(a);
+                    const bDate = getNextOccurrence(b);
+                    return aDate - bDate;
+                  })
+                  .map(bill => {
+                    const account = accounts.find(a => a.id === bill.accountId);
+                    const isPaid = bill.paidMonths.includes(yyyyMm());
+                    const nextDate = getNextOccurrence(bill);
+                    
+                    return (
+                      <div key={bill.id} style={{ 
+                        background: '#f9fafb', 
+                        padding: '1rem', 
+                        borderRadius: '0.5rem',
+                        border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
+                        opacity: bill.ignored ? 0.6 : 1
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              Next: {nextDate.toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(bill.amount)}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{bill.category}</div>
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isPaid} 
+                              onChange={() => togglePaid(bill)} 
+                            />
+                            {isPaid ? 'Paid' : 'Not paid'}
+                          </label>
+                          <button
+                            onClick={() => setEditingBill(bill)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => toggleBillIgnored(bill)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            {bill.ignored ? 'Show' : 'Hide'}
+                          </button>
+                          <button
+                            onClick={() => deleteBill(bill.id)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+              
+              {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true)).length === 0 && (
+                <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                  No bills found. Add your first bill to get started!
+                </div>
+              )}
+            </div>
+
+            {/* One-Time Costs Section */}
+            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>One-Time Costs</h3>
+              
+              {/* Add One-Time Cost Form */}
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <input
+                    placeholder="Cost name"
+                    value={otcName}
+                    onChange={(e) => setOtcName(e.target.value)}
+                    style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={otcAmount}
+                    onChange={(e) => setOtcAmount(Number(e.target.value))}
+                    style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  />
+                  <input
+                    type="date"
+                    value={otcDueDate}
+                    onChange={(e) => setOtcDueDate(e.target.value)}
+                    style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  />
+                  <select
+                    value={otcCategory}
+                    onChange={(e) => setOtcCategory(e.target.value)}
+                    style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  >
+                    {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select
+                    value={otcAccountId}
+                    onChange={(e) => setOtcAccountId(e.target.value)}
+                    style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  >
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <textarea
+                    placeholder="Notes (optional)"
+                    value={otcNotes}
+                    onChange={(e) => setOtcNotes(e.target.value)}
+                    style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }}
+                  />
+                  <button
+                    onClick={addOneTimeCost}
+                    style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', alignSelf: 'flex-start' }}
+                  >
+                    Add Cost
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+                {oneTimeCosts
+                  .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
+                  .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+                  .map(otc => {
+                    const account = accounts.find(a => a.id === otc.accountId);
+                    const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
+                    
+                    return (
+                      <div key={otc.id} style={{ 
+                        background: otc.paid ? '#f0fdf4' : (isOverdue ? '#fef2f2' : '#f9fafb'),
+                        padding: '1rem', 
+                        borderRadius: '0.5rem',
+                        border: `2px solid ${otc.paid ? '#16a34a' : (isOverdue ? '#fca5a5' : '#e5e7eb')}`,
+                        opacity: otc.ignored ? 0.6 : 1
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontWeight: '500', fontSize: '1rem' }}>{otc.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              {otc.category}
+                              {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                            </div>
+                            {otc.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{otc.notes}</div>}
+                          </div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(otc.amount)}</div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={otc.paid} 
+                              onChange={() => toggleOneTimePaid(otc)} 
+                            />
+                            {otc.paid ? 'Paid' : 'Not paid'}
+                          </label>
+                          <button
+                            onClick={() => setEditingOTC(otc)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => toggleOTCIgnored(otc)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            {otc.ignored ? 'Show' : 'Hide'}
+                          </button>
+                          <button
+                            onClick={() => deleteOneTimeCost(otc.id)}
+                            style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+              
+              {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true)).length === 0 && (
+                <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                  No one-time costs found. Add costs above to track them!
+                </div>
+              )}
+            </div>
+
+            {/* Net Worth & Analytics Section */}
+            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Net Worth & Financial Analytics</h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem', textAlign: 'center' }}>Where Your Money Is</h4>
+                  {accountBalanceData.length > 0 ? (
+                    <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center' }}>
+                      <div style={{ width: '300px', height: '300px' }}>
+                        <svg width="300" height="300" viewBox="0 0 300 300">
+                          {(() => {
+                            const total = accountBalanceData.reduce((sum, item) => sum + item.value, 0);
+                            let currentAngle = 0;
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                            
+                            return accountBalanceData.map((item, index) => {
+                              const percentage = item.value / total;
+                              const angle = percentage * 360;
+                              const startAngle = currentAngle;
+                              const endAngle = currentAngle + angle;
+                              currentAngle = endAngle;
+                              
+                              const startRadians = (startAngle - 90) * Math.PI / 180;
+                              const endRadians = (endAngle - 90) * Math.PI / 180;
+                              
+                              const largeArcFlag = angle > 180 ? 1 : 0;
+                              const x1 = 150 + 120 * Math.cos(startRadians);
+                              const y1 = 150 + 120 * Math.sin(startRadians);
+                              const x2 = 150 + 120 * Math.cos(endRadians);
+                              const y2 = 150 + 120 * Math.sin(endRadians);
+                              
+                              const pathData = `M 150 150 L ${x1} ${y1} A 120 120 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                              
+                              return (
+                                <path
+                                  key={index}
+                                  d={pathData}
+                                  fill={colors[index % colors.length]}
+                                  stroke="white"
+                                  strokeWidth="3"
+                                />
+                              );
+                            });
+                          })()}
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#6b7280', textAlign: 'center', fontSize: '0.875rem' }}>No account data</div>
+                  )}
+                  <div style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
+                    {accountBalanceData.map((item, index) => {
+                      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                      return (
+                        <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ width: '12px', height: '12px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                          <span>{item.name}: {fmt(item.value)} ({item.type})</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem', textAlign: 'center' }}>Spending by Category</h4>
+                  {categorySpendingData.length > 0 ? (
+                    <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center' }}>
+                      <div style={{ width: '300px', height: '300px' }}>
+                        <svg width="300" height="300" viewBox="0 0 300 300">
+                          {(() => {
+                            const total = categorySpendingData.reduce((sum, item) => sum + item.value, 0);
+                            let currentAngle = 0;
+                            const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                            
+                            return categorySpendingData.map((item, index) => {
+                              const percentage = item.value / total;
+                              const angle = percentage * 360;
+                              const startAngle = currentAngle;
+                              const endAngle = currentAngle + angle;
+                              currentAngle = endAngle;
+                              
+                              const startRadians = (startAngle - 90) * Math.PI / 180;
+                              const endRadians = (endAngle - 90) * Math.PI / 180;
+                              
+                              const largeArcFlag = angle > 180 ? 1 : 0;
+                              const x1 = 150 + 120 * Math.cos(startRadians);
+                              const y1 = 150 + 120 * Math.sin(startRadians);
+                              const x2 = 150 + 120 * Math.cos(endRadians);
+                              const y2 = 150 + 120 * Math.sin(endRadians);
+                              
+                              const pathData = `M 150 150 L ${x1} ${y1} A 120 120 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                              
+                              return (
+                                <path
+                                  key={index}
+                                  d={pathData}
+                                  fill={colors[index % colors.length]}
+                                  stroke="white"
+                                  strokeWidth="3"
+                                />
+                              );
+                            });
+                          })()}
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#6b7280', textAlign: 'center', fontSize: '0.875rem' }}>No spending data</div>
+                  )}
+                  <div style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
+                    {categorySpendingData.map((item, index) => {
+                      const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+                      return (
+                        <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ width: '12px', height: '12px', backgroundColor: colors[index % colors.length], borderRadius: '50%' }}></div>
+                          <span>{item.name}: {fmt(item.value)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '1rem' }}>Net Worth Trend</h4>
+                  {netWorthTrend.length > 1 ? (
+                    <div style={{ width: '100%', height: '250px', border: '1px solid #e5e7eb', borderRadius: '0.5rem', padding: '1rem' }}>
+                      <svg width="100%" height="100%" viewBox="0 0 400 200">
+                        {(() => {
+                          const maxValue = Math.max(...netWorthTrend.map(d => Math.max(d.current, d.afterWeek, d.afterMonth)));
+                          const minValue = Math.min(...netWorthTrend.map(d => Math.min(d.current, d.afterWeek, d.afterMonth)));
+                          const range = maxValue - minValue || 1;
+                          const xStep = 380 / (netWorthTrend.length - 1);
+                          
+                          const getY = (value) => 180 - ((value - minValue) / range) * 160;
+                          
+                          const currentPath = netWorthTrend.map((d, i) => 
+                            `${i === 0 ? 'M' : 'L'} ${10 + i * xStep} ${getY(d.current)}`
+                          ).join(' ');
+                          
+                          const afterWeekPath = netWorthTrend.map((d, i) => 
+                            `${i === 0 ? 'M' : 'L'} ${10 + i * xStep} ${getY(d.afterWeek)}`
+                          ).join(' ');
+                          
+                          const afterMonthPath = netWorthTrend.map((d, i) => 
+                            `${i === 0 ? 'M' : 'L'} ${10 + i * xStep} ${getY(d.afterMonth)}`
+                          ).join(' ');
+                          
+                          return (
+                            <g>
+                              <path d={currentPath} stroke="#3b82f6" strokeWidth="2" fill="none" />
+                              <path d={afterWeekPath} stroke="#10b981" strokeWidth="2" fill="none" />
+                              <path d={afterMonthPath} stroke="#f59e0b" strokeWidth="2" fill="none" />
+                            </g>
+                          );
+                        })()}
+                      </svg>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                      Not enough data for trend chart. Add more snapshots!
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <div style={{ width: '12px', height: '2px', backgroundColor: '#3b82f6' }}></div>
+                      <span>Current</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <div style={{ width: '12px', height: '2px', backgroundColor: '#10b981' }}></div>
+                      <span>After Week</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <div style={{ width: '12px', height: '2px', backgroundColor: '#f59e0b' }}></div>
+                      <span>After Month</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '1rem' }}>Quick Actions</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setShowSnapshots(true)}
+                      style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                    >
+                      📸 View Net Worth History
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNwHistory(prev => [...prev, {
+                          ts: Date.now(),
+                          current: currentLiquid,
+                          afterWeek,
+                          afterMonth,
+                          reason: 'manual_snapshot'
+                        }]);
+                        notify('Snapshot saved!');
+                      }}
+                      style={{ padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                    >
+                      📊 Take Financial Snapshot
+                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={undoRedo.undo}
+                        disabled={!undoRedo.canUndo}
+                        style={{ 
+                          flex: 1, 
+                          padding: '0.5rem', 
+                          background: undoRedo.canUndo ? '#2563eb' : '#9ca3af', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '0.375rem', 
+                          cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        ↶ Undo
+                      </button>
+                      <button
+                        onClick={undoRedo.redo}
+                        disabled={!undoRedo.canRedo}
+                        style={{ 
+                          flex: 1, 
+                          padding: '0.5rem', 
+                          background: undoRedo.canRedo ? '#2563eb' : '#9ca3af', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '0.375rem', 
+                          cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        ↷ Redo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Timeline View (Desktop)
+          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>30-Day Cash Flow Timeline</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {timeline.map((day, idx) => {
+                const hasActivity = day.income.length > 0 || day.expenses.length > 0;
+                const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
+                
+                return (
+                  <div key={idx} style={{ 
+                    padding: '1rem', 
+                    background: isWeekend ? '#f9fafb' : 'white',
+                    border: `2px solid ${day.balance < 0 ? '#fca5a5' : '#e5e7eb'}`,
+                    borderRadius: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasActivity ? '0.5rem' : 0 }}>
+                      <div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '600' }}>
+                          {day.dayOfWeek}, {day.date.toLocaleDateString()}
+                        </div>
+                        {idx === 0 && <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>TODAY</div>}
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.125rem', 
+                        fontWeight: '700',
+                        color: day.balance < 0 ? '#dc2626' : '#000'
+                      }}>
+                        {fmt(day.balance)}
+                      </div>
+                    </div>
+                    
+                    {hasActivity && (
+                      <div style={{ fontSize: '0.75rem' }}>
+                        {day.income.map((inc, i) => (
+                          <div key={`inc-${i}`} style={{ color: '#16a34a', marginBottom: '0.25rem' }}>
+                            + {inc.name}: {fmt(inc.amount)}
+                          </div>
+                        ))}
+                        {day.expenses.map((exp, i) => (
+                          <div key={`exp-${i}`} style={{ color: '#dc2626', marginBottom: '0.25rem' }}>
+                            - {exp.name}: {fmt(exp.amount)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Dialogs */}
+        {showAuth && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
+              </div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}
+              />
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={handleAuth} disabled={authLoading} style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>
+                  {authLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
+                </button>
+                <button onClick={() => setShowAuth(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button onClick={() => setIsSignUp(!isSignUp)} style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}>
+                  {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddAccount && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Account</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addAccount(formData.get('name'), formData.get('type'), formData.get('balance'));
+                setShowAddAccount(false);
+              }}>
+                <input name="name" placeholder="Account name" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="type" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="Bank">Bank Account</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit">Credit Card</option>
+                  <option value="Investment">Investment</option>
+                  <option value="Other">Other</option>
+                </select>
+                <input name="balance" type="number" step="0.01" placeholder="Starting balance" defaultValue="0" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Account</button>
+                  <button type="button" onClick={() => setShowAddAccount(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddIncome && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add Recurring Income</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addRecurringIncome(
+                  formData.get('name'),
+                  formData.get('amount'),
+                  formData.get('frequency'),
+                  formData.get('payDay'),
+                  formData.get('accountId'),
+                  formData.get('notes')
+                );
+                setShowAddIncome(false);
+              }}>
+                <input name="name" placeholder="Income name (e.g., Salary, Freelance)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="biweekly">Bi-weekly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <input name="payDay" type="number" min="1" max="28" placeholder="Pay day (1-28)" defaultValue="15" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Income</button>
+                  <button type="button" onClick={() => setShowAddIncome(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddCredit && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add Upcoming Credit</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                addUpcomingCredit(
+                  formData.get('name'), 
+                  formData.get('amount'), 
+                  formData.get('expectedDate'), 
+                  formData.get('accountId'),
+                  formData.get('guaranteed') === 'on',
+                  formData.get('notes')
+                );
+                setShowAddCredit(false);
+              }}>
+                <input name="name" placeholder="Credit name (e.g., Salary, Refund)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <input name="expectedDate" type="date" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '1rem' }}>
+                  <input name="guaranteed" type="checkbox" />
+                  Guaranteed (include in calculations)
+                </label>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Credit</button>
+                  <button type="button" onClick={() => setShowAddCredit(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newBill = {
+                  id: crypto.randomUUID(),
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId'),
+                  paidMonths: [],
+                  skipMonths: [],
+                  ignored: false
+                };
+                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
+                setShowAddBill(false);
+                notify('Bill added successfully!');
+              }}>
+                <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue="15" required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {editingBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Edit Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedBill = {
+                  ...editingBill,
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  frequency: formData.get('frequency'),
+                  dueDay: Number(formData.get('dueDay')),
+                  accountId: formData.get('accountId')
+                };
+                setMasterState(prev => ({
+                  ...prev,
+                  bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
+                }));
+                setEditingBill(null);
+                notify('Bill updated successfully!');
+              }}>
+                <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingBill.amount} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" defaultValue={editingBill.frequency} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
+                    Due Day of Month (1-28):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month" defaultValue={editingBill.dueDay} required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    Enter the day of the month this bill is due (1-28)
+                  </div>
+                </div>
+                <select name="accountId" defaultValue={editingBill.accountId} style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Update Bill</button>
+                  <button type="button" onClick={() => setEditingBill(null)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {editingOTC && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Edit One-Time Cost</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedOTC = {
+                  ...editingOTC,
+                  name: formData.get('name'),
+                  category: formData.get('category'),
+                  amount: Number(formData.get('amount')),
+                  dueDate: formData.get('dueDate'),
+                  accountId: formData.get('accountId'),
+                  notes: formData.get('notes')
+                };
+                setMasterState(prev => ({
+                  ...prev,
+                  oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? updatedOTC : o)
+                }));
+                setEditingOTC(null);
+                notify('One-time cost updated successfully!');
+              }}>
+                <input name="name" placeholder="Cost name" defaultValue={editingOTC.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" defaultValue={editingOTC.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingOTC.amount} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <input name="dueDate" type="date" defaultValue={editingOTC.dueDate} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="accountId" defaultValue={editingOTC.accountId} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingOTC.notes} style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Update Cost</button>
+                  <button type="button" onClick={() => setEditingOTC(null)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showSnapshots && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '800px', maxHeight: '80vh', overflowY: 'auto' }}>
+              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 2rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white' }}>Net Worth History</h2>
+                <button onClick={() => setShowSnapshots(false)} style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}>Close</button>
+              </div>
+              
+              <div style={{ marginBottom: '2rem' }}>
+                <button 
+                  onClick={() => {
+                    setNwHistory(prev => [...prev, {
+                      ts: Date.now(),
+                      current: currentLiquid,
+                      afterWeek,
+                      afterMonth,
+                      reason: 'manual_snapshot'
+                    }]);
+                    notify('Snapshot saved!');
+                  }}
+                  style={{ width: '100%', padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}
+                >
+                  📸 Take Snapshot Now
+                </button>
+              </div>
+
+              {netWorthTrend.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+                  {netWorthTrend.slice(-20).reverse().map((snap, idx) => (
+                    <div key={idx} style={{ 
+                      padding: '1.5rem', 
+                      background: '#f9fafb', 
+                      borderRadius: '0.5rem', 
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: '600' }}>{snap.date}</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#2563eb' }}>{fmt(snap.current)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>After Week: <span style={{ color: snap.afterWeek >= 0 ? '#16a34a' : '#dc2626', fontWeight: '600' }}>{fmt(snap.afterWeek)}</span></div>
+                        <div>After Month: <span style={{ color: snap.afterMonth >= 0 ? '#16a34a' : '#dc2626', fontWeight: '600' }}>{fmt(snap.afterMonth)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#6b7280', padding: '3rem', fontSize: '1rem' }}>
+                  No snapshots yet. Take your first snapshot to track your financial progress over time!
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function App() {
-  return <DashboardContent />;
+  return (
+    <ErrorBoundary>
+      <DashboardContent />
+    </ErrorBoundary>
+  );
 }
