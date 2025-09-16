@@ -51,7 +51,7 @@ function backupData(key, data) {
       const backup = {
         data,
         timestamp: new Date().toISOString(),
-        version: "3.1"
+        version: currentAppVersion
       };
       localStorage.setItem(`${key}_backup`, JSON.stringify(backup));
     } catch (error) {
@@ -67,7 +67,12 @@ function saveData(key, data) {
       // First create a backup of existing data if it exists
       const existingData = localStorage.getItem(key);
       if (existingData) {
-        backupData(key, JSON.parse(existingData));
+        try {
+          backupData(key, JSON.parse(existingData));
+        } catch (backupError) {
+          console.error('Error parsing existing data for backup:', backupError);
+          notify(`Warning: Existing data for '${key}' was corrupted and could not be backed up.`, 'warning');
+        }
       }
       
       // Now save the new data
@@ -96,9 +101,11 @@ function loadData(key, defaultValue) {
     const backup = localStorage.getItem(`${key}_backup`);
     if (backup) {
       const parsedBackup = JSON.parse(backup);
-      if (parsedBackup.version && parsedBackup.version !== currentAppVersion) {
-        console.warn(`Recovered backup from an older version (${parsedBackup.version}) for key: ${key}. Current version is ${currentAppVersion}.`);
-        notify(`Recovered data for '${key}' from an older backup version (${parsedBackup.version}). Please review.`, 'warning');
+      // Warn if backup version is missing or different from current
+      if (!parsedBackup.version || parsedBackup.version !== currentAppVersion) {
+        const backupVersion = parsedBackup.version || 'unknown/legacy';
+        console.warn(`Recovered backup from an older/unknown version (${backupVersion}) for key: ${key}. Current version is ${currentAppVersion}.`);
+        notify(`Recovered data for '${key}' from an older backup version (${backupVersion}). Please review.`, 'warning');
       }
       console.log('Recovered from backup data:', parsedBackup);
       return parsedBackup.data;
