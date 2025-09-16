@@ -1711,7 +1711,7 @@ function DashboardContent() {
             style={{
               flex: 1,
               padding: '0.5rem',
-              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)' : 'white',
+              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
               color: currentView === 'dashboard' ? 'white' : '#374151',
               border: currentView === 'dashboard' ? 'none' : '1px solid #d1d5db',
               borderRadius: '0.25rem',
@@ -1726,7 +1726,7 @@ function DashboardContent() {
             style={{
               flex: 1,
               padding: '0.5rem',
-              background: currentView === 'timeline' ? 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)' : 'white',
+              background: currentView === 'timeline' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
               color: currentView === 'timeline' ? 'white' : '#374151',
               border: currentView === 'timeline' ? 'none' : '1px solid #d1d5db',
               borderRadius: '0.25rem',
@@ -2107,8 +2107,8 @@ function DashboardContent() {
                     padding: '0.375rem 0.75rem',
                     borderRadius: '0.25rem',
                     border: '1px solid #d1d5db',
-                    background: selectedCat === cat ? '#1f2937' : 'white',
-                    color: selectedCat === cat ? 'white' : '#374151',
+                    background: selectedCat === cat ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
+                    color: selectedCat === cat ? 'white' : '#374151', // Ensure text is white on purple
                     fontSize: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}
@@ -2548,7 +2548,7 @@ function DashboardContent() {
 
             {/* Settings */}
             <div style={{ 
-              background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', 
+              background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', 
               padding: '1rem', 
               borderRadius: '0.5rem', 
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
@@ -2654,7 +2654,7 @@ function DashboardContent() {
         {showAuth && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
               </div>
               <input
@@ -2692,7 +2692,7 @@ function DashboardContent() {
         {showAddAccount && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Account</h2>
               </div>
               <form onSubmit={(e) => {
@@ -2722,7 +2722,7 @@ function DashboardContent() {
         {showAddIncome && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Recurring Income</h2>
               </div>
               <form onSubmit={(e) => {
@@ -2763,7 +2763,7 @@ function DashboardContent() {
         {showAddCredit && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Upcoming Credit</h2>
               </div>
               <form onSubmit={(e) => {
@@ -2802,7 +2802,7 @@ function DashboardContent() {
         {showAddBill && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Bill</h2>
               </div>
               <form onSubmit={(e) => {
@@ -2966,7 +2966,7 @@ function DashboardContent() {
         {showSnapshots && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Net Worth History</h2>
                 <button onClick={() => setShowSnapshots(false)} style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.25rem' }}>✕</button>
               </div>
@@ -3033,7 +3033,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('dashboard')}
             style={{
               padding: '0.75rem 2rem',
-              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)' : 'white',
+              background: currentView === 'dashboard' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
               color: currentView === 'dashboard' ? 'white' : '#374151',
               border: currentView === 'dashboard' ? 'none' : '1px solid #d1d5db',
               borderRadius: '0.5rem',
@@ -3048,7 +3048,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('timeline')}
             style={{
               padding: '0.75rem 2rem',
-              background: currentView === 'timeline' ? 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)' : 'white',
+              background: currentView === 'timeline' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
               color: currentView === 'timeline' ? 'white' : '#374151',
               border: currentView === 'timeline' ? 'none' : '1px solid #d1d5db',
               borderRadius: '0.5rem',
@@ -3093,7 +3093,7 @@ function DashboardContent() {
 
             {/* Money Needed This Week Header */}
             <div style={{ 
-              background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', 
+              background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', 
               padding: '2rem', 
               borderRadius: '1rem', 
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -3492,8 +3492,8 @@ function DashboardContent() {
                       padding: '0.5rem 1rem',
                       borderRadius: '0.375rem',
                       border: '1px solid #d1d5db',
-                      background: selectedCat === cat ? '#1f2937' : 'white',
-                      color: selectedCat === cat ? 'white' : '#374151',
+                      background: selectedCat === cat ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
+                      color: selectedCat === cat ? 'white' : '#374151', // Ensure text is white on purple
                       cursor: 'pointer'
                     }}
                   >
@@ -4054,7 +4054,7 @@ function DashboardContent() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <button
                       onClick={() => setShowSnapshots(true)}
-                      style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                      style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
                     >
                       📸 View Net Worth History
                     </button>
@@ -4146,7 +4146,7 @@ function DashboardContent() {
         {showAuth && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>{isSignUp ? 'Create Account' : 'Login'} for Cloud Sync</h2>
               </div>
               <input
@@ -4183,7 +4183,7 @@ function DashboardContent() {
         {showAddAccount && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Account</h2>
               </div>
               <form onSubmit={(e) => {
@@ -4213,7 +4213,7 @@ function DashboardContent() {
         {showAddIncome && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add Recurring Income</h2>
               </div>
               <form onSubmit={(e) => {
@@ -4254,7 +4254,7 @@ function DashboardContent() {
         {showAddCredit && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add Upcoming Credit</h2>
               </div>
               <form onSubmit={(e) => {
@@ -4293,7 +4293,7 @@ function DashboardContent() {
         {showAddBill && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Bill</h2>
               </div>
               <form onSubmit={(e) => {
@@ -4455,7 +4455,7 @@ function DashboardContent() {
         {showSnapshots && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '800px', maxHeight: '80vh', overflowY: 'auto' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8a2be2 0%, #7c3aed 100%)', margin: '-3rem -3rem 2rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 2rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ fontSize: '1.5rem', color: 'white' }}>Net Worth History</h2>
                 <button onClick={() => setShowSnapshots(false)} style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '0.5rem', cursor: 'pointer' }}>Close</button>
               </div>
