@@ -282,26 +282,33 @@ function useCloudState(key, initial, user, supabase){
   const localLoadedStateRef = React.useRef(null); // Ref to store the latest wrapped data from local storage
   const isInitialMount = React.useRef(true); // Flag to prevent initial save to cloud/reconciliation before data is stable
 
-  // Effect 1: Initial load from localStorage, then from cloud if user is authenticated
+  // Effect 1: Initial load from localStorage (once), and then cloud reconciliation
+  // This effect runs on mount and whenever user, supabase, or key changes.
+  // It handles the initial state hydration and the "heavy" cloud comparison/merge.
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const performInitialLoadAndCloudSync = async () => {
-      try {
-        // Load initial data from local storage
+    const reconcileAndSync = async () => {
+      // Hydrate local state only once on initial mount for this key if ref is still empty.
+      // After this, localLoadedStateRef.current will be updated by Effect 2.
+      if (!localLoadedStateRef.current) { 
         const loaded = loadData(key, initial);
         setState(loaded.data);
         localLoadedStateRef.current = loaded;
+      }
 
-        if (!user || !supabase) {
-          // If not logged in, just rely on local storage.
-          // No need to set syncing, lastSync etc.
-          return;
-        }
-
-        setSyncing(true);
+      if (!user || !supabase) {
+        // If not logged in, just rely on the local storage state.
+        setSyncing(false);
         setSyncError(null);
+        setLastSync(localLoadedStateRef.current?.timestamp ? new Date(localLoadedStateRef.current.timestamp) : null);
+        return;
+      }
 
+      setSyncing(true);
+      setSyncError(null);
+
+      try {
         const { data: cloudResult, error } = await supabase
           .from('user_data')
           .select('data, updated_at')
@@ -312,68 +319,79 @@ function useCloudState(key, initial, user, supabase){
         if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
           throw error;
         }
-        
-        // Get the freshest local data (which was just loaded into localLoadedStateRef.current)
-        const localDataWrapper = localLoadedStateRef.current; 
-        let finalData = localDataWrapper.data;
-        let primaryTimestamp = localDataWrapper.timestamp;
+
+        const localDataWrapper = localLoadedStateRef.current || { data: initial, timestamp: null, version: currentAppVersion };
+        const localData = localDataWrapper.data;
+        const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
+
+        let finalData = localData; // Start with local data from ref
+        let finalCollectionTimestamp = localDataWrapper.timestamp;
 
         if (cloudResult && cloudResult.data) {
-          const cloudTimestamp = new Date(cloudResult.updated_at).getTime();
-          const localTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
-
-          if (cloudTimestamp > localTimestamp) {
-            finalData = cloudResult.data; // Cloud is newer, take its full data
-            primaryTimestamp = cloudResult.updated_at;
-          } else {
-            // Local is newer or equal, keep local.
-            primaryTimestamp = localDataWrapper.timestamp;
+          const cloudData = cloudResult.data;
+          const cloudCollectionTimestamp = new Date(cloudResult.updated_at).getTime();
+          
+          // Determine which collection is generally newer based on their overall timestamps
+          if (cloudCollectionTimestamp > localCollectionTimestamp) {
+            // Cloud collection is newer overall. Use its structure, but reconcile item conflicts.
+            finalData = smartMergeItems(localData, cloudData); // localData is current local state from ref
+            finalCollectionTimestamp = cloudResult.updated_at;
+          } else if (localCollectionTimestamp > cloudCollectionTimestamp) {
+            // Local collection is newer overall. Keep local as is.
+            finalData = localData; // already set as initial `finalData`
+            finalCollectionTimestamp = localDataWrapper.timestamp;
+          } else { // Timestamps are equal or one/both are null/invalid
+            // If collection timestamps are equal, perform a merge to resolve item-level conflicts.
+            // `smartMergeItems` will pick the newer item based on `updatedAt`.
+            finalData = smartMergeItems(localData, cloudData);
+            finalCollectionTimestamp = localDataWrapper.timestamp || cloudResult.updated_at; // Pick one if equal
           }
-          setLastSync(new Date(primaryTimestamp || cloudResult.updated_at));
-        } else {
-          // No cloud data found for this key. Local data is the primary.
-          setLastSync(primaryTimestamp ? new Date(primaryTimestamp) : null);
-        }
+          setLastSync(new Date(finalCollectionTimestamp));
 
-        if (JSON.stringify(finalData) !== JSON.stringify(state)) { // Only update if data actually changed
-          setState(finalData);
+        } else {
+          // No cloud data for this key. Local data is the primary.
+          setLastSync(localCollectionTimestamp ? new Date(localCollectionTimestamp) : null);
         }
         
-        // Save the chosen final data locally, ensuring localLoadedStateRef is up-to-date
-        // This is important if cloud won or if initial local load didn't have timestamp
-        const updatedLocalState = saveData(key, finalData);
-        if (updatedLocalState) {
-          localLoadedStateRef.current = updatedLocalState;
+        // Only update React state if `finalData` is truly different to avoid unnecessary re-renders.
+        // This setState will trigger Effect 2 for local storage save.
+        if (JSON.stringify(finalData) !== JSON.stringify(state)) {
+            setState(finalData);
+        } else {
+            // If data is identical, but maybe the timestamp needed updating (e.g., local won),
+            // ensure local storage and ref reflect the correct winning timestamp.
+            const updatedLocal = saveData(key, finalData);
+            if (updatedLocal) {
+              localLoadedStateRef.current = updatedLocal;
+            }
         }
 
       } catch (error) {
-        console.error('Failed initial load or cloud sync:', error);
+        console.error(`Failed cloud sync for ${key}:`, error);
         setSyncError(error.message);
-        notify(`Failed initial sync for ${key}: ${error.message}`, 'warning');
+        notify(`Failed to sync ${key} with cloud: ${error.message}`, 'error');
       } finally {
         setSyncing(false);
       }
     };
 
-    // Run initial load and cloud sync only when key, initial, user, or supabase changes
-    // This effect does NOT depend on `state` to prevent re-runs from local changes.
-    performInitialLoadAndCloudSync();
-    
-    // Cleanup for initial sync if needed (e.g., if there's an ongoing fetch)
-    return () => {
-      // Any cleanup for ongoing promises if implemented.
-    };
+    // This effect runs for initial load and subsequent cloud reconciliations
+    // It depends on `key`, `initial`, `user`, `supabase`, AND `localLoadedStateRef.current?.timestamp`
+    // The timestamp dependency ensures it reacts to *our own* local saves (from Effect 2)
+    // to ensure subsequent cloud fetches compare against the very latest local state's timestamp.
+    reconcileAndSync();
 
-  }, [key, initial, user, supabase]); // Removed `state` from dependencies
+  }, [key, initial, user, supabase, localLoadedStateRef.current?.timestamp]); // Add localLoadedStateRef.current.timestamp
 
-  // Effect 2: Save to localStorage and cloud when `state` changes (from user interaction)
+  // Effect 2: Save to localStorage and cloud when `state` changes (from user interaction or reconciliation)
+  // This effect ensures `localLoadedStateRef.current` is always the freshest state known locally.
   React.useEffect(() => {
-    // Skip on initial mount where data is still stabilizing from local/cloud loads
-    if (isInitialMount.current) {
-      isInitialMount.current = false; // Mark initial mount as over after the first `state` change after component render
+    // Skip saving if localLoadedStateRef is still null (initial hydration not done)
+    // or if the state is exactly the initial default value and no timestamp is present (meaning no real data)
+    if (!localLoadedStateRef.current || (JSON.stringify(state) === JSON.stringify(initial) && localLoadedStateRef.current?.timestamp === null)) {
       return; 
     }
-
+    
     // Save locally immediately when state changes and update the ref
     const updatedLocalState = saveData(key, state);
     if (updatedLocalState) {
@@ -400,11 +418,6 @@ function useCloudState(key, initial, user, supabase){
 
         if (error) throw error;
         setLastSync(new Date());
-        // After successful cloud save, immediately re-trigger the initial load effect
-        // if its dependencies match to ensure full reconciliation, although `state` being stable
-        // and `localLoadedStateRef` updated, it *should* reflect the current state.
-        // For now, removing direct re-trigger and relying on the `state` dependency logic.
-        
       } catch (error) {
         console.error('Failed to save to cloud:', error);
         setSyncError(error.message);
@@ -416,7 +429,7 @@ function useCloudState(key, initial, user, supabase){
 
     const debounceTimer = setTimeout(saveToCloudDebounced, 1000);
     return () => clearTimeout(debounceTimer);
-  }, [state, user, supabase, key]); // `state` is a dependency here, user/supabase/key also needed for cloud save
+  }, [state, user, supabase, key, initial]); // `initial` needed for the check, state/user/supabase/key are main deps
 
   return [state, setState, { syncing, lastSync, syncError }];
 }
