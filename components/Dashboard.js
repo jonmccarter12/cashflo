@@ -2098,7 +2098,7 @@ function DashboardContent() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem', background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', paddingBottom: '0.25rem', background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
               {['All', ...activeCats].map(cat => (
                 <button
                   key={cat}
@@ -2106,9 +2106,9 @@ function DashboardContent() {
                   style={{
                     padding: '0.375rem 0.75rem',
                     borderRadius: '0.25rem',
-                    border: '1px solid #d1d5db',
-                    background: selectedCat === cat ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
-                    color: selectedCat === cat ? 'white' : '#374151', // Ensure text is white on purple
+                    border: selectedCat === cat ? '1px solid #d1d5db' : '1px solid rgba(255,255,255,0.5)',
+                    background: selectedCat === cat ? 'white' : 'transparent',
+                    color: selectedCat === cat ? '#8b5cf6' : 'white',
                     fontSize: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}
@@ -3482,7 +3482,7 @@ function DashboardContent() {
             </div>
 
             {/* Category Filter */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {['All', ...activeCats].map(cat => (
                   <button
@@ -3491,9 +3491,9 @@ function DashboardContent() {
                     style={{
                       padding: '0.5rem 1rem',
                       borderRadius: '0.375rem',
-                      border: '1px solid #d1d5db',
-                      background: selectedCat === cat ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
-                      color: selectedCat === cat ? 'white' : '#374151', // Ensure text is white on purple
+                      border: selectedCat === cat ? '1px solid #d1d5db' : '1px solid rgba(255,255,255,0.5)',
+                      background: selectedCat === cat ? 'white' : 'transparent',
+                      color: selectedCat === cat ? '#8b5cf6' : 'white',
                       cursor: 'pointer'
                     }}
                   >
