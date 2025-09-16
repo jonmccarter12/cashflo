@@ -31,9 +31,10 @@ function getSupabaseClient() {
 }
 
 // ===================== HELPERS =====================
-const storageKey = "bills_balance_dashboard_v3.1"; // Updated version number
+const currentAppVersion = "3.1"; // Current application data version
+const storageKey = `bills_balance_dashboard_v${currentAppVersion}`; // Updated version number
 const legacyStorageKeys = [
-  "bills_balance_dashboard_v3",
+  "bills_balance_dashboard_v3", // Example of previous versions
   "bills_balance_dashboard_v2",
   "bills_balance_dashboard",
   "cashflow_dashboard"
@@ -95,6 +96,10 @@ function loadData(key, defaultValue) {
     const backup = localStorage.getItem(`${key}_backup`);
     if (backup) {
       const parsedBackup = JSON.parse(backup);
+      if (parsedBackup.version && parsedBackup.version !== currentAppVersion) {
+        console.warn(`Recovered backup from an older version (${parsedBackup.version}) for key: ${key}. Current version is ${currentAppVersion}.`);
+        notify(`Recovered data for '${key}' from an older backup version (${parsedBackup.version}). Please review.`, 'warning');
+      }
       console.log('Recovered from backup data:', parsedBackup);
       return parsedBackup.data;
     }
@@ -335,6 +340,60 @@ function useCloudState(key, initial, user, supabase){
   }, [state, user, supabase, key]);
 
   return [state, setState, { syncing, lastSync, syncError }];
+}
+
+// Data Integrity Check Function
+function performDataIntegrityCheck(masterState, notify) {
+  const issues = [];
+
+  // Check for duplicate IDs across all collections
+  const checkDuplicates = (collection, name) => {
+    const ids = new Set();
+    collection.forEach(item => {
+      if (ids.has(item.id)) {
+        issues.push(`Duplicate ID found in ${name}: ${item.id}`);
+      }
+      ids.add(item.id);
+    });
+  };
+
+  checkDuplicates(masterState.accounts, 'accounts');
+  checkDuplicates(masterState.bills, 'bills');
+  checkDuplicates(masterState.oneTimeCosts, 'one-time costs');
+  checkDuplicates(masterState.categories, 'categories');
+  checkDuplicates(masterState.upcomingCredits, 'upcoming credits');
+  checkDuplicates(masterState.recurringIncome, 'recurring income');
+
+  // Check for non-negative balances in cash/bank accounts
+  masterState.accounts.forEach(account => {
+    if ((account.type === 'Bank' || account.type === 'Cash') && (account.balance || 0) < 0) {
+      issues.push(`Account "${account.name}" (${account.type}) has a negative balance: ${fmt(account.balance)}`);
+    }
+  });
+
+  // Check for zero or negative amounts in financial items
+  [...masterState.bills, ...masterState.oneTimeCosts, ...masterState.upcomingCredits, ...masterState.recurringIncome]
+    .forEach(item => {
+      if ((item.amount || 0) <= 0) { // Using (item.amount || 0) to handle undefined/null
+        issues.push(`${item.name} has a non-positive amount: ${fmt(item.amount)}`);
+      }
+    });
+
+  if (issues.length > 0) {
+    console.warn('Data integrity issues detected:', issues);
+    // Notify only if there are new issues or if it's been a while (e.g., once every 24 hours)
+    const lastNotified = localStorage.getItem('last_integrity_notification');
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+    if (!lastNotified || (now - parseInt(lastNotified, 10)) > TWENTY_FOUR_HOURS_MS) {
+      notify(`Data integrity issues found! Check console for details.`, 'error');
+      localStorage.setItem('last_integrity_notification', now.toString());
+    }
+  } else {
+    // Clear any previous notification about integrity issues if fixed or no longer present
+    localStorage.removeItem('last_integrity_notification');
+  }
 }
 
 // Calculate next occurrence for a bill
@@ -578,7 +637,7 @@ function DashboardContent() {
     });
   }, [accountsBase, billsBase, oneTimeCostsBase, categoriesBase, upcomingCreditsBase, recurringIncomeBase]);
 
-  // Sync changes back to cloud state
+  // Sync changes back to cloud state and perform integrity checks
   React.useEffect(() => {
     setAccountsBase(masterState.accounts);
     setBillsBase(masterState.bills);
@@ -586,7 +645,14 @@ function DashboardContent() {
     setCategoriesBase(masterState.categories);
     setUpcomingCreditsBase(masterState.upcomingCredits);
     setRecurringIncomeBase(masterState.recurringIncome || []);
-  }, [masterState]);
+
+    // Debounce integrity check to avoid running too frequently during rapid state updates
+    const debounceIntegrityCheck = setTimeout(() => {
+      performDataIntegrityCheck(masterState, notify);
+    }, 1500); // 1.5 second debounce
+
+    return () => clearTimeout(debounceIntegrityCheck);
+  }, [masterState, notify]); // Added notify to dependencies
 
   // Extract current state
   const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome = [] } = masterState;
@@ -1438,23 +1504,38 @@ function DashboardContent() {
 
   function removeCategory(name){ 
     try {
-      const hasItems = bills.some(b=>b.category===name) || oneTimeCosts.some(o=>o.category===name); 
-      if(hasItems && !confirm(`Category "${name}" has items. Move them to Uncategorized?`)) return; 
+      const category = categories.find(c => c.name === name);
+      if (!category) return;
+
+      const billsInCategory = bills.filter(b => b.category === name);
+      const otcsInCategory = oneTimeCosts.filter(o => o.category === name);
+      const hasItems = billsInCategory.length > 0 || otcsInCategory.length > 0;
+
+      let confirmationMessage = `Are you sure you want to delete the category "${name}"?`;
+      if (hasItems) {
+        confirmationMessage += ` There are ${billsInCategory.length + otcsInCategory.length} items (bills/one-time costs) currently assigned to this category. They will be moved to "Uncategorized" if you proceed.`;
+      } else {
+        confirmationMessage += ` This action cannot be undone.`;
+      }
+
+      if (!confirm(confirmationMessage)) return; 
+
       const fallback='Uncategorized'; 
-      if(!categories.find(c=>c.name===fallback)) {
+      // Ensure 'Uncategorized' category exists before moving items to it
+      if(hasItems && !categories.find(c=>c.name===fallback)) {
         const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
         setMasterState(prev => ({
           ...prev,
-          categories: [...prev.categories, {id:crypto.randomUUID(), name:fallback, order: maxOrder + 1, budget: 0}]
+          categories: [...prev.categories, {id:crypto.randomUUID(), name:fallback, order: maxOrder + 1, budget: 0, updatedAt: new Date().toISOString()}] // Add updatedAt for new category
         }));
       }
       setMasterState(prev => ({
         ...prev,
-        bills: prev.bills.map(b=> b.category===name? { ...b, category: fallback } : b),
-        oneTimeCosts: prev.oneTimeCosts.map(o=> o.category===name? { ...o, category: fallback } : o),
+        bills: prev.bills.map(b=> b.category===name? { ...b, category: fallback, updatedAt: new Date().toISOString() } : b), // Add updatedAt
+        oneTimeCosts: prev.oneTimeCosts.map(o=> o.category===name? { ...o, category: fallback, updatedAt: new Date().toISOString() } : o), // Add updatedAt
         categories: prev.categories.filter(c=> c.name!==name)
       }));
-      notify('Category removed');
+      notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
     } catch (error) {
       console.error('Error removing category:', error);
       notify('Failed to remove category', 'error');
@@ -1587,13 +1668,21 @@ function DashboardContent() {
   }
 
   function deleteAccount(accountId) {
-    if (confirm('Delete this account? This will affect related bills and costs.')) {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    if (confirm(`Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`)) {
       try {
+        // Also remove any bills/otc/income/credits associated with this account
         setMasterState(prev => ({
           ...prev,
-          accounts: prev.accounts.filter(a => a.id !== accountId)
+          accounts: prev.accounts.filter(a => a.id !== accountId),
+          bills: prev.bills.filter(b => b.accountId !== accountId),
+          oneTimeCosts: prev.oneTimeCosts.filter(o => o.accountId !== accountId),
+          recurringIncome: prev.recurringIncome.filter(inc => inc.accountId !== accountId),
+          upcomingCredits: prev.upcomingCredits.filter(cred => cred.accountId !== accountId)
         }));
-        notify('Account deleted');
+        notify(`Account "${account.name}" and its associated items deleted`, 'success');
       } catch (error) {
         console.error('Error deleting account:', error);
         notify('Failed to delete account', 'error');
