@@ -456,16 +456,20 @@ function useCloudState(key, initial, user, supabase){
   // Effect 2: Save to localStorage and cloud when `state` changes (from user interaction or reconciliation)
   // This effect ensures `localLoadedStateRef.current` is always the freshest state known locally.
   React.useEffect(() => {
-    // Skip saving if localLoadedStateRef is still null (initial hydration not done)
-    // or if the state is exactly the initial default value and no timestamp is present (meaning no real data)
-    if (!localLoadedStateRef.current || (JSON.stringify(state) === JSON.stringify(initial) && localLoadedStateRef.current?.timestamp === null)) {
+    // Skip saving if localLoadedStateRef is null (initial hydration not done or failed),
+    // or if the state is at its initial default value with no timestamp,
+    // or if the current state is *exactly* what's already in `localLoadedStateRef.current.data`.
+    // This last check is crucial to prevent re-saving if state was updated by Effect 1 and is now stable.
+    if (!localLoadedStateRef.current || 
+        (JSON.stringify(state) === JSON.stringify(initial) && localLoadedStateRef.current.timestamp === null) ||
+        (JSON.stringify(state) === JSON.stringify(localLoadedStateRef.current.data))) {
       return; 
     }
     
     // Save locally immediately when state changes and update the ref
     const updatedLocalState = saveData(key, state);
     if (updatedLocalState) {
-      localLoadedStateRef.current = updatedLocalState;
+      localLoadedStateRef.current = updatedLocalState; // This update now triggers Effect 1
     }
 
     // Save to cloud if logged in, with a debounce
