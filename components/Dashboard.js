@@ -64,19 +64,27 @@ function backupData(key, data) {
 function saveData(key, data) {
   if (typeof window !== 'undefined') {
     try {
+      const dataToSave = {
+        data: data,
+        timestamp: new Date().toISOString(), // Timestamp for this specific local save
+        version: currentAppVersion
+      };
+
       // First create a backup of existing data if it exists
-      const existingData = localStorage.getItem(key);
-      if (existingData) {
+      const existingRawData = localStorage.getItem(key);
+      if (existingRawData) {
         try {
-          backupData(key, JSON.parse(existingData));
+          const parsedExisting = JSON.parse(existingRawData);
+          // Pass the actual content to backupData, whether it was a wrapped object or raw data
+          backupData(key, parsedExisting.data !== undefined ? parsedExisting.data : parsedExisting);
         } catch (backupError) {
           console.error('Error parsing existing data for backup:', backupError);
           notify(`Warning: Existing data for '${key}' was corrupted and could not be backed up.`, 'warning');
         }
       }
       
-      // Now save the new data
-      localStorage.setItem(key, JSON.stringify(data));
+      // Now save the new data wrapper
+      localStorage.setItem(key, JSON.stringify(dataToSave));
       return true;
     } catch (error) {
       console.error('Error saving data:', error);
@@ -87,14 +95,24 @@ function saveData(key, data) {
 }
 
 // Data Protection - Load data with fallback recovery
+// Data Protection - Load data with fallback recovery
+// Returns { data: T, timestamp: string | null, version: string | null }
 function loadData(key, defaultValue) {
-  if (typeof window === 'undefined') return defaultValue;
+  if (typeof window === 'undefined') return { data: defaultValue, timestamp: null, version: null };
   
   try {
     // 1. Try current localStorage
-    const data = localStorage.getItem(key);
-    if (data) {
-      return JSON.parse(data);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Ensure it's the new format {data, timestamp, version}, if not, treat as legacy data
+      if (parsed && parsed.data !== undefined && parsed.timestamp !== undefined) {
+        return parsed; // Returns { data, timestamp, version }
+      } else {
+        // Legacy format: return data only and null timestamp
+        console.warn(`Migrating legacy local storage data for key: ${key}`);
+        return { data: parsed, timestamp: null, version: null };
+      }
     }
     
     // 2. Try backup localStorage
@@ -108,60 +126,28 @@ function loadData(key, defaultValue) {
         notify(`Recovered data for '${key}' from an older backup version (${backupVersion}). Please review.`, 'warning');
       }
       console.log('Recovered from backup data:', parsedBackup);
-      return parsedBackup.data;
+      return parsedBackup; // backupData now stores data in a {data, timestamp, version} object
     }
     
     // 3. Try legacy storage keys
     for (const legacyKey of legacyStorageKeys) {
-      const legacyData = localStorage.getItem(`${legacyKey}:${key.split(':')[1]}`);
-      if (legacyData) {
-        const parsedLegacy = JSON.parse(legacyData);
+      const legacyStored = localStorage.getItem(`${legacyKey}:${key.split(':')[1]}`);
+      if (legacyStored) {
+        const parsedLegacy = JSON.parse(legacyStored);
         console.log('Recovered from legacy storage:', legacyKey, parsedLegacy);
-        return parsedLegacy;
+        return { data: parsedLegacy, timestamp: null, version: null }; // Legacy has no timestamp
       }
     }
     
     // 4. Fall back to default values
-    return defaultValue;
+    return { data: defaultValue, timestamp: null, version: null };
   } catch (error) {
     console.error('Error loading data:', error);
-    return defaultValue;
+    return { data: defaultValue, timestamp: null, version: null };
   }
 }
 
 // Smart Data Merging
-function mergeData(localData, cloudData) {
-  if (!cloudData || !Array.isArray(cloudData)) return localData;
-  if (!localData || !Array.isArray(localData)) return cloudData;
-  
-  // For arrays of objects with IDs, merge by ID
-  if (localData.length > 0 && typeof localData[0] === 'object' && localData[0].id) {
-    const mergedMap = new Map();
-    
-    // Add all local items to map
-    localData.forEach(item => {
-      mergedMap.set(item.id, item);
-    });
-    
-    // Add/override with cloud items if they're newer or don't exist locally
-    cloudData.forEach(item => {
-      if (!mergedMap.has(item.id)) {
-        mergedMap.set(item.id, item);
-      } else {
-        // If the cloud item has updatedAt and it's newer, use it
-        const localItem = mergedMap.get(item.id);
-        if (item.updatedAt && localItem.updatedAt && new Date(item.updatedAt) > new Date(localItem.updatedAt)) {
-          mergedMap.set(item.id, item);
-        }
-      }
-    });
-    
-    return Array.from(mergedMap.values());
-  }
-  
-  // For simple arrays or other data types, prefer local data
-  return localData;
-}
 
 function notify(msg, type = 'success'){ 
   if(typeof window!=='undefined'){ 
@@ -247,19 +233,21 @@ function useCloudState(key, initial, user, supabase){
   const [syncError, setSyncError] = React.useState(null);
   const isInitialMount = React.useRef(true);
 
+  const localDataRef = React.useRef(null); // To store {data, timestamp, version} from initial local load
+
   // Load from localStorage on mount with enhanced error handling
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const localData = loadData(key, null);
-      if (localData) {
-        setState(localData);
-      }
+      const loaded = loadData(key, initial); // Load data wrapped in {data, timestamp, version}
+      setState(loaded.data);
+      localDataRef.current = loaded; // Store the full loaded object for comparison
     } catch (error) {
       console.error('Error loading from localStorage:', error);
-      setState(initial);
+      setState(initial); // Fallback to initial if error
+      localDataRef.current = { data: initial, timestamp: null, version: currentAppVersion }; // Reset ref
     }
-  }, [key, initial]);
+  }, [key, initial]); // `initial` is needed for default value if nothing found
 
   // Load from cloud when user is authenticated
   React.useEffect(() => {
@@ -269,27 +257,48 @@ function useCloudState(key, initial, user, supabase){
       setSyncing(true);
       setSyncError(null);
       try {
-        const { data, error } = await supabase
+        const { data: cloudResult, error } = await supabase
           .from('user_data')
-          .select('data, updated_at')
+          .select('data, updated_at') // Get cloud's updated_at for the whole record
           .eq('user_id', user.id)
           .eq('data_type', key)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
           throw error;
         }
 
-        if (data && data.data) {
-          // Smart merge local and cloud data
-          const localData = loadData(key, null);
-          const mergedData = mergeData(localData, data.data);
-          
-          setState(mergedData);
-          const syncDate = new Date(data.updated_at);
-          setLastSync(isNaN(syncDate.getTime()) ? null : syncDate);
-          saveData(key, mergedData);
+        let finalData = localDataRef.current?.data || initial; // Start with the most recently loaded local data (from ref)
+        let primaryTimestamp = localDataRef.current?.timestamp;
+
+        if (cloudResult && cloudResult.data) {
+          const cloudTimestamp = new Date(cloudResult.updated_at).getTime();
+          const localTimestamp = localDataRef.current?.timestamp ? new Date(localDataRef.current.timestamp).getTime() : 0; // Use 0 for missing timestamp
+
+          if (cloudTimestamp > localTimestamp) {
+            finalData = cloudResult.data; // Cloud is newer overall, take its full data
+            primaryTimestamp = cloudResult.updated_at;
+          } else { // localTimestamp >= cloudTimestamp, or one is invalid
+            // Local is newer or equal, so `finalData` already holds the local data.
+            // We just ensure `primaryTimestamp` is correctly set.
+            primaryTimestamp = localDataRef.current?.timestamp || primaryTimestamp;
+          }
+          setLastSync(new Date(primaryTimestamp || cloudResult.updated_at));
+        } else {
+          // No cloud data found for this key.
+          // `finalData` already holds `localDataRef.current?.data`, which will be saved to cloud by the other useEffect.
+          setLastSync(null);
         }
+        
+        // Only update state if `finalData` is different from current `state`
+        // to prevent unnecessary re-renders (and potential loops).
+        if (JSON.stringify(finalData) !== JSON.stringify(state)) {
+            setState(finalData);
+        }
+
+        // Save the chosen final data locally, so next load will have the updated timestamp
+        saveData(key, finalData); 
+
       } catch (error) {
         console.error('Failed to load from cloud:', error);
         setSyncError(error.message);
@@ -300,7 +309,7 @@ function useCloudState(key, initial, user, supabase){
     };
 
     loadFromCloud();
-  }, [user, supabase, key, initial]);
+  }, [user, supabase, key, initial]); // Removed `state` from dependencies to avoid infinite loop
 
   // Save to localStorage and cloud
   React.useEffect(() => {
@@ -2863,7 +2872,7 @@ function DashboardContent() {
         {editingBill && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit Bill</h2>
               </div>
               <form onSubmit={(e) => {
@@ -2923,7 +2932,7 @@ function DashboardContent() {
         {editingOTC && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
                 <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit One-Time Cost</h2>
               </div>
               <form onSubmit={(e) => {
