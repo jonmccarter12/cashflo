@@ -3361,7 +3361,6 @@ function DashboardContent() {
                   formData.get('guaranteed') === 'on',
                   formData.get('notes')
                 );
-                setShowAddCredit(false);
               }}>
                 <input name="name" placeholder="Credit name (e.g., Refund)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
                 <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
@@ -4921,7 +4920,6 @@ function DashboardContent() {
                   formData.get('guaranteed') === 'on',
                   formData.get('notes')
                 );
-                setShowAddCredit(false);
               }}>
                 <input name="name" placeholder="Credit name (e.g., Salary, Refund)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
                 <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
