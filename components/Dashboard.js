@@ -240,6 +240,7 @@ function useIsMobile() {
 }
 
 
+
 // Calculate next occurrence for a bill
 function getNextOccurrence(bill, fromDate = new Date()) {
   try {
