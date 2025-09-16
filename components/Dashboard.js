@@ -1703,9 +1703,9 @@ function DashboardContent() {
     }
   }
 
-  function addCategory(name){ 
+  async function addCategory(name){ 
     try {
-      const nm=name.trim(); 
+      const nm = name.trim(); 
       if(!nm) {
         notify('Category name cannot be empty', 'error');
         return;
@@ -1713,32 +1713,60 @@ function DashboardContent() {
       if(categories.some(c=>c.name===nm)) { 
         notify('Category already exists', 'error'); 
         return; 
-      } 
+      }
       const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-      setMasterState(prev => ({
-        ...prev,
-        categories: [...prev.categories, { id: crypto.randomUUID(), name: nm, order: maxOrder + 1, budget: 0 }]
-      }));
-      notify('Category added');
+      const newCategoryId = crypto.randomUUID();
+      const payload = {
+        name: nm,
+        order: maxOrder + 1,
+        budget: 0
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_created',
+        newCategoryId,
+        payload,
+        `Created category "${nm}"`
+      );
+
+      if (transaction) {
+        notify('Category added');
+      }
     } catch (error) {
       console.error('Error adding category:', error);
       notify('Failed to add category', 'error');
     }
   }
 
-  function toggleIgnoreCategory(name){ 
+  async function toggleIgnoreCategory(name){ 
     try {
-      setMasterState(prev => ({
-        ...prev,
-        categories: prev.categories.map(c=> c.name===name? { ...c, ignored: !c.ignored } : c)
-      }));
+      const category = categories.find(c => c.name === name);
+      if (!category) {
+        notify('Category not found', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_ignored_toggled',
+        category.id,
+        { ignored: !category.ignored },
+        `Category "${name}" ignored status set to ${!category.ignored}`
+      );
+      
+      if (transaction) {
+        notify(`Category "${name}" is now ${!category.ignored ? 'shown' : 'hidden'}.`);
+      }
     } catch (error) {
       console.error('Error toggling category ignore:', error);
       notify('Failed to update category', 'error');
     }
   }
 
-  function removeCategory(name){ 
+  async function removeCategory(name){ 
     try {
       const category = categories.find(c => c.name === name);
       if (!category) return;
@@ -1757,45 +1785,56 @@ function DashboardContent() {
       if (!confirm(confirmationMessage)) return; 
 
       const fallback='Uncategorized'; 
-      // Ensure 'Uncategorized' category exists before moving items to it
-      if(hasItems && !categories.find(c=>c.name===fallback)) {
-        const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-        setMasterState(prev => ({
-          ...prev,
-          categories: [...prev.categories, {id:crypto.randomUUID(), name:fallback, order: maxOrder + 1, budget: 0, updatedAt: new Date().toISOString()}] // Add updatedAt for new category
-        }));
+      
+      // Re-categorize items
+      for (const bill of billsInCategory) {
+        await logTransaction(
+          supabase, user.id, 'bill_modification', bill.id,
+          { changes: { category: fallback } },
+          `Bill "${bill.name}" moved to Uncategorized`
+        );
       }
-      setMasterState(prev => ({
-        ...prev,
-        bills: prev.bills.map(b=> b.category===name? { ...b, category: fallback, updatedAt: new Date().toISOString() } : b), // Add updatedAt
-        oneTimeCosts: prev.oneTimeCosts.map(o=> o.category===name? { ...o, category: fallback, updatedAt: new Date().toISOString() } : o), // Add updatedAt
-        categories: prev.categories.filter(c=> c.name!==name)
-      }));
-      notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
+      for (const otc of otcsInCategory) {
+        await logTransaction(
+          supabase, user.id, 'one_time_cost_modification', otc.id,
+          { changes: { category: fallback } },
+          `OTC "${otc.name}" moved to Uncategorized`
+        );
+      }
+
+      // Delete category
+      const transaction = await logTransaction(
+        supabase, user.id, 'category_deleted', category.id, {}, `Deleted category "${name}"`
+      );
+
+      if (transaction) {
+        notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
+      }
     } catch (error) {
       console.error('Error removing category:', error);
       notify('Failed to remove category', 'error');
     }
   }
 
-  function moveCategoryUp(id) {
+  async function moveCategoryUp(id) {
     try {
-      setMasterState(prev => {
-        const cats = [...prev.categories];
-        cats.forEach((c, i) => {
-          if (c.order === undefined) c.order = i;
-        });
-        cats.sort((a, b) => a.order - b.order);
-        const index = cats.findIndex(c => c.id === id);
-        if (index <= 0) return prev;
-        const temp = cats[index];
-        cats[index] = cats[index - 1];
-        cats[index - 1] = temp;
-        cats.forEach((c, i) => {
-          c.order = i;
-        });
-        return { ...prev, categories: cats };
-      });
+      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const index = cats.findIndex(c => c.id === id);
+      if (index <= 0) return;
+      
+      const cat1 = cats[index];
+      const cat2 = cats[index - 1];
+      
+      const order1 = cat1.order;
+      const order2 = cat2.order;
+
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved up`
+      );
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved down`
+      );
+
       notify('Category moved up', 'success');
     } catch (error) {
       console.error('Error moving category up:', error);
@@ -1803,24 +1842,25 @@ function DashboardContent() {
     }
   }
 
-  function moveCategoryDown(id) {
+  async function moveCategoryDown(id) {
     try {
-      setMasterState(prev => {
-        const cats = [...prev.categories];
-        cats.forEach((c, i) => {
-          if (c.order === undefined) c.order = i;
-        });
-        cats.sort((a, b) => a.order - b.order);
-        const index = cats.findIndex(c => c.id === id);
-        if (index < 0 || index >= cats.length - 1) return prev;
-        const temp = cats[index];
-        cats[index] = cats[index + 1];
-        cats[index + 1] = temp;
-        cats.forEach((c, i) => {
-          c.order = i;
-        });
-        return { ...prev, categories: cats };
-      });
+      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const index = cats.findIndex(c => c.id === id);
+      if (index < 0 || index >= cats.length - 1) return;
+
+      const cat1 = cats[index];
+      const cat2 = cats[index + 1];
+      
+      const order1 = cat1.order;
+      const order2 = cat2.order;
+
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved down`
+      );
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved up`
+      );
+
       notify('Category moved down', 'success');
     } catch (error) {
       console.error('Error moving category down:', error);
@@ -1828,7 +1868,7 @@ function DashboardContent() {
     }
   }
 
-  function renameCategory(id, newName) {
+  async function renameCategory(id, newName) {
     try {
       const trimmed = newName.trim();
       if (!trimmed) {
@@ -1839,28 +1879,44 @@ function DashboardContent() {
         notify('Category name already exists', 'error');
         return;
       }
-      const oldName = categories.find(c => c.id === id)?.name;
-      setMasterState(prev => ({
-        ...prev,
-        categories: prev.categories.map(c => c.id === id ? { ...c, name: trimmed } : c),
-        bills: prev.bills.map(b => b.category === oldName ? { ...b, category: trimmed } : b),
-        oneTimeCosts: prev.oneTimeCosts.map(o => o.category === oldName ? { ...o, category: trimmed } : o)
-      }));
-      notify('Category renamed');
+      const oldCategory = categories.find(c => c.id === id);
+      if (!oldCategory) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_renamed',
+        id,
+        { old_name: oldCategory.name, new_name: trimmed },
+        `Renamed category "${oldCategory.name}" to "${trimmed}"`
+      );
+
+      if (transaction) {
+        notify('Category renamed');
+      }
     } catch (error) {
       console.error('Error renaming category:', error);
       notify('Failed to rename category', 'error');
     }
   }
 
-  function updateCategoryBudget(id, newBudget) {
+  async function updateCategoryBudget(id, newBudget) {
     try {
-      setMasterState(prev => ({
-        ...prev,
-        categories: prev.categories.map(c => 
-          c.id === id ? { ...c, budget: Number(newBudget) || 0 } : c
-        )
-      }));
+      const category = categories.find(c => c.id === id);
+      if (!category) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_budget_updated',
+        id,
+        { new_budget: Number(newBudget) || 0 },
+        `Updated budget for "${category.name}" to ${fmt(Number(newBudget) || 0)}`
+      );
+
+      if (transaction) {
+        // UI will update reactively. No notification needed for this frequent action.
+      }
     } catch (error) {
       console.error('Error updating category budget:', error);
       notify('Failed to update budget', 'error');
