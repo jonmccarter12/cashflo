@@ -324,43 +324,71 @@ function useCloudState(key, initial, user, supabase){
         const localData = localDataWrapper.data;
         const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
 
-        let finalData = localData; // Start with local data from ref
-        let finalCollectionTimestamp = localDataWrapper.timestamp;
+        let mergedData = []; // This will hold the result of the merge
+        let effectiveCollectionTimestamp;
 
-        if (cloudResult && cloudResult.data) {
-          const cloudData = cloudResult.data;
-          const cloudCollectionTimestamp = new Date(cloudResult.updated_at).getTime();
-          
-          // Determine which collection is generally newer based on their overall timestamps
-          if (cloudCollectionTimestamp > localCollectionTimestamp) {
-            // Cloud collection is newer overall. Use its structure, but reconcile item conflicts.
-            finalData = smartMergeItems(localData, cloudData); // localData is current local state from ref
-            finalCollectionTimestamp = cloudResult.updated_at;
-          } else if (localCollectionTimestamp > cloudCollectionTimestamp) {
-            // Local collection is newer overall. Keep local as is.
-            finalData = localData; // already set as initial `finalData`
-            finalCollectionTimestamp = localDataWrapper.timestamp;
-          } else { // Timestamps are equal or one/both are null/invalid
-            // If collection timestamps are equal, perform a merge to resolve item-level conflicts.
-            // `smartMergeItems` will pick the newer item based on `updatedAt`.
-            finalData = smartMergeItems(localData, cloudData);
-            finalCollectionTimestamp = localDataWrapper.timestamp || cloudResult.updated_at; // Pick one if equal
-          }
-          setLastSync(new Date(finalCollectionTimestamp));
-
-        } else {
-          // No cloud data for this key. Local data is the primary.
-          setLastSync(localCollectionTimestamp ? new Date(localCollectionTimestamp) : null);
-        }
+        const localDataWrapper = localLoadedStateRef.current || { data: initial, timestamp: null, version: currentAppVersion };
+        const localItems = Array.isArray(localDataWrapper.data) ? localDataWrapper.data : [];
+        const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
         
-        // Only update React state if `finalData` is truly different to avoid unnecessary re-renders.
-        // This setState will trigger Effect 2 for local storage save.
-        if (JSON.stringify(finalData) !== JSON.stringify(state)) {
-            setState(finalData);
+        const cloudItems = Array.isArray(cloudResult?.data) ? cloudResult.data : [];
+        const cloudCollectionTimestamp = cloudResult?.updated_at ? new Date(cloudResult.updated_at).getTime() : 0;
+
+        const localItemsMap = new Map(localItems.map(item => [item.id, item]));
+        const cloudItemsMap = new Map(cloudItems.map(item => [item.id, item]));
+
+        let baseItems = []; // The collection whose existence is considered primary
+        let otherItemsMap = new Map(); // The collection to merge content from
+
+        if (cloudCollectionTimestamp > localCollectionTimestamp) {
+          // Cloud collection is newer overall. Cloud is the source of truth for item existence.
+          baseItems = cloudItems;
+          otherItemsMap = localItemsMap;
+          effectiveCollectionTimestamp = cloudCollectionTimestamp;
+        } else { // Local is newer or equal overall. Local is the source of truth for item existence.
+          baseItems = localItems;
+          otherItemsMap = cloudItemsMap;
+          effectiveCollectionTimestamp = localCollectionTimestamp || cloudCollectionTimestamp; // Prioritize local, fallback to cloud if local is null
+        }
+
+        // Now, iterate through the base items and merge content from the other collection
+        baseItems.forEach(baseItem => {
+          const otherItem = otherItemsMap.get(baseItem.id);
+          if (otherItem) {
+            // Item exists in both base and other, merge content based on individual updatedAt
+            const baseUpdated = baseItem.updatedAt ? new Date(baseItem.updatedAt).getTime() : 0;
+            const otherUpdated = otherItem.updatedAt ? new Date(otherItem.updatedAt).getTime() : 0;
+            
+            // Clean arrays for the winning item
+            const winningItem = (otherUpdated > baseUpdated) ? { ...otherItem } : { ...baseItem };
+            if (Array.isArray(winningItem.paidMonths) === false) winningItem.paidMonths = [];
+            if (Array.isArray(winningItem.skipMonths) === false) winningItem.skipMonths = [];
+            if (Array.isArray(winningItem.receivedMonths) === false) winningItem.receivedMonths = [];
+
+            mergedData.push(winningItem);
+          } else {
+            // Item only in base collection, keep it as is (it's either a new item in base, or a deletion from 'other' that's already resolved)
+            // Ensure array properties are properly initialized for this item too
+            const cleanedBaseItem = { ...baseItem };
+            if (Array.isArray(cleanedBaseItem.paidMonths) === false) cleanedBaseItem.paidMonths = [];
+            if (Array.isArray(cleanedBaseItem.skipMonths) === false) cleanedBaseItem.skipMonths = [];
+            if (Array.isArray(cleanedBaseItem.receivedMonths) === false) cleanedBaseItem.receivedMonths = [];
+            mergedData.push(cleanedBaseItem);
+          }
+        });
+        
+        setLastSync(effectiveCollectionTimestamp ? new Date(effectiveCollectionTimestamp) : null);
+
+        // Sort mergedData to ensure consistent order after merging
+        mergedData.sort((a, b) => (a.id || '').localeCompare(b.id || '')); // Sort by ID for consistency
+
+        // Only update React state if `mergedData` is truly different to avoid unnecessary re-renders.
+        if (JSON.stringify(mergedData) !== JSON.stringify(state)) {
+            setState(mergedData);
         } else {
             // If data is identical, but maybe the timestamp needed updating (e.g., local won),
             // ensure local storage and ref reflect the correct winning timestamp.
-            const updatedLocal = saveData(key, finalData);
+            const updatedLocal = saveData(key, mergedData);
             if (updatedLocal) {
               localLoadedStateRef.current = updatedLocal;
             }
@@ -1474,7 +1502,7 @@ function DashboardContent() {
     try {
       setMasterState(prev => ({
         ...prev,
-        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, paid: !x.paid } : x)
+        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, paid: !x.paid, updatedAt: new Date().toISOString() } : x) // Add updatedAt
       }));
       
       const acc = accounts.find(a=>a.id===o.accountId);
@@ -1502,7 +1530,7 @@ function DashboardContent() {
     try {
       setMasterState(prev => ({
         ...prev,
-        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, ignored: !x.ignored } : x)
+        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, ignored: !x.ignored, updatedAt: new Date().toISOString() } : x) // Add updatedAt
       }));
     } catch (error) {
       console.error('Error toggling OTC ignored:', error);
@@ -1557,7 +1585,8 @@ function DashboardContent() {
           accountId: otcAccountId, 
           notes: otcNotes, 
           paid: false,
-          ignored: false 
+          ignored: false,
+          updatedAt: new Date().toISOString() // Add updatedAt
         }]
       }));
       setOtcName("");
