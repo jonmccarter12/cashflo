@@ -147,54 +147,6 @@ function loadData(key, defaultValue) {
   }
 }
 
-// Function to perform a deep merge based on `updatedAt` for individual items
-// Prioritizes items from the 'source' array if an ID conflict, otherwise merges based on 'updatedAt'.
-// It's meant to resolve item-level conflicts when the collection-level timestamp is ambiguous or equal.
-function smartMergeItems(localItems, cloudItems) {
-  const mergedMap = new Map();
-
-  // Populate with local items. These are our current active items.
-  if (Array.isArray(localItems)) {
-    localItems.forEach(item => {
-      if (item && item.id) {
-        mergedMap.set(item.id, item);
-      }
-    });
-  }
-
-  // Merge/overwrite with cloud items if they are newer or don't exist locally
-  if (Array.isArray(cloudItems)) {
-    cloudItems.forEach(cloudItem => {
-      if (!cloudItem || !cloudItem.id) return; // Skip invalid cloud items
-
-      const localItem = mergedMap.get(cloudItem.id);
-      if (!localItem) {
-        // Cloud item is new (or was deleted locally but cloud keeps it).
-        // Ensure array properties are properly initialized.
-        const cleanedCloudItem = { ...cloudItem };
-        if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
-        if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
-        if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
-        mergedMap.set(cloudItem.id, cleanedCloudItem);
-      } else {
-        // Both exist: compare by `updatedAt` for content.
-        const localUpdated = localItem.updatedAt ? new Date(localItem.updatedAt).getTime() : 0;
-        const cloudUpdated = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
-
-        if (cloudUpdated > localUpdated) {
-          // Cloud item is newer, use it. Clean arrays if necessary.
-          const cleanedCloudItem = { ...cloudItem };
-          if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
-          if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
-          if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
-          mergedMap.set(cloudItem.id, cleanedCloudItem);
-        }
-        // Else, local is newer or same, keep local (already in map)
-      }
-    });
-  }
-  return Array.from(mergedMap.values());
-}
 
 
 function notify(msg, type = 'success'){ 
