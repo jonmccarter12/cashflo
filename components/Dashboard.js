@@ -147,7 +147,55 @@ function loadData(key, defaultValue) {
   }
 }
 
-// Smart Data Merging
+// Function to perform a deep merge based on `updatedAt` for individual items
+// Prioritizes items from the 'source' array if an ID conflict, otherwise merges based on 'updatedAt'.
+// It's meant to resolve item-level conflicts when the collection-level timestamp is ambiguous or equal.
+function smartMergeItems(localItems, cloudItems) {
+  const mergedMap = new Map();
+
+  // Populate with local items. These are our current active items.
+  if (Array.isArray(localItems)) {
+    localItems.forEach(item => {
+      if (item && item.id) {
+        mergedMap.set(item.id, item);
+      }
+    });
+  }
+
+  // Merge/overwrite with cloud items if they are newer or don't exist locally
+  if (Array.isArray(cloudItems)) {
+    cloudItems.forEach(cloudItem => {
+      if (!cloudItem || !cloudItem.id) return; // Skip invalid cloud items
+
+      const localItem = mergedMap.get(cloudItem.id);
+      if (!localItem) {
+        // Cloud item is new (or was deleted locally but cloud keeps it).
+        // Ensure array properties are properly initialized.
+        const cleanedCloudItem = { ...cloudItem };
+        if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
+        if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
+        if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
+        mergedMap.set(cloudItem.id, cleanedCloudItem);
+      } else {
+        // Both exist: compare by `updatedAt` for content.
+        const localUpdated = localItem.updatedAt ? new Date(localItem.updatedAt).getTime() : 0;
+        const cloudUpdated = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
+
+        if (cloudUpdated > localUpdated) {
+          // Cloud item is newer, use it. Clean arrays if necessary.
+          const cleanedCloudItem = { ...cloudItem };
+          if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
+          if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
+          if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
+          mergedMap.set(cloudItem.id, cleanedCloudItem);
+        }
+        // Else, local is newer or same, keep local (already in map)
+      }
+    });
+  }
+  return Array.from(mergedMap.values());
+}
+
 
 function notify(msg, type = 'success'){ 
   if(typeof window!=='undefined'){ 
@@ -958,6 +1006,16 @@ function DashboardContent() {
   const selectedCats = selectedCat==='All' ? 
     [...activeCats, ...bills.map(b => b.category).filter(cat => !activeCats.includes(cat))] : 
     activeCats.filter(c=> c===selectedCat);
+
+  const totalBillsForSelectedCategory = React.useMemo(() => {
+    let total = 0;
+    bills
+      .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+      .forEach(bill => {
+        total += Number(bill.amount) || 0;
+      });
+    return total;
+  }, [bills, selectedCats, showIgnored]);
 
   // Category spending calculations for budgets
   const categorySpending = React.useMemo(() => {
@@ -2144,10 +2202,13 @@ function DashboardContent() {
             </div>
 
             <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>All Bills</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>All Bills</h3>
+                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
+              </div>
               
               {bills
-                .filter(b => selectedCats.includes(b.category))
+                .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
                 .sort((a,b) => {
                   const aDate = getNextOccurrence(a);
                   const bDate = getNextOccurrence(b);
@@ -3532,12 +3593,15 @@ function DashboardContent() {
             <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills</h3>
-                <button 
-                  onClick={() => setShowAddBill(true)}
-                  style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-                >
-                  + Add Bill
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <span style={{ fontSize: '1.125rem', fontWeight: '600', color: '#8b5cf6' }}>Total: {fmt(totalBillsForSelectedCategory)}</span>
+                  <button 
+                    onClick={() => setShowAddBill(true)}
+                    style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  >
+                    + Add Bill
+                  </button>
+                </div>
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
