@@ -239,6 +239,173 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ===================== CUSTOM HOOKS FOR SUPABASE SYNC =====================
+function debounce(func, delay) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+}
+
+// Hook to sync a single state value with Supabase and localStorage
+function useCloudState(key, defaultValue, userId, supabase) {
+  const [localData, setLocalData] = React.useState(() => {
+    const { data } = loadData(key, defaultValue);
+    return data;
+  });
+  
+  const [syncing, setSyncing] = React.useState(false);
+  const [lastSync, setLastSync] = React.useState(null);
+  const [syncError, setSyncError] = React.useState(null);
+
+  // Debounced save to Supabase
+  const debouncedSave = React.useCallback(
+    debounce(async (value) => {
+      if (!userId || !supabase) return;
+      setSyncing(true);
+      setSyncError(null);
+      try {
+        const { error } = await supabase
+          .from('user_settings')
+          .upsert({ user_id: userId, key: key, value: value }, { onConflict: 'user_id, key' });
+
+        if (error) throw error;
+        setLastSync(new Date().toISOString());
+      } catch (error) {
+        console.error(`Error saving cloud state for key "${key}":`, error);
+        setSyncError(error.message);
+        notify(`Failed to sync setting "${key}" to the cloud.`, 'error');
+      } finally {
+        setSyncing(false);
+      }
+    }, 1000), // 1 second debounce
+    [userId, supabase, key]
+  );
+
+  // Fetch from Supabase on initial load/user change
+  React.useEffect(() => {
+    async function fetchData() {
+      if (!userId || !supabase) return;
+      setSyncing(true);
+      setSyncError(null);
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('value')
+          .eq('user_id', userId)
+          .eq('key', key)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // Ignore 'no rows found'
+          throw error;
+        }
+
+        if (data) {
+          // Cloud data is source of truth, update local state and storage
+          setLocalData(data.value);
+          saveData(key, data.value);
+        } else {
+          // No cloud data, so save initial local state to cloud
+          debouncedSave(localData);
+        }
+        setLastSync(new Date().toISOString());
+      } catch (error) {
+        console.error(`Error fetching cloud state for key "${key}":`, error);
+        setSyncError(error.message);
+      } finally {
+        setSyncing(false);
+      }
+    }
+    fetchData();
+  }, [userId, supabase, key]);
+
+  const setValue = (newValue) => {
+    const value = typeof newValue === 'function' ? newValue(localData) : newValue;
+    setLocalData(value);
+    saveData(key, value);
+    debouncedSave(value);
+  };
+
+  return [localData, setValue, { syncing, lastSync, syncError }];
+}
+
+// Hook to manage transaction log with Supabase and localStorage
+function useCloudTransactions(userId, supabase) {
+  const [transactions, setTransactions] = React.useState(() => {
+    const { data } = loadData(TRANSACTION_LOG_KEY, []);
+    return data;
+  });
+
+  const [syncing, setSyncing] = React.useState(false);
+  const [lastSync, setLastSync] = React.useState(null);
+  const [syncError, setSyncError] = React.useState(null);
+
+  // Fetch initial transactions and subscribe to changes
+  React.useEffect(() => {
+    if (!userId || !supabase) {
+      setTransactions([]); // Clear transactions if user logs out
+      return;
+    }
+
+    async function fetchInitialTransactions() {
+      setSyncing(true);
+      setSyncError(null);
+      try {
+        const { data, error } = await supabase
+          .from('transaction_log')
+          .select('*')
+          .eq('user_id', userId)
+          .order('timestamp', { ascending: true });
+
+        if (error) throw error;
+        
+        // Simple merge: remote data is the source of truth
+        setTransactions(data);
+        saveData(TRANSACTION_LOG_KEY, data);
+        setLastSync(new Date().toISOString());
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        setSyncError(error.message);
+        notify('Failed to fetch transaction history from the cloud.', 'error');
+      } finally {
+        setSyncing(false);
+      }
+    }
+
+    fetchInitialTransactions();
+
+    // Set up real-time subscription
+    const channel = supabase.channel(`transactions:${userId}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'transaction_log', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          console.log('Real-time transaction change received:', payload);
+          // Re-fetch all to ensure consistency. More advanced logic could apply the patch.
+          fetchInitialTransactions();
+          notify('Data updated in real-time.', 'info');
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Subscribed to real-time transactions for user ${userId}`);
+        }
+        if (err) {
+          console.error('Real-time subscription error:', err);
+          setSyncError(err.message);
+        }
+      });
+      
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+
+  }, [userId, supabase]);
+
+  return [transactions, setTransactions, { syncing, lastSync, syncError }];
+}
 
 
 // Calculate next occurrence for a bill
