@@ -85,13 +85,13 @@ function saveData(key, data) {
       
       // Now save the new data wrapper
       localStorage.setItem(key, JSON.stringify(dataToSave));
-      return true;
+      return dataToSave; // Return the full wrapped data object
     } catch (error) {
       console.error('Error saving data:', error);
-      return false;
+      return null; // Indicate failure by returning null
     }
   }
-  return false;
+  return null; // Indicate failure by returning null
 }
 
 // Data Protection - Load data with fallback recovery
