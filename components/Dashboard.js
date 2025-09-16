@@ -3475,9 +3475,9 @@ function DashboardContent() {
                   )}
                 </div>
                 
-                <div style={{ marginTop: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '0.5rem', border: '1px solid #fcd34d' }}>
-                  <div style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: '500' }}>Week Total</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#92400e' }}>{fmt(upcoming.weekDueTotal)}</div>
+                <div style={{ marginTop: '1rem', padding: '1rem', background: '#ede9fe', borderRadius: '0.5rem', border: '1px solid #c4b5fd' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#7c3aed', fontWeight: '500' }}>Week Total</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#7c3aed' }}>{fmt(upcoming.weekDueTotal)}</div>
                 </div>
               </div>
             </div>
