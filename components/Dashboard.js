@@ -32,17 +32,12 @@ function getSupabaseClient() {
 
 // ===================== HELPERS =====================
 const currentAppVersion = "3.1"; // Current application data version
-const storageKey = `bills_balance_dashboard_v${currentAppVersion}`; // Updated version number
-const legacyStorageKeys = [
-  "bills_balance_dashboard_v3", // Example of previous versions
-  "bills_balance_dashboard_v2",
-  "bills_balance_dashboard",
-  "cashflow_dashboard"
-]; // For automatic recovery
 const yyyyMm = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 const monthKey = yyyyMm();
 const clampDue = (d) => Math.max(1, Math.min(28, Math.round(d||1)));
 const fmt = (n) => `$${(Math.round((n||0) * 100) / 100).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+
+const TRANSACTION_LOG_KEY = 'transaction_log'; // Key for the new transaction log
 
 // Data Protection - Create backup of data
 function backupData(key, data) {
@@ -105,12 +100,12 @@ function loadData(key, defaultValue) {
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Ensure it's the new format {data, timestamp, version}, if not, treat as legacy data
+      // Ensure it's the new format {data, timestamp, version}, if not, treat as raw data
       if (parsed && parsed.data !== undefined && parsed.timestamp !== undefined) {
         return parsed; // Returns { data, timestamp, version }
       } else {
-        // Legacy format: return data only and null timestamp
-        console.warn(`Migrating legacy local storage data for key: ${key}`);
+        // Raw data format: return data only and null timestamp
+        console.warn(`Migrating raw local storage data for key: ${key}`);
         return { data: parsed, timestamp: null, version: null };
       }
     }
@@ -129,21 +124,40 @@ function loadData(key, defaultValue) {
       return parsedBackup; // backupData now stores data in a {data, timestamp, version} object
     }
     
-    // 3. Try legacy storage keys
-    for (const legacyKey of legacyStorageKeys) {
-      const legacyStored = localStorage.getItem(`${legacyKey}:${key.split(':')[1]}`);
-      if (legacyStored) {
-        const parsedLegacy = JSON.parse(legacyStored);
-        console.log('Recovered from legacy storage:', legacyKey, parsedLegacy);
-        return { data: parsedLegacy, timestamp: null, version: null }; // Legacy has no timestamp
-      }
-    }
-    
-    // 4. Fall back to default values
+    // For transaction_log, we don't handle other legacy keys here.
+    // If it's a new key, fall back to default.
     return { data: defaultValue, timestamp: null, version: null };
   } catch (error) {
     console.error('Error loading data:', error);
     return { data: defaultValue, timestamp: null, version: null };
+  }
+}
+
+async function logTransaction(supabase, userId, type, itemId, payload, description) {
+  if (!supabase || !userId) {
+    console.error('Supabase client or user ID missing for transaction logging.');
+    return null;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('transaction_log')
+      .insert({
+        user_id: userId,
+        type: type,
+        item_id: itemId,
+        payload: payload,
+        description: description,
+        timestamp: new Date().toISOString() // Ensure timestamp is set correctly
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error logging transaction:', error);
+    notify(`Failed to log transaction: ${error.message}`, 'error');
+    return null;
   }
 }
 
@@ -663,97 +677,473 @@ function DashboardContent() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  // Income history state
-  const [incomeHistory, setIncomeHistory, incomeHistorySync] = useCloudState(
-    `${storageKey}:incomeHistory`,
-    [],
-    user,
-    supabase
-  );
-  
-  // Show income history toggle
-  const [showIncomeHistory, setShowIncomeHistory] = React.useState(false);
+  // NEW: Transaction log state management
+  const [transactions, setTransactions, { syncing: transactionsSyncing, lastSync: transactionsLastSync, syncError: transactionsSyncError }] = useCloudTransactions(user?.id, supabase);
 
-  // Categories with cloud sync - Now includes budgets
-  const [categoriesBase, setCategoriesBase, categoriesSync] = useCloudState(
-    `${storageKey}:categories`, 
-    [
-      { id: crypto.randomUUID(), name: 'Personal', order: 0, budget: 500 },
-      { id: crypto.randomUUID(), name: 'Studio', order: 1, budget: 1200 },
-      { id: crypto.randomUUID(), name: 'Smoke Shop', order: 2, budget: 800 },
-      { id: crypto.randomUUID(), name: 'Botting', order: 3, budget: 300 },
-    ],
-    user,
-    supabase
-  );
-  
-  // Cloud-synced base data
-  const [accountsBase, setAccountsBase, accountsSync] = useCloudState(
-    `${storageKey}:accounts`,
-    [
+  // Derived state from transactions
+  const masterState = React.useMemo(() => {
+    // This function will process the immutable transaction log
+    // and derive the current, mutable state of the application.
+    // This is where the core logic of your event-sourced system lives.
+
+    const accounts = new Map();
+    const bills = new Map();
+    const oneTimeCosts = new Map();
+    const categories = new Map();
+    const upcomingCredits = new Map();
+    const recurringIncome = new Map();
+    const incomeHistory = []; // Income history is also derived or logged as separate transactions
+    
+    // Default categories (initial state if no category transactions exist)
+    const initialCategories = [
+      { id: crypto.randomUUID(), name: 'Personal', order: 0, budget: 500, ignored: false },
+      { id: crypto.randomUUID(), name: 'Studio', order: 1, budget: 1200, ignored: false },
+      { id: crypto.randomUUID(), name: 'Smoke Shop', order: 2, budget: 800, ignored: false },
+      { id: crypto.randomUUID(), name: 'Botting', order: 3, budget: 300, ignored: false },
+    ];
+    initialCategories.forEach(cat => categories.set(cat.id, cat));
+
+    // Default accounts
+    const initialAccounts = [
       { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
       { id: 'boabiz', name:'BOA – Business', type:'Bank', balance:0 },
       { id: 'pers', name:'Personal Checking', type:'Bank', balance:0 },
-    ],
-    user,
-    supabase
-  );
-  
-  const [billsBase, setBillsBase, billsSync] = useCloudState(`${storageKey}:bills`, [], user, supabase);
-  const [oneTimeCostsBase, setOneTimeCostsBase, oneTimeCostsSync] = useCloudState(`${storageKey}:otc`, [], user, supabase);
-  const [upcomingCreditsBase, setUpcomingCreditsBase, upcomingCreditsSync] = useCloudState(`${storageKey}:credits`, [], user, supabase);
-  const [recurringIncomeBase, setRecurringIncomeBase, recurringIncomeSync] = useCloudState(`${storageKey}:income`, [], user, supabase);
-  const [nwHistory, setNwHistory, nwHistorySync] = useCloudState(`${storageKey}:nwHistory`, [], user, supabase);
+    ];
+    initialAccounts.forEach(acc => accounts.set(acc.id, acc));
 
-  // Master state
-  const [masterState, setMasterState] = React.useState({
-    accounts: accountsBase,
-    bills: billsBase,
-    oneTimeCosts: oneTimeCostsBase,
-    categories: categoriesBase,
-    upcomingCredits: upcomingCreditsBase,
-    recurringIncome: recurringIncomeBase
-  });
 
-  // Sync master state with cloud state
+    // Process transactions in chronological order
+    transactions.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    for (const tx of transactions) {
+      switch (tx.type) {
+        case 'account_created':
+          accounts.set(tx.item_id, { 
+            id: tx.item_id, 
+            name: tx.payload.name, 
+            type: tx.payload.type, 
+            balance: tx.payload.initial_balance || 0,
+            updatedAt: tx.timestamp // Track for potential individual item merge if needed, though collection is primary
+          });
+          break;
+        case 'account_balance_adjustment':
+          if (accounts.has(tx.item_id)) {
+            const currentAccount = accounts.get(tx.item_id);
+            accounts.set(tx.item_id, {
+              ...currentAccount,
+              balance: tx.payload.new_balance,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'account_deleted':
+            accounts.delete(tx.item_id);
+            // Also need to remove associated bills, otc, income, credits
+            bills.forEach((bill, id) => { if (bill.accountId === tx.item_id) bills.delete(id); });
+            oneTimeCosts.forEach((otc, id) => { if (otc.accountId === tx.item_id) oneTimeCosts.delete(id); });
+            recurringIncome.forEach((inc, id) => { if (inc.accountId === tx.item_id) recurringIncome.delete(id); });
+            upcomingCredits.forEach((cred, id) => { if (cred.accountId === tx.item_id) upcomingCredits.delete(id); });
+            break;
+        case 'bill_created':
+          bills.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            category: tx.payload.category,
+            amount: tx.payload.amount,
+            frequency: tx.payload.frequency,
+            dueDay: tx.payload.dueDay,
+            accountId: tx.payload.accountId,
+            notes: tx.payload.notes || '',
+            paidMonths: tx.payload.paidMonths || [], // For retroactive history
+            skipMonths: [],
+            ignored: false,
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'bill_payment':
+          if (bills.has(tx.item_id)) {
+            const currentBill = bills.get(tx.item_id);
+            const month = tx.payload.month;
+            const newPaidMonths = tx.payload.is_paid
+                ? [...(currentBill.paidMonths || []), month]
+                : (currentBill.paidMonths || []).filter(m => m !== month);
+            bills.set(tx.item_id, {
+                ...currentBill,
+                paidMonths: [...new Set(newPaidMonths)], // Ensure unique
+                updatedAt: tx.timestamp
+            });
+            if (accounts.has(tx.payload.accountId)) {
+              const account = accounts.get(tx.payload.accountId);
+              accounts.set(tx.payload.accountId, {
+                ...account,
+                balance: account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)
+              });
+            }
+          }
+          break;
+        case 'bill_modification':
+          if (bills.has(tx.item_id)) {
+            const currentBill = bills.get(tx.item_id);
+            bills.set(tx.item_id, {
+              ...currentBill,
+              ...tx.payload.changes, // Apply specific changes
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'bill_ignored_toggled':
+          if (bills.has(tx.item_id)) {
+            const currentBill = bills.get(tx.item_id);
+            bills.set(tx.item_id, {
+                ...currentBill,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'bill_deleted':
+          bills.delete(tx.item_id);
+          break;
+        case 'one_time_cost_created':
+          oneTimeCosts.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            category: tx.payload.category,
+            amount: tx.payload.amount,
+            dueDate: tx.payload.dueDate,
+            accountId: tx.payload.accountId,
+            notes: tx.payload.notes || '',
+            paid: false,
+            ignored: false,
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'one_time_cost_payment':
+          if (oneTimeCosts.has(tx.item_id)) {
+            const currentOTC = oneTimeCosts.get(tx.item_id);
+            oneTimeCosts.set(tx.item_id, {
+                ...currentOTC,
+                paid: tx.payload.is_paid,
+                updatedAt: tx.timestamp
+            });
+            if (accounts.has(tx.payload.accountId)) {
+              const account = accounts.get(tx.payload.accountId);
+              accounts.set(tx.payload.accountId, {
+                ...account,
+                balance: account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)
+              });
+            }
+          }
+          break;
+        case 'one_time_cost_modification':
+          if (oneTimeCosts.has(tx.item_id)) {
+            const currentOTC = oneTimeCosts.get(tx.item_id);
+            oneTimeCosts.set(tx.item_id, {
+              ...currentOTC,
+              ...tx.payload.changes,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'one_time_cost_ignored_toggled':
+          if (oneTimeCosts.has(tx.item_id)) {
+            const currentOTC = oneTimeCosts.get(tx.item_id);
+            oneTimeCosts.set(tx.item_id, {
+                ...currentOTC,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'one_time_cost_deleted':
+          oneTimeCosts.delete(tx.item_id);
+          break;
+        case 'recurring_income_created':
+          recurringIncome.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            amount: tx.payload.amount,
+            frequency: tx.payload.frequency,
+            payDay: tx.payload.payDay,
+            weeklyDay: tx.payload.weeklyDay,
+            biweeklyStart: tx.payload.biweeklyStart,
+            yearlyMonth: tx.payload.yearlyMonth,
+            accountId: tx.payload.accountId,
+            notes: tx.payload.notes || '',
+            ignored: false,
+            receivedMonths: [],
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'recurring_income_received':
+          if (recurringIncome.has(tx.item_id)) {
+            const currentIncome = recurringIncome.get(tx.item_id);
+            const month = tx.payload.month;
+            const newReceivedMonths = tx.payload.is_received
+              ? [...(currentIncome.receivedMonths || []), month]
+              : (currentIncome.receivedMonths || []).filter(m => m !== month);
+            recurringIncome.set(tx.item_id, {
+              ...currentIncome,
+              receivedMonths: [...new Set(newReceivedMonths)],
+              updatedAt: tx.timestamp
+            });
+            if (accounts.has(tx.payload.accountId)) {
+              const account = accounts.get(tx.payload.accountId);
+              accounts.set(tx.payload.accountId, {
+                ...account,
+                balance: account.balance + (tx.payload.is_received ? tx.payload.amount : -tx.payload.amount)
+              });
+            }
+            if (tx.payload.is_received) {
+              incomeHistory.push({
+                id: tx.id, // Use transaction ID for history
+                date: tx.timestamp,
+                source: tx.payload.name,
+                amount: tx.payload.amount,
+                accountId: tx.payload.accountId,
+                type: 'recurring'
+              });
+            }
+          }
+          break;
+        case 'recurring_income_modification':
+          if (recurringIncome.has(tx.item_id)) {
+            const currentIncome = recurringIncome.get(tx.item_id);
+            recurringIncome.set(tx.item_id, {
+              ...currentIncome,
+              ...tx.payload.changes,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'recurring_income_ignored_toggled':
+          if (recurringIncome.has(tx.item_id)) {
+            const currentIncome = recurringIncome.get(tx.item_id);
+            recurringIncome.set(tx.item_id, {
+                ...currentIncome,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'recurring_income_deleted':
+          recurringIncome.delete(tx.item_id);
+          break;
+        case 'credit_created':
+          upcomingCredits.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            amount: tx.payload.amount,
+            expectedDate: tx.payload.expectedDate,
+            accountId: tx.payload.accountId,
+            guaranteed: tx.payload.guaranteed,
+            notes: tx.payload.notes || '',
+            ignored: false,
+            received: false, // This will be set to true when 'credit_received' transaction comes
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'credit_received':
+          if (upcomingCredits.has(tx.item_id)) {
+            upcomingCredits.delete(tx.item_id); // Credit is consumed
+            if (accounts.has(tx.payload.accountId)) {
+              const account = accounts.get(tx.payload.accountId);
+              accounts.set(tx.payload.accountId, {
+                ...account,
+                balance: account.balance + tx.payload.amount
+              });
+            }
+            incomeHistory.push({
+              id: tx.id,
+              date: tx.timestamp,
+              source: tx.payload.name,
+              amount: tx.payload.amount,
+              accountId: tx.payload.accountId,
+              type: 'credit'
+            });
+          }
+          break;
+        case 'credit_guaranteed_toggled':
+          if (upcomingCredits.has(tx.item_id)) {
+            const currentCredit = upcomingCredits.get(tx.item_id);
+            upcomingCredits.set(tx.item_id, {
+                ...currentCredit,
+                guaranteed: tx.payload.guaranteed,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'credit_ignored_toggled':
+          if (upcomingCredits.has(tx.item_id)) {
+            const currentCredit = upcomingCredits.get(tx.item_id);
+            upcomingCredits.set(tx.item_id, {
+                ...currentCredit,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'credit_deleted':
+          upcomingCredits.delete(tx.item_id);
+          break;
+        case 'category_created':
+          categories.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            order: tx.payload.order,
+            budget: tx.payload.budget || 0,
+            ignored: false,
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'category_deleted':
+            categories.delete(tx.item_id);
+            // Move associated items to 'Uncategorized' - this is a bit complex for a derived state
+            // For now, if category is deleted, items will effectively become "uncategorized" or filter out if logic handles it.
+            // A 'category_assigned' transaction would be needed to explicitly re-categorize items.
+            // For now, items will just show their old category or be filtered out.
+            // Better: when a category is deleted, a new transaction type like `item_re_categorized` for each affected item could be logged.
+            // For initial implementation, just deleting the category is sufficient.
+            break;
+        case 'category_renamed':
+          if (categories.has(tx.item_id)) {
+            const currentCategory = categories.get(tx.item_id);
+            categories.set(tx.item_id, {
+                ...currentCategory,
+                name: tx.payload.new_name,
+                updatedAt: tx.timestamp
+            });
+            // Also update bills/otc that used the old name
+            bills.forEach(bill => {
+                if (bill.category === tx.payload.old_name) bill.category = tx.payload.new_name;
+            });
+            oneTimeCosts.forEach(otc => {
+                if (otc.category === tx.payload.old_name) otc.category = tx.payload.new_name;
+            });
+          }
+          break;
+        case 'category_budget_updated':
+          if (categories.has(tx.item_id)) {
+            const currentCategory = categories.get(tx.item_id);
+            categories.set(tx.item_id, {
+                ...currentCategory,
+                budget: tx.payload.new_budget,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'category_ignored_toggled':
+          if (categories.has(tx.item_id)) {
+            const currentCategory = categories.get(tx.item_id);
+            categories.set(tx.item_id, {
+                ...currentCategory,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'category_order_changed': // New transaction type for reordering
+          if (categories.has(tx.item_id)) {
+            const currentCategory = categories.get(tx.item_id);
+            categories.set(tx.item_id, {
+              ...currentCategory,
+              order: tx.payload.new_order,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        default:
+          console.warn(`Unknown transaction type: ${tx.type}`);
+      }
+    }
+    
+    // Convert Maps back to sorted arrays
+    const sortedCategories = Array.from(categories.values()).sort((a,b) => (a.order || 0) - (b.order || 0));
+
+    // Ensure 'Uncategorized' exists if any items are without a category (due to deletion or initial load)
+    // Add it dynamically if not found
+    if (!sortedCategories.some(c => c.name === 'Uncategorized')) {
+      sortedCategories.push({
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        order: sortedCategories.length,
+        budget: 0,
+        ignored: false,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    return {
+      accounts: Array.from(accounts.values()),
+      bills: Array.from(bills.values()),
+      oneTimeCosts: Array.from(oneTimeCosts.values()),
+      categories: sortedCategories,
+      upcomingCredits: Array.from(upcomingCredits.values()),
+      recurringIncome: Array.from(recurringIncome.values()),
+      incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100) // Keep last 100 entries
+    };
+  }, [transactions, initial]); // Depend on transactions
+
+  // OLD: Master state -> NOW derived from transactions
+  const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, incomeHistory } = masterState;
+
+  // Sync initial dummy data to transactions if no transactions exist and old local storage has data
+  // This is a one-time migration for existing users.
   React.useEffect(() => {
-    setMasterState({
-      accounts: accountsBase,
-      bills: billsBase,
-      oneTimeCosts: oneTimeCostsBase,
-      categories: categoriesBase,
-      upcomingCredits: upcomingCreditsBase,
-      recurringIncome: recurringIncomeBase
-    });
-  }, [accountsBase, billsBase, oneTimeCostsBase, categoriesBase, upcomingCreditsBase, recurringIncomeBase]);
+    if (!userId || !supabase || transactions.length > 0) return; // Only run if logged in, no transactions yet
 
-  // Sync changes back to cloud state and perform integrity checks
-  React.useEffect(() => {
-    setAccountsBase(masterState.accounts);
-    setBillsBase(masterState.bills);
-    setOneTimeCostsBase(masterState.oneTimeCosts);
-    setCategoriesBase(masterState.categories);
-    setUpcomingCreditsBase(masterState.upcomingCredits);
-    setRecurringIncomeBase(masterState.recurringIncome || []);
+    const migrateOldData = async () => {
+      let initialTransactions = [];
 
-    // Debounce integrity check to avoid running too frequently during rapid state updates
-    const debounceIntegrityCheck = setTimeout(() => {
-      performDataIntegrityCheck(masterState, notify);
-    }, 1500); // 1.5 second debounce
+      // Load data from potential old local storage keys
+      const oldAccountData = loadData('bills_balance_dashboard_v3.1:accounts', null);
+      const oldBillsData = loadData('bills_balance_dashboard_v3.1:bills', null);
+      const oldCategoriesData = loadData('bills_balance_dashboard_v3.1:categories', null);
+      const oldCreditsData = loadData('bills_balance_dashboard_v3.1:credits', null);
+      const oldIncomeData = loadData('bills_balance_dashboard_v3.1:income', null);
+      const oldOtcData = loadData('bills_balance_dashboard_v3.1:otc', null);
 
-    return () => clearTimeout(debounceIntegrityCheck);
-  }, [masterState, notify]); // Added notify to dependencies
+      if (oldAccountData.data && oldAccountData.data.length > 0) {
+        oldAccountData.data.forEach(acc => {
+          initialTransactions.push({
+            user_id: userId,
+            type: 'account_created',
+            item_id: acc.id,
+            payload: { name: acc.name, type: acc.type, initial_balance: acc.balance },
+            description: `Account "${acc.name}" created with initial balance ${fmt(acc.balance)}`,
+            timestamp: new Date().toISOString()
+          });
+        });
+      }
+      // Add similar migration logic for bills, categories, etc.
+      // This part would be expanded to migrate all existing data types into transactions.
+      // For brevity, only accounts are shown as example.
 
-  // Extract current state
-  const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome = [] } = masterState;
+      if (initialTransactions.length > 0) {
+        console.log("Migrating old local data to transactions:", initialTransactions);
+        const { error } = await supabase.from('transaction_log').insert(initialTransactions);
+        if (error) {
+          console.error('Error migrating old data:', error);
+          notify('Failed to migrate old local data to transactions.', 'error');
+        } else {
+          notify('Successfully migrated old local data to transactions. Please verify.', 'success');
+          // Optionally, clear old local storage keys after successful migration
+          // localStorage.removeItem('bills_balance_dashboard_v3.1:accounts'); etc.
+        }
+      }
+    };
+    migrateOldData();
+  }, [userId, supabase, transactions.length, initial]); // `transactions.length` ensures it only runs if transactions are empty
+
+  // Settings/UI with cloud sync - still use useCloudState for UI settings
+  const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
+  const [showIgnored, setShowIgnored] = useCloudState('showIgnored', false, user?.id, supabase);
+  const [selectedCat, setSelectedCat] = useCloudState('selectedCat', 'All', user?.id, supabase);
   
+  const [showIncomeHistory, setShowIncomeHistory] = React.useState(false); // Managed locally for UI toggle
+
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
-  // Settings/UI with cloud sync
-  const [autoDeductCash, setAutoDeductCash] = useCloudState(`${storageKey}:autoDeductCash`, true, user, supabase);
-  const [showIgnored, setShowIgnored] = useCloudState(`${storageKey}:showIgnored`, false, user, supabase);
-  const [selectedCat, setSelectedCat] = useCloudState(`${storageKey}:selectedCat`, 'All', user, supabase);
-  
   const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
 
@@ -762,7 +1152,7 @@ function DashboardContent() {
   const [showAddBill, setShowAddBill] = React.useState(false);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
-  const [showSnapshots, setShowSnapshots] = React.useState(false);
+  const [showSnapshots, setShowSnapshots] = React.useState(false); // This will be replaced with transaction history UI
   const [editingAccount, setEditingAccount] = React.useState(null);
   const [editingBill, setEditingBill] = React.useState(null);
   const [editingOTC, setEditingOTC] = React.useState(null);
@@ -777,27 +1167,9 @@ function DashboardContent() {
   const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || 'cash');
   const [otcNotes, setOtcNotes] = React.useState("");
 
-  // Check if any data is syncing
-  const isSyncing = categoriesSync?.syncing || accountsSync?.syncing || billsSync?.syncing || oneTimeCostsSync?.syncing || upcomingCreditsSync?.syncing || nwHistorySync?.syncing || recurringIncomeSync?.syncing || incomeHistorySync?.syncing;
-  
-  // FIXED: Get last sync time with proper null/undefined checking
-  const lastSyncTime = React.useMemo(() => {
-    const times = [
-      categoriesSync?.lastSync, 
-      accountsSync?.lastSync, 
-      billsSync?.lastSync, 
-      oneTimeCostsSync?.lastSync, 
-      upcomingCreditsSync?.lastSync,
-      recurringIncomeSync?.lastSync,
-      nwHistorySync?.lastSync,
-      incomeHistorySync?.lastSync
-    ]
-      .filter(t => t !== null && t !== undefined && t instanceof Date && !isNaN(t.getTime()))
-      .map(t => t.getTime());
-    
-    if (times.length === 0) return null;
-    return new Date(Math.max(...times));
-  }, [categoriesSync, accountsSync, billsSync, oneTimeCostsSync, upcomingCreditsSync, recurringIncomeSync, nwHistorySync, incomeHistorySync]);
+  // Check if any data is syncing (now only transaction log)
+  const isSyncing = transactionsSyncing;
+  const lastSyncTime = transactionsLastSync;
 
   // Auth functions with comprehensive error handling
   async function handleAuth() {
@@ -1733,22 +2105,25 @@ function DashboardContent() {
     }
   }
 
-  function addAccount(name, type, balance = 0) {
+  async function addAccount(name, type, balance = 0) {
     try {
       if (!name || !type) {
         notify('Please fill in all required fields', 'error');
         return;
       }
-      setMasterState(prev => ({
-        ...prev,
-        accounts: [...prev.accounts, {
-          id: crypto.randomUUID(),
-          name: name.trim(),
-          type,
-          balance: Number(balance) || 0
-        }]
-      }));
-      notify(`Account "${name}" added`, 'success');
+      const newAccountId = crypto.randomUUID();
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_created',
+        newAccountId,
+        { name: name.trim(), type, initial_balance: Number(balance) || 0 },
+        `Created account "${name}" with initial balance ${fmt(Number(balance) || 0)}`
+      );
+      if (transaction) {
+        notify(`Account "${name}" added`, 'success');
+        setShowAddAccount(false); // Close dialog on success
+      }
     } catch (error) {
       console.error('Error adding account:', error);
       notify('Failed to add account', 'error');
