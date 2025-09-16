@@ -1009,7 +1009,7 @@ function DashboardContent() {
   // Sync initial dummy data to transactions if no transactions exist and old local storage has data
   // This is a one-time migration for existing users.
   React.useEffect(() => {
-    if (!userId || !supabase || transactions.length > 0) return; // Only run if logged in, no transactions yet
+    if (!user?.id || !supabase || transactions.length > 0) return; // Only run if logged in, no transactions yet
 
     const migrateOldData = async () => {
       let initialTransactions = [];
@@ -1025,7 +1025,7 @@ function DashboardContent() {
       if (oldAccountData.data && oldAccountData.data.length > 0) {
         oldAccountData.data.forEach(acc => {
           initialTransactions.push({
-            user_id: userId,
+            user_id: user.id,
             type: 'account_created',
             item_id: acc.id,
             payload: { name: acc.name, type: acc.type, initial_balance: acc.balance },
@@ -1052,7 +1052,7 @@ function DashboardContent() {
       }
     };
     migrateOldData();
-  }, [userId, supabase, transactions.length]); // `transactions.length` ensures it only runs if transactions are empty
+  }, [user?.id, supabase, transactions.length]); // `transactions.length` ensures it only runs if transactions are empty
 
   // Settings/UI with cloud sync - still use useCloudState for UI settings
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
