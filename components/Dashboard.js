@@ -548,6 +548,10 @@ function DashboardContent() {
   
   // Navigation state
   const [currentView, setCurrentView] = React.useState('dashboard');
+
+  // Transaction log view state
+  const [transactionFilter, setTransactionFilter] = React.useState('');
+  const [sortConfig, setSortConfig] = React.useState({ key: 'timestamp', direction: 'descending' });
   
   // FIXED: Supabase client using singleton pattern
   const supabase = React.useMemo(() => {
@@ -1476,6 +1480,76 @@ function DashboardContent() {
     }
   }, [currentLiquidWithGuaranteed, recurringIncome, upcomingCredits, bills, oneTimeCosts, activeCats]);
 
+  // Transaction Log filtering and sorting
+  const sortedTransactions = React.useMemo(() => {
+    let sortableItems = [...transactions];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const valA = a[sortConfig.key] || '';
+        const valB = b[sortConfig.key] || '';
+        if (valA < valB) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (valA > valB) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [transactions, sortConfig]);
+
+  const filteredTransactions = React.useMemo(() => {
+    return sortedTransactions.filter(tx =>
+        (tx.description?.toLowerCase() || '').includes(transactionFilter.toLowerCase()) ||
+        (tx.type?.toLowerCase() || '').includes(transactionFilter.toLowerCase())
+    );
+  }, [sortedTransactions, transactionFilter]);
+
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleExport = () => {
+    if (filteredTransactions.length === 0) {
+        notify('No transactions to export.', 'warning');
+        return;
+    }
+
+    const headers = ['id', 'timestamp', 'type', 'item_id', 'description', 'payload'];
+    const csvRows = [headers.join(',')];
+
+    for (const tx of filteredTransactions) {
+        const row = [
+            tx.id,
+            tx.timestamp,
+            tx.type,
+            tx.item_id,
+            `"${(tx.description || '').replace(/"/g, '""')}"`, // Escape double quotes
+            `"${JSON.stringify(tx.payload).replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(','));
+    }
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `transactions_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    notify('Transactions exported successfully!', 'success');
+  };
+
   // RECURRING INCOME FUNCTIONS
   async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes = '') {
     try {
@@ -2190,6 +2264,21 @@ function DashboardContent() {
             }}
           >
             Timeline
+          </button>
+          <button
+            onClick={() => setCurrentView('transactions')}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              background: currentView === 'transactions' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
+              color: currentView === 'transactions' ? 'white' : '#374151',
+              border: currentView === 'transactions' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.25rem',
+              fontSize: '0.75rem',
+              fontWeight: '600'
+            }}
+          >
+            Transactions
           </button>
         </div>
 
@@ -3057,7 +3146,7 @@ function DashboardContent() {
               </div>
             </div>
           </>
-        ) : (
+        ) : currentView === 'timeline' ? (
           // Timeline View (Mobile)
           <div style={{ background: 'white', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>30-Day Cash Flow Timeline</h3>
@@ -3107,6 +3196,40 @@ function DashboardContent() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        ) : (
+          // Transaction Log View (Mobile)
+          <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Transaction History</h3>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <input
+                type="text"
+                placeholder="Filter by description or type..."
+                value={transactionFilter}
+                onChange={(e) => setTransactionFilter(e.target.value)}
+                style={{ flex: 1, padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+              />
+              <button onClick={handleExport} style={{ padding: '0.375rem 0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
+                Export CSV
+              </button>
+            </div>
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {filteredTransactions.map(tx => (
+                  <div key={tx.id} style={{ padding: '0.5rem', background: '#f9fafb', borderRadius: '0.25rem', border: '1px solid #e5e7eb' }}>
+                    <div style={{ fontWeight: '500', fontSize: '0.75rem', marginBottom: '0.25rem' }}>{tx.description}</div>
+                    <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
+                      <strong>Type:</strong> {tx.type} <br/>
+                      <strong>Timestamp:</strong> {new Date(tx.timestamp).toLocaleString()} <br/>
+                      <strong>Item ID:</strong> {tx.item_id}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {filteredTransactions.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#6b7280', padding: '1rem', fontSize: '0.875rem' }}>No transactions found.</div>
+              )}
             </div>
           </div>
         )}
@@ -3519,6 +3642,21 @@ function DashboardContent() {
             }}
           >
             Timeline
+          </button>
+          <button
+            onClick={() => setCurrentView('transactions')}
+            style={{
+              padding: '0.75rem 2rem',
+              background: currentView === 'transactions' ? 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)' : 'white',
+              color: currentView === 'transactions' ? 'white' : '#374151',
+              border: currentView === 'transactions' ? 'none' : '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Transactions
           </button>
         </div>
 
@@ -4555,7 +4693,7 @@ function DashboardContent() {
               </div>
             </div>
           </>
-        ) : (
+        ) : currentView === 'timeline' ? (
           // Timeline View (Desktop)
           <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>30-Day Cash Flow Timeline</h3>
@@ -4605,6 +4743,54 @@ function DashboardContent() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        ) : (
+          // Transaction Log View (Desktop)
+          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Transaction History</h3>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <input
+                  type="text"
+                  placeholder="Filter by description or type..."
+                  value={transactionFilter}
+                  onChange={(e) => setTransactionFilter(e.target.value)}
+                  style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', minWidth: '300px' }}
+                />
+                <button onClick={handleExport} style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
+                  Export to CSV
+                </button>
+              </div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['timestamp', 'type', 'description', 'item_id'].map(key => (
+                      <th key={key} style={{ padding: '0.75rem', borderBottom: '2px solid #e5e7eb', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort(key)}>
+                        {key.replace('_', ' ').toUpperCase()}
+                        {sortConfig.key === key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map(tx => (
+                    <tr key={tx.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>{new Date(tx.timestamp).toLocaleString()}</td>
+                      <td style={{ padding: '0.75rem' }}><span style={{ background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontSize: '0.75rem' }}>{tx.type}</span></td>
+                      <td style={{ padding: '0.75rem' }}>{tx.description}</td>
+                      <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>{tx.item_id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredTransactions.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#6b7280', padding: '2rem', fontSize: '1rem' }}>
+                  No transactions found matching your filter.
+                </div>
+              )}
             </div>
           </div>
         )}
