@@ -1217,7 +1217,8 @@ function DashboardContent() {
           guaranteed,
           notes: notes.trim(),
           ignored: false,
-          received: false
+          received: false,
+          updatedAt: new Date().toISOString()
         }]
       }));
       notify(`Upcoming credit "${name}" added`, 'success');
@@ -1270,7 +1271,7 @@ function DashboardContent() {
       setMasterState(prev => ({
         ...prev,
         upcomingCredits: prev.upcomingCredits.map(c => 
-          c.id === creditId ? { ...c, guaranteed: !c.guaranteed } : c
+          c.id === creditId ? { ...c, guaranteed: !c.guaranteed, updatedAt: new Date().toISOString() } : c
         )
       }));
     } catch (error) {
@@ -1284,7 +1285,7 @@ function DashboardContent() {
       setMasterState(prev => ({
         ...prev,
         upcomingCredits: prev.upcomingCredits.map(c => 
-          c.id === creditId ? { ...c, ignored: !c.ignored } : c
+          c.id === creditId ? { ...c, ignored: !c.ignored, updatedAt: new Date().toISOString() } : c
         )
       }));
     } catch (error) {
@@ -2008,7 +2009,7 @@ function DashboardContent() {
                             setMasterState(prev => ({
                               ...prev,
                               upcomingCredits: prev.upcomingCredits.map(c => 
-                                c.id === credit.id ? { ...c, accountId: e.target.value } : c
+                                c.id === credit.id ? { ...c, accountId: e.target.value, updatedAt: new Date().toISOString() } : c
                               )
                             }));
                           }}
@@ -3372,7 +3373,7 @@ function DashboardContent() {
                                     setMasterState(prev => ({
                                       ...prev,
                                       upcomingCredits: prev.upcomingCredits.map(c => 
-                                        c.id === credit.id ? { ...c, accountId: e.target.value } : c
+                                        c.id === credit.id ? { ...c, accountId: e.target.value, updatedAt: new Date().toISOString() } : c
                                       )
                                     }));
                                   }}
