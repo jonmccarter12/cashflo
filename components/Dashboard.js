@@ -3755,7 +3755,7 @@ function DashboardContent() {
                   })}
               </div>
               
-              {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true)).length === 0 && (
+              {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true)).length === 0 && (
                 <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
                   No bills found. Add your first bill to get started!
                 </div>
@@ -3883,7 +3883,7 @@ function DashboardContent() {
                   })}
               </div>
               
-              {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true)).length === 0 && (
+              {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true)).length === 0 && (
                 <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
                   No one-time costs found. Add costs above to track them!
                 </div>
