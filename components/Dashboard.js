@@ -1244,7 +1244,8 @@ function DashboardContent() {
         ...prev,
         bills: prev.bills.map(x=> x.id===b.id ? { 
           ...x, 
-          paidMonths: isPaid? x.paidMonths.filter(m=>m!==currentMonth) : [...x.paidMonths, currentMonth] 
+          paidMonths: isPaid? x.paidMonths.filter(m=>m!==currentMonth) : [...x.paidMonths, currentMonth],
+          updatedAt: new Date().toISOString()
         } : x)
       }));
       
@@ -1278,7 +1279,8 @@ function DashboardContent() {
           ...x, 
           skipMonths: x.skipMonths?.includes(currentMonth) ? 
             x.skipMonths.filter(m=>m!==currentMonth) : 
-            [ ...(x.skipMonths||[]), currentMonth ] 
+            [ ...(x.skipMonths||[]), currentMonth ],
+          updatedAt: new Date().toISOString()
         } : x)
       }));
     } catch (error) {
@@ -1291,7 +1293,7 @@ function DashboardContent() {
     try {
       setMasterState(prev => ({
         ...prev,
-        bills: prev.bills.map(x=> x.id===b.id ? { ...x, ignored: !x.ignored } : x)
+        bills: prev.bills.map(x=> x.id===b.id ? { ...x, ignored: !x.ignored, updatedAt: new Date().toISOString() } : x)
       }));
     } catch (error) {
       console.error('Error toggling bill ignored:', error);
@@ -2721,7 +2723,8 @@ function DashboardContent() {
                   notes: formData.get('notes') || '',
                   paidMonths: [],
                   skipMonths: [],
-                  ignored: false
+                  ignored: false,
+                  updatedAt: new Date().toISOString()
                 };
                 setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
                 setShowAddBill(false);
@@ -2777,7 +2780,8 @@ function DashboardContent() {
                   frequency: formData.get('frequency'),
                   dueDay: Number(formData.get('dueDay')),
                   accountId: formData.get('accountId'),
-                  notes: formData.get('notes') || editingBill.notes || ''
+                  notes: formData.get('notes') || editingBill.notes || '',
+                  updatedAt: new Date().toISOString()
                 };
                 setMasterState(prev => ({
                   ...prev,
