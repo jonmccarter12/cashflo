@@ -272,7 +272,6 @@ function useCloudState(key, initial, user, supabase){
           throw error;
         }
 
-        // Use the localDataWrapper and derived localItems, localCollectionTimestamp defined at the start of reconcileAndSync.
         const localDataWrapper = localLoadedStateRef.current || { data: initial, timestamp: null, version: currentAppVersion };
         const localItems = Array.isArray(localDataWrapper.data) ? localDataWrapper.data : [];
         const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
@@ -283,15 +282,19 @@ function useCloudState(key, initial, user, supabase){
         let finalData = [];
         let finalCollectionTimestamp;
 
-        // Use a map to handle merging items by ID, prioritizing newer items
+        // Determine which collection (local or cloud) is "newer" overall for item existence.
+        const localCollectionIsNewerOverall = localCollectionTimestamp >= cloudCollectionTimestamp;
+
+        // Use a map to build the final merged data.
         const mergedMap = new Map();
 
-        // Add all local items to the map initially.
-        // These are the user's current known items.
-        localItems.forEach(item => {
+        // Step 1: Populate mergedMap based on the collection that is newer overall.
+        // This collection's set of items defines the baseline for what "exists" or has been "deleted".
+        const baseItemsForExistence = localCollectionIsNewerOverall ? localItems : cloudItems;
+        baseItemsForExistence.forEach(item => {
             if (item && item.id) {
                 const cleanedItem = { ...item };
-                // Ensure array properties are properly initialized
+                // Ensure array properties are properly initialized for consistency
                 if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
                 if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
                 if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
@@ -299,47 +302,44 @@ function useCloudState(key, initial, user, supabase){
             }
         });
 
-        // Now, iterate through cloud items and merge them.
-        // If an item exists locally, compare timestamps. If it doesn't exist locally, add it.
-        cloudItems.forEach(cloudItem => {
-            if (!cloudItem || !cloudItem.id) return; // Skip invalid cloud items
+        // Step 2: Merge content from the "other" collection.
+        // Items from the "other" collection can either update existing items in mergedMap (if newer)
+        // or be added if they are entirely new and not present in the base collection.
+        const otherItems = localCollectionIsNewerOverall ? cloudItems : localItems;
+        otherItems.forEach(otherItem => {
+            if (!otherItem || !otherItem.id) return; // Skip invalid items
 
-            const localEquivalent = mergedMap.get(cloudItem.id);
-            if (localEquivalent) {
-                // Item exists in both local and cloud. Compare by individual `updatedAt` to merge content.
-                const localUpdated = localEquivalent.updatedAt ? new Date(localEquivalent.updatedAt).getTime() : 0;
-                const cloudUpdated = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
+            const existingItemInMergedMap = mergedMap.get(otherItem.id);
+            if (existingItemInMergedMap) {
+                // Item exists in both collections. Compare by individual `updatedAt` for content.
+                const existingUpdated = existingItemInMergedMap.updatedAt ? new Date(existingItemInMergedMap.updatedAt).getTime() : 0;
+                const otherUpdated = otherItem.updatedAt ? new Date(otherItem.updatedAt).getTime() : 0;
 
-                if (cloudUpdated > localUpdated) {
-                    // Cloud item's content is newer, use it.
-                    const cleanedCloudItem = { ...cloudItem };
-                    if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
-                    if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
-                    if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
-                    mergedMap.set(cloudItem.id, cleanedCloudItem);
+                if (otherUpdated > existingUpdated) {
+                    // Other item's content is newer, use it. Clean arrays if necessary.
+                    const cleanedItem = { ...otherItem };
+                    if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
+                    if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
+                    if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
+                    mergedMap.set(otherItem.id, cleanedItem);
                 }
-                // Else, local is newer or same, keep local (already in map)
+                // Else, the existing item in mergedMap is newer or same, so keep it.
             } else {
-                // Item only in cloud. Add it to our merged set.
-                // This covers cases where new items are added to cloud from another device.
-                const cleanedCloudItem = { ...cloudItem };
-                if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
-                if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
-                if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
-                mergedMap.set(cloudItem.id, cleanedCloudItem);
+                // Item exists only in the "other" collection (i.e., it's a new item not in the primary base).
+                // Add it to our merged set.
+                const cleanedItem = { ...otherItem };
+                if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
+                if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
+                if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
+                mergedMap.set(otherItem.id, cleanedItem);
             }
         });
 
         finalData = Array.from(mergedMap.values());
         
         // Determine the overall effective timestamp for the merged data.
-        // This timestamp represents the most recent modification time of the *entire collection*.
-        // We prioritize the local collection timestamp if it's newer or equal, otherwise use cloud's.
-        if (localCollectionTimestamp >= cloudCollectionTimestamp) {
-            finalCollectionTimestamp = localDataWrapper.timestamp;
-        } else {
-            finalCollectionTimestamp = cloudResult?.updated_at; // Use cloud's timestamp if it won
-        }
+        // This should be the timestamp of the collection that was determined to be "newer" overall.
+        finalCollectionTimestamp = localCollectionIsNewerOverall ? localDataWrapper.timestamp : cloudResult?.updated_at;
 
         setLastSync(finalCollectionTimestamp ? new Date(finalCollectionTimestamp) : null);
 
