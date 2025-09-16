@@ -797,7 +797,7 @@ function DashboardContent() {
   const totalBillsForSelectedCategory = React.useMemo(() => {
     let total = 0;
     bills
-      .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+      .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
       .forEach(bill => {
         total += Number(bill.amount) || 0;
       });
@@ -2286,7 +2286,7 @@ function DashboardContent() {
               </div>
               
               {bills
-                .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+                .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
                 .sort((a,b) => {
                   const aDate = getNextOccurrence(a);
                   const bDate = getNextOccurrence(b);
@@ -2405,7 +2405,7 @@ function DashboardContent() {
               </div>
 
               {oneTimeCosts
-                .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
+                .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true))
                 .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
                 .map(otc => {
                   const account = accounts.find(a => a.id === otc.accountId);
@@ -2725,7 +2725,7 @@ function DashboardContent() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                   <input 
                     type="checkbox" 
-                    checked={autoDeductCash[0]} 
+                    checked={autoDeductCash} 
                     onChange={(e) => setAutoDeductCash(e.target.checked)} 
                     style={{ accentColor: 'white' }}
                   />
@@ -2735,7 +2735,7 @@ function DashboardContent() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                   <input 
                     type="checkbox" 
-                    checked={showIgnored[0]} 
+                    checked={showIgnored} 
                     onChange={(e) => setShowIgnored(e.target.checked)} 
                     style={{ accentColor: 'white' }}
                   />
@@ -3686,7 +3686,7 @@ function DashboardContent() {
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
                 {bills
-                  .filter(b => selectedCats.includes(b.category) && (!showIgnored[0] ? !b.ignored : true))
+                  .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
                   .sort((a,b) => {
                     const aDate = getNextOccurrence(a);
                     const bDate = getNextOccurrence(b);
@@ -3821,7 +3821,7 @@ function DashboardContent() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
                 {oneTimeCosts
-                  .filter(o => selectedCats.includes(o.category) && (!showIgnored[0] ? !o.ignored : true))
+                  .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true))
                   .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
                   .map(otc => {
                     const account = accounts.find(a => a.id === otc.accountId);
@@ -3919,7 +3919,7 @@ function DashboardContent() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                   <input 
                     type="checkbox" 
-                    checked={showIgnored[0]} 
+                    checked={showIgnored} 
                     onChange={(e) => setShowIgnored(e.target.checked)} 
                   />
                   Show ignored
@@ -3928,7 +3928,7 @@ function DashboardContent() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
                 {categories
-                  .filter(cat => !cat.ignored || showIgnored[0])
+                  .filter(cat => !cat.ignored || showIgnored)
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
                   .map(cat => {
                     const spent = categorySpending[cat.name] || 0;
@@ -4246,7 +4246,7 @@ function DashboardContent() {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                         <input 
                           type="checkbox" 
-                          checked={autoDeductCash[0]} 
+                          checked={autoDeductCash} 
                           onChange={(e) => setAutoDeductCash(e.target.checked)} 
                         />
                         Auto-deduct from Cash accounts
