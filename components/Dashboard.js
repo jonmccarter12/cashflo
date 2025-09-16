@@ -1259,119 +1259,138 @@ function DashboardContent() {
   }
 
   // Actions with error handling
-  function togglePaid(b){
+  async function togglePaid(b){
     try {
       const currentMonth = yyyyMm();
       const isPaid = b.paidMonths.includes(currentMonth);
-      setMasterState(prev => ({
-        ...prev,
-        bills: prev.bills.map(x=> x.id===b.id ? { 
-          ...x, 
-          paidMonths: isPaid? x.paidMonths.filter(m=>m!==currentMonth) : [...x.paidMonths, currentMonth],
-          updatedAt: new Date().toISOString()
-        } : x)
-      }));
-      
-      const acc = accounts.find(a=>a.id===b.accountId);
-      if(autoDeductCash[0] && acc?.type==='Cash'){ 
-        if(!isPaid) {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance - b.amount } : a)
-          }));
-        } else {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance + b.amount } : a)
-          }));
-        }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_payment',
+        b.id,
+        {
+          month: currentMonth,
+          is_paid: !isPaid,
+          accountId: b.accountId,
+          amount: b.amount
+        },
+        `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
+      );
+
+      if (transaction) {
+        notify(`${b.name} marked as ${!isPaid ? 'paid' : 'unpaid'}`, 'success');
       }
-      notify(`${b.name} marked as ${isPaid ? 'unpaid' : 'paid'}`, 'success');
     } catch (error) {
       console.error('Error toggling paid status:', error);
       notify('Failed to update payment status', 'error');
     }
   }
 
-  function toggleSkipThisMonth(b){
+  async function toggleSkipThisMonth(b){
     try {
       const currentMonth = yyyyMm();
-      setMasterState(prev => ({
-        ...prev,
-        bills: prev.bills.map(x=> x.id===b.id ? { 
-          ...x, 
-          skipMonths: x.skipMonths?.includes(currentMonth) ? 
-            x.skipMonths.filter(m=>m!==currentMonth) : 
-            [ ...(x.skipMonths||[]), currentMonth ],
-          updatedAt: new Date().toISOString()
-        } : x)
-      }));
+      const isSkipped = b.skipMonths?.includes(currentMonth);
+      const newSkipMonths = isSkipped
+        ? (b.skipMonths || []).filter(m => m !== currentMonth)
+        : [...(b.skipMonths || []), currentMonth];
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_modification',
+        b.id,
+        { changes: { skipMonths: newSkipMonths } },
+        `Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for ${currentMonth}`
+      );
+      if (transaction) {
+        notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
+      }
     } catch (error) {
       console.error('Error toggling skip month:', error);
       notify('Failed to update skip status', 'error');
     }
   }
 
-  function toggleBillIgnored(b){
+  async function toggleBillIgnored(b){
     try {
-      setMasterState(prev => ({
-        ...prev,
-        bills: prev.bills.map(x=> x.id===b.id ? { ...x, ignored: !x.ignored, updatedAt: new Date().toISOString() } : x)
-      }));
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_ignored_toggled',
+        b.id,
+        { ignored: !b.ignored },
+        `Bill "${b.name}" ignored status set to ${!b.ignored}`
+      );
+
+      if (transaction) {
+        notify(`Bill "${b.name}" is now ${b.ignored ? 'shown' : 'hidden'}.`);
+      }
     } catch (error) {
       console.error('Error toggling bill ignored:', error);
       notify('Failed to update ignore status', 'error');
     }
   }
 
-  function toggleOneTimePaid(o){
+  async function toggleOneTimePaid(o){
     try {
-      setMasterState(prev => ({
-        ...prev,
-        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, paid: !x.paid, updatedAt: new Date().toISOString() } : x) // Add updatedAt
-      }));
-      
-      const acc = accounts.find(a=>a.id===o.accountId);
-      if(autoDeductCash[0] && acc?.type==='Cash'){ 
-        if(!o.paid) {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance - o.amount } : a)
-          }));
-        } else {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a=> a.id===acc.id? { ...a, balance: a.balance + o.amount } : a)
-          }));
-        }
+      const isPaid = o.paid;
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_payment',
+        o.id,
+        {
+          is_paid: !isPaid,
+          accountId: o.accountId,
+          amount: o.amount
+        },
+        `One-time cost "${o.name}" marked as ${!isPaid ? 'paid' : 'unpaid'}`
+      );
+      if(transaction) {
+        notify(`${o.name} marked as ${!isPaid ? 'paid' : 'unpaid'}`, 'success');
       }
-      notify(`${o.name} marked as ${o.paid ? 'unpaid' : 'paid'}`, 'success');
     } catch (error) {
       console.error('Error toggling one-time paid:', error);
       notify('Failed to update payment status', 'error');
     }
   }
 
-  function toggleOTCIgnored(o){
+  async function toggleOTCIgnored(o){
     try {
-      setMasterState(prev => ({
-        ...prev,
-        oneTimeCosts: prev.oneTimeCosts.map(x=> x.id===o.id ? { ...x, ignored: !x.ignored, updatedAt: new Date().toISOString() } : x) // Add updatedAt
-      }));
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_ignored_toggled',
+        o.id,
+        { ignored: !o.ignored },
+        `One-time cost "${o.name}" ignored status set to ${!o.ignored}`
+      );
+      if(transaction) {
+        notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
+      }
     } catch (error) {
       console.error('Error toggling OTC ignored:', error);
       notify('Failed to update ignore status', 'error');
     }
   }
 
-  function deleteBill(billId){
+  async function deleteBill(billId){
+    const bill = bills.find(b => b.id === billId);
+    if (!bill) return;
     if(confirm('Delete this bill?')){
       try {
-        setMasterState(prev => ({
-          ...prev,
-          bills: prev.bills.filter(b => b.id !== billId)
-        }));
-        notify('Bill deleted');
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'bill_deleted',
+          billId,
+          {},
+          `Deleted bill "${bill.name}"`
+        );
+        if (transaction) {
+          notify('Bill deleted');
+        }
       } catch (error) {
         console.error('Error deleting bill:', error);
         notify('Failed to delete bill', 'error');
@@ -1379,14 +1398,22 @@ function DashboardContent() {
     }
   }
 
-  function deleteOneTimeCost(otcId){
+  async function deleteOneTimeCost(otcId){
+    const otc = oneTimeCosts.find(o => o.id === otcId);
+    if (!otc) return;
     if(confirm('Delete this one-time cost?')){
       try {
-        setMasterState(prev => ({
-          ...prev,
-          oneTimeCosts: prev.oneTimeCosts.filter(o => o.id !== otcId)
-        }));
-        notify('One-time cost deleted');
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'one_time_cost_deleted',
+          otcId,
+          {},
+          `Deleted one-time cost "${otc.name}"`
+        );
+        if (transaction) {
+          notify('One-time cost deleted');
+        }
       } catch (error) {
         console.error('Error deleting one-time cost:', error);
         notify('Failed to delete one-time cost', 'error');
@@ -1394,31 +1421,37 @@ function DashboardContent() {
     }
   }
 
-  function addOneTimeCost() {
+  async function addOneTimeCost() {
     try {
       if(!otcName || !otcAmount || !otcDueDate) {
         notify('Please fill in all required fields', 'error');
         return;
       }
-      setMasterState(prev => ({
-        ...prev,
-        oneTimeCosts: [...prev.oneTimeCosts, { 
-          id: crypto.randomUUID(), 
-          name: otcName, 
-          category: otcCategory, 
-          amount: Number(otcAmount), 
-          dueDate: otcDueDate, 
-          accountId: otcAccountId, 
-          notes: otcNotes, 
-          paid: false,
-          ignored: false,
-          updatedAt: new Date().toISOString() // Add updatedAt
-        }]
-      }));
-      setOtcName("");
-      setOtcAmount(0);
-      setOtcNotes("");
-      notify('One-time cost added');
+      const newOtcId = crypto.randomUUID();
+      const payload = {
+        name: otcName,
+        category: otcCategory,
+        amount: Number(otcAmount),
+        dueDate: otcDueDate,
+        accountId: otcAccountId,
+        notes: otcNotes
+      };
+      
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_created',
+        newOtcId,
+        payload,
+        `Created one-time cost "${otcName}" for ${fmt(Number(otcAmount))}`
+      );
+
+      if (transaction) {
+        setOtcName("");
+        setOtcAmount(0);
+        setOtcNotes("");
+        notify('One-time cost added');
+      }
     } catch (error) {
       console.error('Error adding one-time cost:', error);
       notify('Failed to add one-time cost', 'error');
@@ -1645,6 +1678,98 @@ function DashboardContent() {
     }
   }
 
+  async function addBill(formData) {
+    try {
+      const newBillId = crypto.randomUUID();
+      const payload = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        amount: Number(formData.get('amount')),
+        frequency: formData.get('frequency'),
+        dueDay: Number(formData.get('dueDay')),
+        accountId: formData.get('accountId'),
+        notes: formData.get('notes') || ''
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_created',
+        newBillId,
+        payload,
+        `Created bill "${payload.name}" for ${fmt(payload.amount)}`
+      );
+
+      if (transaction) {
+        setShowAddBill(false);
+        notify('Bill added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding bill:', error);
+      notify('Failed to add bill', 'error');
+    }
+  }
+
+  async function updateBill(billId, formData) {
+    try {
+      const changes = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        amount: Number(formData.get('amount')),
+        frequency: formData.get('frequency'),
+        dueDay: Number(formData.get('dueDay')),
+        accountId: formData.get('accountId'),
+        notes: formData.get('notes') || ''
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_modification',
+        billId,
+        { changes: changes },
+        `Updated bill "${changes.name}"`
+      );
+      if (transaction) {
+        setEditingBill(null);
+        notify('Bill updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating bill:', error);
+      notify('Failed to update bill', 'error');
+    }
+  }
+
+  async function updateOTC(otcId, formData) {
+    try {
+      const changes = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        amount: Number(formData.get('amount')),
+        dueDate: formData.get('dueDate'),
+        accountId: formData.get('accountId'),
+        notes: formData.get('notes')
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_modification',
+        otcId,
+        { changes: changes },
+        `Updated one-time cost "${changes.name}"`
+      );
+
+      if (transaction) {
+        setEditingOTC(null);
+        notify('One-time cost updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating one-time cost:', error);
+      notify('Failed to update one-time cost', 'error');
+    }
+  }
+
   async function addAccount(name, type, balance = 0) {
     try {
       if (!name || !type) {
@@ -1670,36 +1795,44 @@ function DashboardContent() {
     }
   }
 
-  function updateAccountBalance(accountId, newBalance) {
+  async function updateAccountBalance(accountId, newBalance) {
     try {
-      setMasterState(prev => ({
-        ...prev,
-        accounts: prev.accounts.map(a => 
-          a.id === accountId ? { ...a, balance: Number(newBalance) || 0 } : a
-        )
-      }));
+      const account = accounts.find(a => a.id === accountId);
+      if (!account) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_balance_adjustment',
+        accountId,
+        { new_balance: Number(newBalance) || 0 },
+        `Adjusted balance for account "${account.name}" to ${fmt(Number(newBalance) || 0)}`
+      );
+      // No notification needed for this frequent action, UI will update reactively.
     } catch (error) {
       console.error('Error updating account balance:', error);
       notify('Failed to update account balance', 'error');
     }
   }
 
-  function deleteAccount(accountId) {
+  async function deleteAccount(accountId) {
     const account = accounts.find(a => a.id === accountId);
     if (!account) return;
 
     if (confirm(`Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`)) {
       try {
-        // Also remove any bills/otc/income/credits associated with this account
-        setMasterState(prev => ({
-          ...prev,
-          accounts: prev.accounts.filter(a => a.id !== accountId),
-          bills: prev.bills.filter(b => b.accountId !== accountId),
-          oneTimeCosts: prev.oneTimeCosts.filter(o => o.accountId !== accountId),
-          recurringIncome: prev.recurringIncome.filter(inc => inc.accountId !== accountId),
-          upcomingCredits: prev.upcomingCredits.filter(cred => cred.accountId !== accountId)
-        }));
-        notify(`Account "${account.name}" and its associated items deleted`, 'success');
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'account_deleted',
+          accountId,
+          {},
+          `Deleted account "${account.name}"`
+        );
+
+        if(transaction) {
+          notify(`Account "${account.name}" and its associated items deleted`, 'success');
+        }
       } catch (error) {
         console.error('Error deleting account:', error);
         notify('Failed to delete account', 'error');
@@ -2871,24 +3004,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const newBill = {
-                  id: crypto.randomUUID(),
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  frequency: formData.get('frequency'),
-                  dueDay: Number(formData.get('dueDay')),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes') || '',
-                  paidMonths: [],
-                  skipMonths: [],
-                  ignored: false,
-                  updatedAt: new Date().toISOString()
-                };
-                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
-                setShowAddBill(false);
-                notify('Bill added successfully!');
+                addBill(new FormData(e.target));
               }}>
                 <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
                 <select name="category" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
@@ -2931,24 +3047,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const updatedBill = {
-                  ...editingBill,
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  frequency: formData.get('frequency'),
-                  dueDay: Number(formData.get('dueDay')),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes') || editingBill.notes || '',
-                  updatedAt: new Date().toISOString()
-                };
-                setMasterState(prev => ({
-                  ...prev,
-                  bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
-                }));
-                setEditingBill(null);
-                notify('Bill updated successfully!');
+                updateBill(editingBill.id, new FormData(e.target));
               }}>
                 <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
                 <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
@@ -2991,22 +3090,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const updatedOTC = {
-                  ...editingOTC,
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  dueDate: formData.get('dueDate'),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes')
-                };
-                setMasterState(prev => ({
-                  ...prev,
-                  oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? updatedOTC : o)
-                }));
-                setEditingOTC(null);
-                notify('One-time cost updated successfully!');
+                updateOTC(editingOTC.id, new FormData(e.target));
               }}>
                 <input name="name" placeholder="Cost name" defaultValue={editingOTC.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
                 <select name="category" defaultValue={editingOTC.category} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
@@ -4430,23 +4514,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const newBill = {
-                  id: crypto.randomUUID(),
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  frequency: formData.get('frequency'),
-                  dueDay: Number(formData.get('dueDay')),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes') || '',
-                  paidMonths: [],
-                  skipMonths: [],
-                  ignored: false
-                };
-                setMasterState(prev => ({...prev, bills: [...prev.bills, newBill]}));
-                setShowAddBill(false);
-                notify('Bill added successfully!');
+                addBill(new FormData(e.target));
               }}>
                 <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
                 <select name="category" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
@@ -4489,23 +4557,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const updatedBill = {
-                  ...editingBill,
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  frequency: formData.get('frequency'),
-                  dueDay: Number(formData.get('dueDay')),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes') || editingBill.notes || ''
-                };
-                setMasterState(prev => ({
-                  ...prev,
-                  bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
-                }));
-                setEditingBill(null);
-                notify('Bill updated successfully!');
+                updateBill(editingBill.id, new FormData(e.target));
               }}>
                 <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
                 <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
@@ -4548,22 +4600,7 @@ function DashboardContent() {
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const updatedOTC = {
-                  ...editingOTC,
-                  name: formData.get('name'),
-                  category: formData.get('category'),
-                  amount: Number(formData.get('amount')),
-                  dueDate: formData.get('dueDate'),
-                  accountId: formData.get('accountId'),
-                  notes: formData.get('notes')
-                };
-                setMasterState(prev => ({
-                  ...prev,
-                  oneTimeCosts: prev.oneTimeCosts.map(o => o.id === editingOTC.id ? updatedOTC : o)
-                }));
-                setEditingOTC(null);
-                notify('One-time cost updated successfully!');
+                updateOTC(editingOTC.id, new FormData(e.target));
               }}>
                 <input name="name" placeholder="Cost name" defaultValue={editingOTC.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
                 <select name="category" defaultValue={editingOTC.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
