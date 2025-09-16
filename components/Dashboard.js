@@ -420,6 +420,7 @@ function DashboardContent() {
 
   // NEW: Transaction log state management
   const [transactions, setTransactions, { syncing: transactionsSyncing, lastSync: transactionsLastSync, syncError: transactionsSyncError }] = useCloudTransactions(user?.id, supabase);
+  const [nwHistory, setNwHistory] = useCloudState('nwHistory', [], user?.id, supabase);
 
   // Derived state from transactions
   const masterState = React.useMemo(() => {
@@ -727,6 +728,16 @@ function DashboardContent() {
         case 'credit_deleted':
           upcomingCredits.delete(tx.item_id);
           break;
+        case 'credit_modification':
+          if (upcomingCredits.has(tx.item_id)) {
+            const currentCredit = upcomingCredits.get(tx.item_id);
+            upcomingCredits.set(tx.item_id, {
+              ...currentCredit,
+              ...tx.payload.changes,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
         case 'category_created':
           categories.set(tx.item_id, {
             id: tx.item_id,
@@ -823,7 +834,7 @@ function DashboardContent() {
       recurringIncome: Array.from(recurringIncome.values()),
       incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100) // Keep last 100 entries
     };
-  }, [transactions, initial]); // Depend on transactions
+  }, [transactions]); // Depend on transactions
 
   // OLD: Master state -> NOW derived from transactions
   const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, incomeHistory } = masterState;
@@ -874,7 +885,7 @@ function DashboardContent() {
       }
     };
     migrateOldData();
-  }, [userId, supabase, transactions.length, initial]); // `transactions.length` ensures it only runs if transactions are empty
+  }, [userId, supabase, transactions.length]); // `transactions.length` ensures it only runs if transactions are empty
 
   // Settings/UI with cloud sync - still use useCloudState for UI settings
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
@@ -1299,15 +1310,15 @@ function DashboardContent() {
   }, [currentLiquidWithGuaranteed, recurringIncome, upcomingCredits, bills, oneTimeCosts, activeCats]);
 
   // RECURRING INCOME FUNCTIONS
-  function addRecurringIncome(name, amount, frequency, payDay, accountId, notes = '') {
+  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes = '') {
     try {
       if (!name || !amount || !frequency || !accountId) {
         notify('Please fill in all required fields', 'error');
         return;
       }
-      
-      const newIncome = {
-        id: crypto.randomUUID(),
+
+      const newIncomeId = crypto.randomUUID();
+      const payload = {
         name: name.trim(),
         amount: Number(amount),
         frequency,
@@ -1316,88 +1327,73 @@ function DashboardContent() {
         biweeklyStart: frequency === 'biweekly' ? new Date().toISOString().slice(0, 10) : undefined,
         yearlyMonth: frequency === 'yearly' ? 0 : undefined,
         accountId,
-        notes: notes.trim(),
-        ignored: false,
-        receivedMonths: []
+        notes: notes.trim()
       };
       
-      setMasterState(prev => ({
-        ...prev,
-        recurringIncome: [...(prev.recurringIncome || []), newIncome]
-      }));
-      notify(`Recurring income "${name}" added`, 'success');
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'recurring_income_created',
+        newIncomeId,
+        payload,
+        `Created recurring income "${name.trim()}" for ${fmt(Number(amount))}`
+      );
+
+      if (transaction) {
+        setShowAddIncome(false);
+        notify(`Recurring income "${name}" added`, 'success');
+      }
     } catch (error) {
       console.error('Error adding recurring income:', error);
       notify('Failed to add recurring income', 'error');
     }
   }
 
-  function toggleIncomeReceived(income) {
+  async function toggleIncomeReceived(income) {
     try {
       const currentMonth = yyyyMm();
       const isReceived = income.receivedMonths?.includes(currentMonth);
       
-      setMasterState(prev => ({
-        ...prev,
-        recurringIncome: prev.recurringIncome.map(inc => 
-          inc.id === income.id ? {
-            ...inc,
-            receivedMonths: isReceived 
-              ? inc.receivedMonths.filter(m => m !== currentMonth)
-              : [...(inc.receivedMonths || []), currentMonth]
-          } : inc
-        )
-      }));
-      
-      // Add to income history if not already received
-      if (!isReceived) {
-        const historyEntry = {
-          id: crypto.randomUUID(),
-          date: new Date().toISOString(),
-          source: income.name,
-          amount: income.amount,
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'recurring_income_received',
+        income.id,
+        {
+          month: currentMonth,
+          is_received: !isReceived,
           accountId: income.accountId,
-          type: 'recurring'
-        };
-        
-        setIncomeHistory(prev => [historyEntry, ...prev].slice(0, 100)); // Keep last 100 entries
+          amount: income.amount,
+          name: income.name // For income history
+        },
+        `Recurring income "${income.name}" marked as ${!isReceived ? 'received' : 'not received'} for ${currentMonth}`
+      );
+
+      if(transaction) {
+        notify(`${income.name} marked as ${!isReceived ? 'not received' : 'received'}`, 'success');
       }
-      
-      // Auto-add to account if it's cash and not already received
-      const acc = accounts.find(a => a.id === income.accountId);
-      if (autoDeductCash[0] && acc?.type === 'Cash') {
-        if (!isReceived) {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a => 
-              a.id === acc.id ? { ...a, balance: a.balance + income.amount } : a
-            )
-          }));
-        } else {
-          setMasterState(prev => ({
-            ...prev,
-            accounts: prev.accounts.map(a => 
-              a.id === acc.id ? { ...a, balance: a.balance - income.amount } : a
-            )
-          }));
-        }
-      }
-      
-      notify(`${income.name} marked as ${isReceived ? 'not received' : 'received'}`, 'success');
     } catch (error) {
       console.error('Error toggling income received:', error);
       notify('Failed to update income status', 'error');
     }
   }
 
-  function deleteIncome(incomeId) {
+  async function deleteIncome(incomeId) {
+    const income = recurringIncome.find(inc => inc.id === incomeId);
+    if (!income) return;
     if (confirm('Delete this recurring income?')) {
       try {
-        setMasterState(prev => ({
-          ...prev,
-          recurringIncome: prev.recurringIncome.filter(inc => inc.id !== incomeId)
-        }));
-        notify('Recurring income deleted');
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'recurring_income_deleted',
+          incomeId,
+          {},
+          `Deleted recurring income "${income.name}"`
+        );
+        if (transaction) {
+          notify('Recurring income deleted');
+        }
       } catch (error) {
         console.error('Error deleting income:', error);
         notify('Failed to delete income', 'error');
@@ -1406,108 +1402,133 @@ function DashboardContent() {
   }
 
   // UPCOMING CREDITS FUNCTIONS
-  function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed = false, notes = '') {
+  async function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed = false, notes = '') {
     try {
       if (!name || !amount || !expectedDate || !accountId) {
         notify('Please fill in all required fields', 'error');
         return;
       }
-      setMasterState(prev => ({
-        ...prev,
-        upcomingCredits: [...prev.upcomingCredits, {
-          id: crypto.randomUUID(),
-          name: name.trim(),
-          amount: Number(amount),
-          expectedDate,
-          accountId,
-          guaranteed,
-          notes: notes.trim(),
-          ignored: false,
-          received: false,
-          updatedAt: new Date().toISOString()
-        }]
-      }));
-      notify(`Upcoming credit "${name}" added`, 'success');
+      const newCreditId = crypto.randomUUID();
+      const payload = {
+        name: name.trim(),
+        amount: Number(amount),
+        expectedDate,
+        accountId,
+        guaranteed,
+        notes: notes.trim()
+      };
+      
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_created',
+        newCreditId,
+        payload,
+        `Created credit "${name.trim()}" for ${fmt(Number(amount))}`
+      );
+
+      if (transaction) {
+        setShowAddCredit(false);
+        notify(`Upcoming credit "${name}" added`, 'success');
+      }
     } catch (error) {
       console.error('Error adding upcoming credit:', error);
       notify('Failed to add upcoming credit', 'error');
     }
   }
 
-  function receiveCredit(creditId, finalAccountId = null) {
+  async function receiveCredit(creditId, finalAccountId = null) {
     try {
       const credit = upcomingCredits.find(c => c.id === creditId);
       if (!credit) return;
       
       const targetAccountId = finalAccountId || credit.accountId;
       
-      // Add money to account and mark credit as received
-      setMasterState(prev => ({
-        ...prev,
-        accounts: prev.accounts.map(a => 
-          a.id === targetAccountId ? 
-            { ...a, balance: a.balance + credit.amount } : 
-            a
-        ),
-        upcomingCredits: prev.upcomingCredits.filter(c => c.id !== creditId)
-      }));
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_received',
+        creditId,
+        {
+          accountId: targetAccountId,
+          amount: credit.amount,
+          name: credit.name // For income history
+        },
+        `Received credit "${credit.name}" for ${fmt(credit.amount)}`
+      );
       
-      // Add to income history
-      const historyEntry = {
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
-        source: credit.name,
-        amount: credit.amount,
-        accountId: targetAccountId,
-        type: 'credit'
-      };
-      
-      setIncomeHistory(prev => [historyEntry, ...prev].slice(0, 100)); // Keep last 100 entries
-      
-      const account = accounts.find(a => a.id === targetAccountId);
-      notify(`${fmt(credit.amount)} received in ${account?.name || 'account'}`, 'success');
+      if (transaction) {
+        const account = accounts.find(a => a.id === targetAccountId);
+        notify(`${fmt(credit.amount)} received in ${account?.name || 'account'}`, 'success');
+      }
     } catch (error) {
       console.error('Error receiving credit:', error);
       notify('Failed to receive credit', 'error');
     }
   }
 
-  function toggleCreditGuaranteed(creditId) {
+  async function toggleCreditGuaranteed(creditId) {
     try {
-      setMasterState(prev => ({
-        ...prev,
-        upcomingCredits: prev.upcomingCredits.map(c => 
-          c.id === creditId ? { ...c, guaranteed: !c.guaranteed, updatedAt: new Date().toISOString() } : c
-        )
-      }));
+      const credit = upcomingCredits.find(c => c.id === creditId);
+      if (!credit) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_guaranteed_toggled',
+        creditId,
+        { guaranteed: !credit.guaranteed },
+        `Credit "${credit.name}" guaranteed status set to ${!credit.guaranteed}`
+      );
+
+      if (transaction) {
+        notify(`Credit "${credit.name}" guaranteed status updated.`, 'success');
+      }
     } catch (error) {
       console.error('Error toggling credit guaranteed:', error);
       notify('Failed to update credit status', 'error');
     }
   }
 
-  function toggleCreditIgnored(creditId) {
+  async function toggleCreditIgnored(creditId) {
     try {
-      setMasterState(prev => ({
-        ...prev,
-        upcomingCredits: prev.upcomingCredits.map(c => 
-          c.id === creditId ? { ...c, ignored: !c.ignored, updatedAt: new Date().toISOString() } : c
-        )
-      }));
+      const credit = upcomingCredits.find(c => c.id === creditId);
+      if (!credit) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_ignored_toggled',
+        creditId,
+        { ignored: !credit.ignored },
+        `Credit "${credit.name}" ignored status set to ${!credit.ignored}`
+      );
+
+      if (transaction) {
+        notify(`Credit "${credit.name}" ignored status updated.`, 'success');
+      }
     } catch (error) {
       console.error('Error toggling credit ignored:', error);
       notify('Failed to update credit status', 'error');
     }
   }
 
-  function deleteCredit(creditId) {
+  async function deleteCredit(creditId) {
+    const credit = upcomingCredits.find(c => c.id === creditId);
+    if (!credit) return;
     if (confirm('Delete this upcoming credit?')) {
       try {
-        setMasterState(prev => ({
-          ...prev,
-          upcomingCredits: prev.upcomingCredits.filter(c => c.id !== creditId)
-        }));
-        notify('Upcoming credit deleted');
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'credit_deleted',
+          creditId,
+          {},
+          `Deleted credit "${credit.name}"`
+        );
+        if (transaction) {
+          notify('Upcoming credit deleted');
+        }
       } catch (error) {
         console.error('Error deleting credit:', error);
         notify('Failed to delete credit', 'error');
@@ -2215,13 +2236,16 @@ function DashboardContent() {
                       <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
                         <select
                           value={credit.accountId}
-                          onChange={(e) => {
-                            setMasterState(prev => ({
-                              ...prev,
-                              upcomingCredits: prev.upcomingCredits.map(c => 
-                                c.id === credit.id ? { ...c, accountId: e.target.value, updatedAt: new Date().toISOString() } : c
-                              )
-                            }));
+                          onChange={async (e) => {
+                            const transaction = await logTransaction(
+                              supabase,
+                              user.id,
+                              'credit_modification',
+                              credit.id,
+                              { changes: { accountId: e.target.value } },
+                              `Changed account for credit "${credit.name}"`
+                            );
+                            if (!transaction) notify('Failed to update account for credit.', 'error');
                           }}
                           style={{ fontSize: '0.625rem', padding: '0.125rem 0.25rem', border: '1px solid #d1d5db', borderRadius: '0.125rem' }}
                         >
@@ -3582,13 +3606,16 @@ function DashboardContent() {
                               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 <select
                                   value={credit.accountId}
-                                  onChange={(e) => {
-                                    setMasterState(prev => ({
-                                      ...prev,
-                                      upcomingCredits: prev.upcomingCredits.map(c => 
-                                        c.id === credit.id ? { ...c, accountId: e.target.value, updatedAt: new Date().toISOString() } : c
-                                      )
-                                    }));
+                                  onChange={async (e) => {
+                                    const transaction = await logTransaction(
+                                      supabase,
+                                      user.id,
+                                      'credit_modification',
+                                      credit.id,
+                                      { changes: { accountId: e.target.value } },
+                                      `Changed account for credit "${credit.name}"`
+                                    );
+                                    if (!transaction) notify('Failed to update account for credit.', 'error');
                                   }}
                                   style={{ flex: 1, padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
                                 >
