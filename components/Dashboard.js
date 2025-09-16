@@ -272,13 +272,7 @@ function useCloudState(key, initial, user, supabase){
           throw error;
         }
 
-        const localDataWrapper = localLoadedStateRef.current || { data: initial, timestamp: null, version: currentAppVersion };
-        const localData = localDataWrapper.data;
-        const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
-
-        let finalData = [];
-        let finalCollectionTimestamp;
-
+        // Use the localDataWrapper and derived localItems, localCollectionTimestamp defined at the start of reconcileAndSync.
         const localDataWrapper = localLoadedStateRef.current || { data: initial, timestamp: null, version: currentAppVersion };
         const localItems = Array.isArray(localDataWrapper.data) ? localDataWrapper.data : [];
         const localCollectionTimestamp = localDataWrapper.timestamp ? new Date(localDataWrapper.timestamp).getTime() : 0;
@@ -286,18 +280,15 @@ function useCloudState(key, initial, user, supabase){
         const cloudItems = Array.isArray(cloudResult?.data) ? cloudResult.data : [];
         const cloudCollectionTimestamp = cloudResult?.updated_at ? new Date(cloudResult.updated_at).getTime() : 0;
 
-        // Use a working map to perform the merge
+        let finalData = [];
+        let finalCollectionTimestamp;
+
+        // Use a map to handle merging items by ID, prioritizing newer items
         const mergedMap = new Map();
 
-        // Determine which collection is generally newer based on their overall timestamps
-        const localIsNewerCollection = localCollectionTimestamp >= cloudCollectionTimestamp;
-        
-        const primaryItemsForExistence = localIsNewerCollection ? localItems : cloudItems;
-        const secondaryItemsForContent = localIsNewerCollection ? cloudItems : localItems;
-        
-        // 1. Populate the mergedMap with items from the collection deemed "newer" overall.
-        //    This collection dictates which items "exist" or are "deleted" for now.
-        primaryItemsForExistence.forEach(item => {
+        // Add all local items to the map initially.
+        // These are the user's current known items.
+        localItems.forEach(item => {
             if (item && item.id) {
                 const cleanedItem = { ...item };
                 // Ensure array properties are properly initialized
@@ -308,112 +299,42 @@ function useCloudState(key, initial, user, supabase){
             }
         });
 
-        // 2. Iterate through the *other* collection, merging content where applicable
-        //    (i.e., if its individual item is newer than the corresponding item in the primary collection).
-        secondaryItemsForContent.forEach(secondaryItem => {
-            if (!secondaryItem || !secondaryItem.id) return;
+        // Now, iterate through cloud items and merge them.
+        // If an item exists locally, compare timestamps. If it doesn't exist locally, add it.
+        cloudItems.forEach(cloudItem => {
+            if (!cloudItem || !cloudItem.id) return; // Skip invalid cloud items
 
-            const primaryEquivalent = mergedMap.get(secondaryItem.id);
-            if (primaryEquivalent) {
-                // Item exists in both sets. Compare by individual `updatedAt` to merge content.
-                const primaryUpdated = primaryEquivalent.updatedAt ? new Date(primaryEquivalent.updatedAt).getTime() : 0;
-                const secondaryUpdated = secondaryItem.updatedAt ? new Date(secondaryItem.updatedAt).getTime() : 0;
+            const localEquivalent = mergedMap.get(cloudItem.id);
+            if (localEquivalent) {
+                // Item exists in both local and cloud. Compare by individual `updatedAt` to merge content.
+                const localUpdated = localEquivalent.updatedAt ? new Date(localEquivalent.updatedAt).getTime() : 0;
+                const cloudUpdated = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
 
-                if (secondaryUpdated > primaryUpdated) {
-                    // Secondary item's content is newer, use it. Clean arrays if necessary.
-                    const cleanedItem = { ...secondaryItem };
-                    if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
-                    if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
-                    if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
-                    mergedMap.set(secondaryItem.id, cleanedItem);
+                if (cloudUpdated > localUpdated) {
+                    // Cloud item's content is newer, use it.
+                    const cleanedCloudItem = { ...cloudItem };
+                    if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
+                    if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
+                    if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
+                    mergedMap.set(cloudItem.id, cleanedCloudItem);
                 }
+                // Else, local is newer or same, keep local (already in map)
             } else {
-                // Item exists only in the secondary collection.
-                // If local was primary, and this item is only in cloud (secondary), and cloud is newer collection overall,
-                // then this is a new item from cloud, add it.
-                // If local was primary, and this item is only in cloud, but local is newer collection overall,
-                // then this item was likely deleted locally before cloud was updated, so it's not added.
-                // Conversely, if cloud was primary, and this item is only in local (secondary), and local is newer collection overall,
-                // then this is a new item from local, add it.
-                // If cloud was primary, and this item is only in local, but cloud is newer collection overall,
-                // then this item was likely deleted in cloud before local was updated, so it's not added.
+                // Item only in cloud. Add it to our merged set.
+                // This covers cases where new items are added to cloud from another device.
+                const cleanedCloudItem = { ...cloudItem };
+                if (Array.isArray(cleanedCloudItem.paidMonths) === false) cleanedCloudItem.paidMonths = [];
+                if (Array.isArray(cleanedCloudItem.skipMonths) === false) cleanedCloudItem.skipMonths = [];
+                if (Array.isArray(cleanedCloudItem.receivedMonths) === false) cleanedCloudItem.receivedMonths = [];
+                mergedMap.set(cloudItem.id, cleanedCloudItem);
+            }
+        });
 
-                // Simplified: If `localIsNewerCollection` is true, don't add secondary items that aren't in primary.
-                // If `localIsNewerCollection` is false (cloud is newer), then add secondary items not in primary.
-                // This essentially makes the "newer" collection the source of truth for *existence*.
-
-                // Revisit deletion handling: If an item is in secondary but not primary, and the primary collection is newer overall,
-                // it implies the item was deleted in the primary source.
-                // If the overall timestamps are very close or equal, then it could be a concurrent add, and we should add it.
-
-                // For now, let's keep it simple: only add if primaryEquivalent is NOT found AND primaryItemsForExistence was the OLDER collection
-                // This means if the current local state is newer overall, we respect local deletions implicitly.
-                // If cloud is newer overall, we add new items from local if they exist.
-
-                // Simplification for the "blinking" issue: we prioritize the current React `state` (which is what Effect 2 updates immediately)
-                // for existence, and merge content from cloud.
-                // This means items deleted locally stay deleted. Items added locally stay added.
-                // Cloud provides updates to *existing* items.
-
-                // New items from cloud should still be added if local state doesn't have them.
-                // This means we need to compare `state` with `cloudResult.data` directly, and apply item-level merge.
-
-                // This logic needs to be robust for *both* local-wins and cloud-wins.
-                // Let's go with a clear item-by-item merge, always picking the item with the latest `updatedAt`.
-                // For items only existing in one array, we add them.
-
-                // Let's restart the merge logic:
-                const allItemIds = new Set([...localItems.map(i => i.id), ...cloudItems.map(i => i.id)]);
-                
-                allItemIds.forEach(id => {
-                    const localItem = localItems.find(item => item.id === id);
-                    const cloudItem = cloudItems.find(item => item.id === id);
-
-                    if (localItem && cloudItem) {
-                        // Item exists in both. Pick the one with the latest updatedAt.
-                        const localUpdated = localItem.updatedAt ? new Date(localItem.updatedAt).getTime() : 0;
-                        const cloudUpdated = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
-                        
-                        const winningItem = (cloudUpdated > localUpdated) ? { ...cloudItem } : { ...localItem };
-                        if (Array.isArray(winningItem.paidMonths) === false) winningItem.paidMonths = [];
-                        if (Array.isArray(winningItem.skipMonths) === false) winningItem.skipMonths = [];
-                        if (Array.isArray(winningItem.receivedMonths) === false) winningItem.receivedMonths = [];
-                        mergedMap.set(id, winningItem);
-
-                    } else if (localItem) {
-                        // Item only in local.
-                        // If local collection timestamp is much older than cloud, consider it deleted by cloud.
-                        // For blinking fix, assume local is usually what the user just did, so keep it.
-                        // Or, more robust: if cloudCollectionTimestamp is much newer, and item not in cloud,
-                        // assume it was deleted in cloud. But this is for existence.
-                        
-                        // For now, if only in local, keep it. This ensures local additions/deletions take precedence on UI.
-                        const cleanedItem = { ...localItem };
-                        if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
-                        if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
-                        if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
-                        mergedMap.set(id, cleanedItem);
-
-                    } else if (cloudItem) {
-                        // Item only in cloud. Add it.
-                        const cleanedItem = { ...cloudItem };
-                        if (Array.isArray(cleanedItem.paidMonths) === false) cleanedItem.paidMonths = [];
-                        if (Array.isArray(cleanedItem.skipMonths) === false) cleanedItem.skipMonths = [];
-                        if (Array.isArray(cleanedItem.receivedMonths) === false) cleanedItem.receivedMonths = [];
-                        mergedMap.set(id, cleanedItem);
-                    }
-                });
-
-                finalData = Array.from(mergedMap.values());
-
-        } else {
-          // No cloud data found for this key, or cloud data is somehow invalid. Local data is the primary.
-          finalData = localItems; // Keep the local data
-        }
-
+        finalData = Array.from(mergedMap.values());
+        
         // Determine the overall effective timestamp for the merged data.
-        // This should be the timestamp of the collection that "won" or was the base for the merge.
-        // If local was newer or equal, use local's timestamp. If cloud was newer, use cloud's timestamp.
+        // This timestamp represents the most recent modification time of the *entire collection*.
+        // We prioritize the local collection timestamp if it's newer or equal, otherwise use cloud's.
         if (localCollectionTimestamp >= cloudCollectionTimestamp) {
             finalCollectionTimestamp = localDataWrapper.timestamp;
         } else {
@@ -426,11 +347,14 @@ function useCloudState(key, initial, user, supabase){
         finalData.sort((a, b) => (a.id || '').localeCompare(b.id || '')); // Sort by ID for consistency
 
         // Only update React state if `finalData` is truly different to avoid unnecessary re-renders.
+        // This check is crucial for preventing infinite loops and ensuring UI stability.
         if (JSON.stringify(finalData) !== JSON.stringify(state)) {
             setState(finalData);
         }
-        // Always save the chosen final data locally, ensuring localLoadedStateRef is up-to-date
-        // This is important if cloud won or if local won (to update its timestamp if needed)
+        
+        // Always save the chosen final data locally, ensuring localLoadedStateRef is up-to-date.
+        // This is important if cloud won (to update our local copy's timestamp) or if local won (to confirm its timestamp).
+        // This save will trigger Effect 1 via localLoadedStateRef.current?.timestamp dependency if the timestamp changes.
         const updatedLocal = saveData(key, finalData);
         if (updatedLocal) {
           localLoadedStateRef.current = updatedLocal;
