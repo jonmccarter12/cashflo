@@ -15,7 +15,8 @@ import { useCloudTransactions } from '../hooks/useCloudTransactions';
 import { useAuth } from '../hooks/useAuth'; // NEW
 import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
-import BillsSection from './dashboard/BillsSection'; // NEW
+import BillsSection from './dashboard/BillsSection';
+import OneTimeCostsSection from './dashboard/OneTimeCostsSection'; // NEW
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
 function DashboardContent() {
@@ -541,7 +542,9 @@ function DashboardContent() {
   // const [editingCredit, setEditingCredit] = React.useState(null); // Removed, should be handled by IncomeSection if needed
   // const [editingIncome, setEditingIncome] = React.useState(null); // Removed, should be handled by IncomeSection if needed
 
-  // One-time cost form state
+  // One-time cost form state - these states are kept in DashboardContent
+  // because they are used for calculations (e.g., upcoming.items, timeline)
+  // and passed down to OneTimeCostsSection for the input form.
   const [otcName, setOtcName] = React.useState("");
   const [otcCategory, setOtcCategory] = React.useState(activeCats[0] || 'Personal');
   const [otcAmount, setOtcAmount] = React.useState(0);
@@ -956,361 +959,6 @@ function DashboardContent() {
   // RECURRING INCOME FUNCTIONS (now passed to IncomeSection)
   // UPCOMING CREDITS FUNCTIONS (now passed to IncomeSection)
   // BILL ACTIONS (now passed to BillsSection)
-  // OTC ACTIONS
-  async function toggleOneTimePaid(o){
-    try {
-      const isPaid = o.paid;
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'one_time_cost_payment',
-        o.id,
-        {
-          is_paid: !isPaid,
-          accountId: o.accountId,
-          amount: o.amount
-        },
-        `One-time cost "${o.name}" marked as ${!isPaid ? 'paid' : 'unpaid'}`
-      );
-      if(transaction) {
-        notify(`${o.name} marked as ${!isPaid ? 'paid' : 'unpaid'}`, 'success');
-      }
-    } catch (error) {
-      console.error('Error toggling one-time paid:', error);
-      notify('Failed to update payment status', 'error');
-    }
-  }
-
-  async function toggleOTCIgnored(o){
-    try {
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'one_time_cost_ignored_toggled',
-        o.id,
-        { ignored: !o.ignored },
-        `One-time cost "${o.name}" ignored status set to ${!o.ignored}`
-      );
-      if(transaction) {
-        notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
-      }
-    } catch (error) {
-      console.error('Error toggling OTC ignored:', error);
-      notify('Failed to update ignore status', 'error');
-    }
-  }
-
-  async function deleteOneTimeCost(otcId){
-    const otc = oneTimeCosts.find(o => o.id === otcId);
-    if (!otc) return;
-    if(confirm('Delete this one-time cost?')){
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'one_time_cost_deleted',
-          otcId,
-          {},
-          `Deleted one-time cost "${otc.name}"`
-        );
-        if (transaction) {
-          notify('One-time cost deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting one-time cost:', error);
-        notify('Failed to delete one-time cost', 'error');
-      }
-    }
-  }
-
-  async function addOneTimeCost() {
-    try {
-      if(!otcName || !otcAmount || !otcDueDate) {
-        notify('Please fill in all required fields', 'error');
-        return;
-      }
-      const newOtcId = crypto.randomUUID();
-      const payload = {
-        name: otcName,
-        category: otcCategory,
-        amount: Number(otcAmount),
-        dueDate: otcDueDate,
-        accountId: otcAccountId,
-        notes: otcNotes
-      };
-      
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'one_time_cost_created',
-        newOtcId,
-        payload,
-        `Created one-time cost "${otcName}" for ${fmt(Number(otcAmount))}`
-      );
-
-      if (transaction) {
-        setOtcName("");
-        setOtcAmount(0);
-        setOtcNotes("");
-        notify('One-time cost added');
-      }
-    } catch (error) {
-      console.error('Error adding one-time cost:', error);
-      notify('Failed to add one-time cost', 'error');
-    }
-  }
-
-  async function updateOTC(otcId, formData) {
-    try {
-      const changes = {
-        name: formData.get('name'),
-        category: formData.get('category'),
-        amount: Number(formData.get('amount')),
-        dueDate: formData.get('dueDate'),
-        accountId: formData.get('accountId'),
-        notes: formData.get('notes')
-      };
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'one_time_cost_modification',
-        otcId,
-        { changes: changes },
-        `Updated one-time cost "${changes.name}"`
-      );
-
-      if (transaction) {
-        setEditingOTC(null);
-        notify('One-time cost updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error updating one-time cost:', error);
-      notify('Failed to update one-time cost', 'error');
-    }
-  }
-
-  // CATEGORY FUNCTIONS
-  async function addCategory(name){ 
-    try {
-      const nm = name.trim(); 
-      if(!nm) {
-        notify('Category name cannot be empty', 'error');
-        return;
-      }
-      if(categories.some(c=>c.name===nm)) { 
-        notify('Category already exists', 'error'); 
-        return; 
-      }
-      const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-      const newCategoryId = crypto.randomUUID();
-      const payload = {
-        name: nm,
-        order: maxOrder + 1,
-        budget: 0
-      };
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_created',
-        newCategoryId,
-        payload,
-        `Created category "${nm}"`
-      );
-
-      if (transaction) {
-        notify('Category added');
-      }
-    } catch (error) {
-      console.error('Error adding category:', error);
-      notify('Failed to add category', 'error');
-    }
-  }
-
-  async function toggleIgnoreCategory(name){ 
-    try {
-      const category = categories.find(c => c.name === name);
-      if (!category) {
-        notify('Category not found', 'error');
-        return;
-      }
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_ignored_toggled',
-        category.id,
-        { ignored: !category.ignored },
-        `Category "${name}" ignored status set to ${!category.ignored}`
-      );
-      
-      if (transaction) {
-        notify(`Category "${name}" is now ${!category.ignored ? 'shown' : 'hidden'}.`);
-      }
-    } catch (error) {
-      console.error('Error toggling category ignore:', error);
-      notify('Failed to update category', 'error');
-    }
-  }
-
-  async function removeCategory(name){ 
-    try {
-      const category = categories.find(c => c.name === name);
-      if (!category) return;
-
-      const billsInCategory = bills.filter(b => b.category === name);
-      const otcsInCategory = oneTimeCosts.filter(o => o.category === name);
-      const hasItems = billsInCategory.length > 0 || otcsInCategory.length > 0;
-
-      let confirmationMessage = `Are you sure you want to delete the category "${name}"?`;
-      if (hasItems) {
-        confirmationMessage += ` There are ${billsInCategory.length + otcsInCategory.length} items (bills/one-time costs) currently assigned to this category. They will be moved to "Uncategorized" if you proceed.`;
-      } else {
-        confirmationMessage += ` This action cannot be undone.`;
-      }
-
-      if (!confirm(confirmationMessage)) return; 
-
-      const fallback='Uncategorized'; 
-      
-      // Re-categorize items
-      for (const bill of billsInCategory) {
-        await logTransaction(
-          supabase, user.id, 'bill_modification', bill.id,
-          { changes: { category: fallback } },
-          `Bill "${bill.name}" moved to Uncategorized`
-        );
-      }
-      for (const otc of otcsInCategory) {
-        await logTransaction(
-          supabase, user.id, 'one_time_cost_modification', otc.id,
-          { changes: { category: fallback } },
-          `OTC "${otc.name}" moved to Uncategorized`
-        );
-      }
-
-      // Delete category
-      const transaction = await logTransaction(
-        supabase, user.id, 'category_deleted', category.id, {}, `Deleted category "${name}"`
-      );
-
-      if (transaction) {
-        notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error removing category:', error);
-      notify('Failed to remove category', 'error');
-    }
-  }
-
-  async function moveCategoryUp(id) {
-    try {
-      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-      const index = cats.findIndex(c => c.id === id);
-      if (index <= 0) return;
-      
-      const cat1 = cats[index];
-      const cat2 = cats[index - 1];
-      
-      const order1 = cat1.order;
-      const order2 = cat2.order;
-
-      await logTransaction(
-        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved up`
-      );
-      await logTransaction(
-        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved down`
-      );
-
-      notify('Category moved up', 'success');
-    } catch (error) {
-      console.error('Error moving category up:', error);
-      notify('Failed to reorder category', 'error');
-    }
-  }
-
-  async function moveCategoryDown(id) {
-    try {
-      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-      const index = cats.findIndex(c => c.id === id);
-      if (index < 0 || index >= cats.length - 1) return;
-
-      const cat1 = cats[index];
-      const cat2 = cats[index + 1];
-      
-      const order1 = cat1.order;
-      const order2 = cat2.order;
-
-      await logTransaction(
-        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved down`
-      );
-      await logTransaction(
-        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved up`
-      );
-
-      notify('Category moved down', 'success');
-    } catch (error) {
-      console.error('Error moving category down:', error);
-      notify('Failed to reorder category', 'error');
-    }
-  }
-
-  async function renameCategory(id, newName) {
-    try {
-      const trimmed = newName.trim();
-      if (!trimmed) {
-        notify('Category name cannot be empty', 'error');
-        return;
-      }
-      if (categories.some(c => c.id !== id && c.name === trimmed)) {
-        notify('Category name already exists', 'error');
-        return;
-      }
-      const oldCategory = categories.find(c => c.id === id);
-      if (!oldCategory) return;
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_renamed',
-        id,
-        { old_name: oldCategory.name, new_name: trimmed },
-        `Renamed category "${oldCategory.name}" to "${trimmed}"`
-      );
-
-      if (transaction) {
-        notify('Category renamed');
-      }
-    } catch (error) {
-      console.error('Error renaming category:', error);
-      notify('Failed to rename category', 'error');
-    }
-  }
-
-  async function updateCategoryBudget(id, newBudget) {
-    try {
-      const category = categories.find(c => c.id === id);
-      if (!category) return;
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_budget_updated',
-        id,
-        { new_budget: Number(newBudget) || 0 },
-        `Updated budget for "${category.name}" to ${fmt(Number(newBudget) || 0)}`
-      );
-
-      if (transaction) {
-        // UI will update reactively. No notification needed for this frequent action.
-      }
-    } catch (error) {
-      console.error('Error updating category budget:', error);
-      notify('Failed to update budget', 'error');
-    }
-  }
-
   // BILL FUNCTIONS
   async function addBill(formData) {
     try {
@@ -1546,6 +1194,328 @@ function DashboardContent() {
     }
   }
 
+  // CATEGORY FUNCTIONS
+  async function addCategory(name){ 
+    try {
+      const nm = name.trim(); 
+      if(!nm) {
+        notify('Category name cannot be empty', 'error');
+        return;
+      }
+      if(categories.some(c=>c.name===nm)) { 
+        notify('Category already exists', 'error'); 
+        return; 
+      }
+      const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
+      const newCategoryId = crypto.randomUUID();
+      const payload = {
+        name: nm,
+        order: maxOrder + 1,
+        budget: 0
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_created',
+        newCategoryId,
+        payload,
+        `Created category "${nm}"`
+      );
+
+      if (transaction) {
+        notify('Category added');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      notify('Failed to add category', 'error');
+    }
+  }
+
+  async function toggleIgnoreCategory(name){ 
+    try {
+      const category = categories.find(c => c.name === name);
+      if (!category) {
+        notify('Category not found', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_ignored_toggled',
+        category.id,
+        { ignored: !category.ignored },
+        `Category "${name}" ignored status set to ${!category.ignored}`
+      );
+      
+      if (transaction) {
+        notify(`Category "${name}" is now ${!category.ignored ? 'shown' : 'hidden'}.`);
+      }
+    } catch (error) {
+      console.error('Error toggling category ignore:', error);
+      notify('Failed to update category', 'error');
+    }
+  }
+
+  async function removeCategory(name){ 
+    try {
+      const category = categories.find(c => c.name === name);
+      if (!category) return;
+
+      const billsInCategory = bills.filter(b => b.category === name);
+      const otcsInCategory = oneTimeCosts.filter(o => o.category === name);
+      const hasItems = billsInCategory.length > 0 || otcsInCategory.length > 0;
+
+      let confirmationMessage = `Are you sure you want to delete the category "${name}"?`;
+      if (hasItems) {
+        confirmationMessage += ` There are ${billsInCategory.length + otcsInCategory.length} items (bills/one-time costs) currently assigned to this category. They will be moved to "Uncategorized" if you proceed.`;
+      } else {
+        confirmationMessage += ` This action cannot be undone.`;
+      }
+
+      if (!confirm(confirmationMessage)) return; 
+
+      const fallback='Uncategorized'; 
+      
+      // Re-categorize items
+      for (const bill of billsInCategory) {
+        await logTransaction(
+          supabase, user.id, 'bill_modification', bill.id,
+          { changes: { category: fallback } },
+          `Bill "${bill.name}" moved to Uncategorized`
+        );
+      }
+      for (const otc of otcsInCategory) {
+        await logTransaction(
+          supabase, user.id, 'one_time_cost_modification', otc.id,
+          { changes: { category: fallback } },
+          `OTC "${otc.name}" moved to Uncategorized`
+        );
+      }
+
+      // Delete category
+      const transaction = await logTransaction(
+        supabase, user.id, 'category_deleted', category.id, {}, `Deleted category "${name}"`
+      );
+
+      if (transaction) {
+        notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
+      }
+    } catch (error) {
+      console.error('Error removing category:', error);
+      notify('Failed to remove category', 'error');
+    }
+  }
+
+  async function moveCategoryUp(id) {
+    try {
+      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const index = cats.findIndex(c => c.id === id);
+      if (index <= 0) return;
+      
+      const cat1 = cats[index];
+      const cat2 = cats[index - 1];
+      
+      const order1 = cat1.order;
+      const order2 = cat2.order;
+
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved up`
+      );
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved down`
+      );
+
+      notify('Category moved up', 'success');
+    } catch (error) {
+      console.error('Error moving category up:', error);
+      notify('Failed to reorder category', 'error');
+    }
+  }
+
+  async function moveCategoryDown(id) {
+    try {
+      const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const index = cats.findIndex(c => c.id === id);
+      if (index < 0 || index >= cats.length - 1) return;
+
+      const cat1 = cats[index];
+      const cat2 = cats[index + 1];
+      
+      const order1 = cat1.order;
+      const order2 = cat2.order;
+
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved down`
+      );
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved up`
+      );
+
+      notify('Category moved down', 'success');
+    } catch (error) {
+      console.error('Error moving category down:', error);
+      notify('Failed to reorder category', 'error');
+    }
+  }
+
+  async function renameCategory(id, newName) {
+    try {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        notify('Category name cannot be empty', 'error');
+        return;
+      }
+      if (categories.some(c => c.id !== id && c.name === trimmed)) {
+        notify('Category name already exists', 'error');
+        return;
+      }
+      const oldCategory = categories.find(c => c.id === id);
+      if (!oldCategory) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_renamed',
+        id,
+        { old_name: oldCategory.name, new_name: trimmed },
+        `Renamed category "${oldCategory.name}" to "${trimmed}"`
+      );
+
+      if (transaction) {
+        notify('Category renamed');
+      }
+    } catch (error) {
+      console.error('Error renaming category:', error);
+      notify('Failed to rename category', 'error');
+    }
+  }
+
+  async function updateCategoryBudget(id, newBudget) {
+    try {
+      const category = categories.find(c => c.id === id);
+      if (!category) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_budget_updated',
+        id,
+        { new_budget: Number(newBudget) || 0 },
+        `Updated budget for "${category.name}" to ${fmt(Number(newBudget) || 0)}`
+      );
+
+      if (transaction) {
+        // UI will update reactively. No notification needed for this frequent action.
+      }
+    } catch (error) {
+      console.error('Error updating category budget:', error);
+      notify('Failed to update budget', 'error');
+    }
+  }
+ 
+  // ACCOUNT FUNCTIONS (now passed to AccountsSection)
+  async function addAccount(name, type, balance = 0) {
+    try {
+      if (!name || !type) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+      const newAccountId = crypto.randomUUID();
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_created',
+        newAccountId,
+        { name: name.trim(), type, initial_balance: Number(balance) || 0 },
+        `Created account "${name}" with initial balance ${fmt(Number(balance) || 0)}`
+      );
+      if (transaction) {
+        notify(`Account "${name}" added`, 'success');
+        setShowAddAccount(false); // Close dialog on success
+      }
+    } catch (error) {
+      console.error('Error adding account:', error);
+      notify('Failed to add account', 'error');
+    }
+  }
+
+  async function updateAccountBalance(accountId, newBalance) {
+    try {
+      const account = accounts.find(a => a.id === accountId);
+      if (!account) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_balance_adjustment',
+        accountId,
+        { new_balance: Number(newBalance) || 0 },
+        `Adjusted balance for account "${account.name}" to ${fmt(Number(newBalance) || 0)}`
+      );
+      // No notification needed for this frequent action, UI will update reactively.
+    } catch (error) {
+      console.error('Error updating account balance:', error);
+      notify('Failed to update account balance', 'error');
+    }
+  }
+
+  async function deleteAccount(accountId) {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    if (confirm(`Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`)) {
+      try {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'account_deleted',
+          accountId,
+          {},
+          `Deleted account "${account.name}"`
+        );
+
+        if(transaction) {
+          notify(`Account "${account.name}" and its associated items deleted`, 'success');
+        }
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        notify('Failed to delete account', 'error');
+      }
+    }
+  }
+
+  const selectAllOnFocus = (e) => {
+    e.target.select();
+  };
+
+  // Remaining functions not yet moved
+  async function toggleSkipThisMonth(b){
+    try {
+      const currentMonth = yyyyMm();
+      const isSkipped = b.skipMonths?.includes(currentMonth);
+      const newSkipMonths = isSkipped
+        ? (b.skipMonths || []).filter(m => m !== currentMonth)
+        : [...(b.skipMonths || []), currentMonth];
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_modification',
+        b.id,
+        { changes: { skipMonths: newSkipMonths } },
+        `Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for ${currentMonth}`
+      );
+      if (transaction) {
+        notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
+      }
+    } catch (error) {
+      console.error('Error toggling skip month:', error);
+      notify('Failed to update skip status', 'error');
+    }
+  }
+
   if (isMobile) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '0.75rem' }}>
@@ -1674,21 +1644,9 @@ function DashboardContent() {
               showIncomeHistory={showIncomeHistory}
               setShowIncomeHistory={setShowIncomeHistory}
               setShowAddIncome={setShowAddIncome}
-              toggleIncomeReceived={toggleIncomeReceived}
-              deleteIncome={deleteIncome}
-              setShowAddCredit={setShowAddCredit}
-              receiveCredit={receiveCredit}
-              toggleCreditGuaranteed={toggleCreditGuaranteed}
-              deleteCredit={deleteCredit}
+              // Actions from IncomeSection
               supabase={supabase}
               user={user}
-              addRecurringIncome={addRecurringIncome}
-              toggleIncomeReceived={toggleIncomeReceived}
-              deleteIncome={deleteIncome}
-              addUpcomingCredit={addUpcomingCredit}
-              receiveCredit={receiveCredit}
-              toggleCreditGuaranteed={toggleCreditGuaranteed}
-              toggleCreditIgnored={toggleCreditIgnored}
             />
 
             <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
@@ -1781,115 +1739,32 @@ function DashboardContent() {
               addBill={addBill}
             />
 
-            {/* One-Time Costs */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>One-Time Costs</h3>
-              
-              <div style={{ marginBottom: '0.75rem' }}>
-                <input
-                  placeholder="Cost name"
-                  value={otcName}
-                  onChange={(e) => setOtcName(e.target.value)}
-                  style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                  <input
-                    type="number"
-                    placeholder="Amount"
-                    value={otcAmount}
-                    onChange={(e) => setOtcAmount(Number(e.target.value))}
-                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                  />
-                  <input
-                    type="date"
-                    value={otcDueDate}
-                    onChange={(e) => setOtcDueDate(e.target.value)}
-                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                  <select
-                    value={otcCategory}
-                    onChange={(e) => setOtcCategory(e.target.value)}
-                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                  >
-                    {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <select
-                    value={otcAccountId}
-                    onChange={(e) => setOtcAccountId(e.target.value)}
-                    style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                  >
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Notes (optional)"
-                  value={otcNotes}
-                  onChange={(e) => setOtcNotes(e.target.value)}
-                  style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', resize: 'vertical', minHeight: '60px' }}
-                />
-                <button
-                  onClick={addOneTimeCost}
-                  style={{ width: '100%', padding: '0.375rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
-                >
-                  Add One-Time Cost
-                </button>
-              </div>
-
-              {oneTimeCosts
-                .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true))
-                .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-                .map(otc => {
-                  const account = accounts.find(a => a.id === otc.accountId);
-                  const isOverdue = new Date(otc.dueDate) < new Date() && !otc.paid;
-                  
-                  return (
-                    <div key={otc.id} style={{ 
-                      background: otc.paid ? '#f0fdf4' : (isOverdue ? '#fef2f2' : '#f9fafb'),
-                      padding: '0.5rem', 
-                      borderRadius: '0.375rem',
-                      border: `2px solid ${otc.paid ? '#16a34a' : (isOverdue ? '#fca5a5' : '#e5e7eb')}`,
-                      marginBottom: '0.375rem',
-                      opacity: otc.ignored ? 0.5 : 1
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{otc.name}</span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
-                      </div>
-                      
-                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                        Due: {new Date(otc.dueDate).toLocaleDateString()} • {account?.name} • {otc.category}
-                        {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
-                        {otc.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{otc.notes}</div>}
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={otc.paid} 
-                            onChange={() => toggleOneTimePaid(otc)} 
-                          />
-                          {otc.paid ? '✅ Paid' : 'Not paid'}
-                        </label>
-                        <button
-                          onClick={() => toggleOTCIgnored(otc)}
-                          style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                        >
-                          {otc.ignored ? 'Show' : 'Hide'}
-                        </button>
-                        <button
-                          onClick={() => deleteOneTimeCost(otc.id)}
-                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <OneTimeCostsSection
+              isMobile={isMobile}
+              user={user}
+              supabase={supabase}
+              accounts={accounts}
+              activeCats={activeCats}
+              oneTimeCosts={oneTimeCosts}
+              otcName={otcName}
+              setOtcName={setOtcName}
+              otcCategory={otcCategory}
+              setOtcCategory={setOtcCategory}
+              otcAmount={otcAmount}
+              setOtcAmount={setOtcAmount}
+              otcDueDate={otcDueDate}
+              setOtcDueDate={setOtcDueDate}
+              otcAccountId={otcAccountId}
+              setOtcAccountId={setOtcAccountId}
+              otcNotes={otcNotes}
+              setOtcNotes={setOtcNotes}
+              selectedCats={selectedCats}
+              showIgnored={showIgnored}
+              editingOTC={editingOTC}
+              setEditingOTC={setEditingOTC}
+              toggleOneTimePaid={toggleOneTimePaid} // Pass this down
+              selectAllOnFocus={selectAllOnFocus}
+            />
 
             {/* Categories Management with Budgets */}
             <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
@@ -2430,34 +2305,6 @@ function DashboardContent() {
         )}
 
 
-        {editingOTC && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
-                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit One-Time Cost</h2>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                updateOTC(editingOTC.id, new FormData(e.target));
-              }}>
-                <input name="name" placeholder="Cost name" defaultValue={editingOTC.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="category" defaultValue={editingOTC.category} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingOTC.amount} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <input name="dueDate" type="date" defaultValue={editingOTC.dueDate} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="accountId" defaultValue={editingOTC.accountId} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingOTC.notes} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Update Cost</button>
-                  <button type="button" onClick={() => setEditingOTC(null)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {showSnapshots && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
