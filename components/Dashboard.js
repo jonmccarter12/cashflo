@@ -2537,21 +2537,9 @@ function DashboardContent() {
                 showIncomeHistory={showIncomeHistory}
                 setShowIncomeHistory={setShowIncomeHistory}
                 setShowAddIncome={setShowAddIncome}
-                toggleIncomeReceived={toggleIncomeReceived}
-                deleteIncome={deleteIncome}
-                setShowAddCredit={setShowAddCredit}
-                receiveCredit={receiveCredit}
-                toggleCreditGuaranteed={toggleCreditGuaranteed}
-                deleteCredit={deleteCredit}
+                toggleIncomeReceived={toggleIncomeReceived} // This function is still expected as a prop by IncomeSection
                 supabase={supabase}
                 user={user}
-                addRecurringIncome={addRecurringIncome}
-                toggleIncomeReceived={toggleIncomeReceived}
-                deleteIncome={deleteIncome}
-                addUpcomingCredit={addUpcomingCredit}
-                receiveCredit={receiveCredit}
-                toggleCreditGuaranteed={toggleCreditGuaranteed}
-                toggleCreditIgnored={toggleCreditIgnored}
               />
 
               {/* Due This Week Column */}
