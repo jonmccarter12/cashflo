@@ -956,9 +956,243 @@ function DashboardContent() {
     notify('Transactions exported successfully!', 'success');
   };
 
-  // RECURRING INCOME FUNCTIONS (now passed to IncomeSection)
-  // UPCOMING CREDITS FUNCTIONS (now passed to IncomeSection)
-  // BILL ACTIONS (now passed to BillsSection)
+  // RECURRING INCOME FUNCTIONS
+  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes) {
+    try {
+      if (!name || !amount || !payDay) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+      const newIncomeId = crypto.randomUUID();
+      const payload = {
+        name: name.trim(),
+        amount: Number(amount),
+        frequency,
+        payDay: Number(payDay),
+        accountId,
+        notes: notes || ''
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'recurring_income_created',
+        newIncomeId,
+        payload,
+        `Created recurring income "${payload.name}" for ${fmt(payload.amount)}`
+      );
+
+      if (transaction) {
+        notify('Recurring income added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding recurring income:', error);
+      notify('Failed to add recurring income', 'error');
+    }
+  }
+
+  async function toggleIncomeReceived(income) {
+    try {
+      const currentMonth = yyyyMm();
+      const isReceived = income.receivedMonths?.includes(currentMonth);
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'recurring_income_received',
+        income.id,
+        {
+          month: currentMonth,
+          is_received: !isReceived,
+          accountId: income.accountId,
+          amount: income.amount,
+          name: income.name
+        },
+        `Income "${income.name}" marked as ${!isReceived ? 'received' : 'not received'} for ${currentMonth}`
+      );
+
+      if (transaction) {
+        notify(`${income.name} marked as ${!isReceived ? 'received' : 'not received'}`, 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling income received:', error);
+      notify('Failed to update income status', 'error');
+    }
+  }
+
+  // UPCOMING CREDITS FUNCTIONS
+  async function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed, notes) {
+    try {
+      if (!name || !amount || !expectedDate) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+      const newCreditId = crypto.randomUUID();
+      const payload = {
+        name: name.trim(),
+        amount: Number(amount),
+        expectedDate,
+        accountId,
+        guaranteed: !!guaranteed,
+        notes: notes || ''
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_created',
+        newCreditId,
+        payload,
+        `Created upcoming credit "${payload.name}" for ${fmt(payload.amount)}`
+      );
+
+      if (transaction) {
+        setShowAddCredit(false);
+        notify('Upcoming credit added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding upcoming credit:', error);
+      notify('Failed to add upcoming credit', 'error');
+    }
+  }
+
+  // ONE-TIME COST FUNCTIONS
+  async function addOneTimeCost() {
+    try {
+      if (!otcName || !otcAmount || !otcDueDate) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+      const newOtcId = crypto.randomUUID();
+      const payload = {
+        name: otcName,
+        category: otcCategory,
+        amount: Number(otcAmount),
+        dueDate: otcDueDate,
+        accountId: otcAccountId,
+        notes: otcNotes
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_created',
+        newOtcId,
+        payload,
+        `Created one-time cost "${payload.name}" for ${fmt(payload.amount)}`
+      );
+
+      if (transaction) {
+        // Clear form
+        setOtcName('');
+        setOtcAmount(0);
+        setOtcDueDate(new Date().toISOString().slice(0,10));
+        setOtcNotes('');
+        notify('One-time cost added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding one-time cost:', error);
+      notify('Failed to add one-time cost', 'error');
+    }
+  }
+
+  async function updateOTC(otcId, formData) {
+    try {
+      const changes = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        amount: Number(formData.get('amount')),
+        dueDate: formData.get('dueDate'),
+        accountId: formData.get('accountId'),
+        notes: formData.get('notes')
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_modification',
+        otcId,
+        { changes },
+        `Updated one-time cost "${changes.name}"`
+      );
+
+      if (transaction) {
+        setEditingOTC(null);
+        notify('One-time cost updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating one-time cost:', error);
+      notify('Failed to update one-time cost', 'error');
+    }
+  }
+
+  async function toggleOneTimePaid(otc) {
+    try {
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_payment',
+        otc.id,
+        {
+          is_paid: !otc.paid,
+          accountId: otc.accountId,
+          amount: otc.amount
+        },
+        `One-time cost "${otc.name}" marked as ${!otc.paid ? 'paid' : 'unpaid'}`
+      );
+
+      if (transaction) {
+        notify(`${otc.name} marked as ${!otc.paid ? 'paid' : 'unpaid'}`, 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling one-time cost paid status:', error);
+      notify('Failed to update payment status', 'error');
+    }
+  }
+
+  async function toggleOTCIgnored(o) {
+    try {
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_ignored_toggled',
+        o.id,
+        { ignored: !o.ignored },
+        `One-time cost "${o.name}" ignored status set to ${!o.ignored}`
+      );
+
+      if (transaction) {
+        notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
+      }
+    } catch (error) {
+      console.error('Error toggling one-time cost ignored:', error);
+      notify('Failed to update ignore status', 'error');
+    }
+  }
+
+  async function deleteOneTimeCost(otcId) {
+    const otc = oneTimeCosts.find(o => o.id === otcId);
+    if (!otc) return;
+    if (confirm('Delete this one-time cost?')) {
+      try {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'one_time_cost_deleted',
+          otcId,
+          {},
+          `Deleted one-time cost "${otc.name}"`
+        );
+        if (transaction) {
+          notify('One-time cost deleted');
+        }
+      } catch (error) {
+        console.error('Error deleting one-time cost:', error);
+        notify('Failed to delete one-time cost', 'error');
+      }
+    }
+  }
+
   // BILL FUNCTIONS
   async function addBill(formData) {
     try {
@@ -1093,7 +1327,7 @@ function DashboardContent() {
     }
   }
 
-  // ACCOUNT FUNCTIONS (now passed to AccountsSection)
+  // ACCOUNT FUNCTIONS
   async function addAccount(name, type, balance = 0) {
     try {
       if (!name || !type) {
@@ -1414,107 +1648,6 @@ function DashboardContent() {
       notify('Failed to update budget', 'error');
     }
   }
- 
-  // ACCOUNT FUNCTIONS (now passed to AccountsSection)
-  async function addAccount(name, type, balance = 0) {
-    try {
-      if (!name || !type) {
-        notify('Please fill in all required fields', 'error');
-        return;
-      }
-      const newAccountId = crypto.randomUUID();
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'account_created',
-        newAccountId,
-        { name: name.trim(), type, initial_balance: Number(balance) || 0 },
-        `Created account "${name}" with initial balance ${fmt(Number(balance) || 0)}`
-      );
-      if (transaction) {
-        notify(`Account "${name}" added`, 'success');
-        setShowAddAccount(false); // Close dialog on success
-      }
-    } catch (error) {
-      console.error('Error adding account:', error);
-      notify('Failed to add account', 'error');
-    }
-  }
-
-  async function updateAccountBalance(accountId, newBalance) {
-    try {
-      const account = accounts.find(a => a.id === accountId);
-      if (!account) return;
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'account_balance_adjustment',
-        accountId,
-        { new_balance: Number(newBalance) || 0 },
-        `Adjusted balance for account "${account.name}" to ${fmt(Number(newBalance) || 0)}`
-      );
-      // No notification needed for this frequent action, UI will update reactively.
-    } catch (error) {
-      console.error('Error updating account balance:', error);
-      notify('Failed to update account balance', 'error');
-    }
-  }
-
-  async function deleteAccount(accountId) {
-    const account = accounts.find(a => a.id === accountId);
-    if (!account) return;
-
-    if (confirm(`Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`)) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'account_deleted',
-          accountId,
-          {},
-          `Deleted account "${account.name}"`
-        );
-
-        if(transaction) {
-          notify(`Account "${account.name}" and its associated items deleted`, 'success');
-        }
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        notify('Failed to delete account', 'error');
-      }
-    }
-  }
-
-  const selectAllOnFocus = (e) => {
-    e.target.select();
-  };
-
-  // Remaining functions not yet moved
-  async function toggleSkipThisMonth(b){
-    try {
-      const currentMonth = yyyyMm();
-      const isSkipped = b.skipMonths?.includes(currentMonth);
-      const newSkipMonths = isSkipped
-        ? (b.skipMonths || []).filter(m => m !== currentMonth)
-        : [...(b.skipMonths || []), currentMonth];
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'bill_modification',
-        b.id,
-        { changes: { skipMonths: newSkipMonths } },
-        `Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for ${currentMonth}`
-      );
-      if (transaction) {
-        notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
-      }
-    } catch (error) {
-      console.error('Error toggling skip month:', error);
-      notify('Failed to update skip status', 'error');
-    }
-  }
 
   if (isMobile) {
     return (
@@ -1644,7 +1777,8 @@ function DashboardContent() {
               showIncomeHistory={showIncomeHistory}
               setShowIncomeHistory={setShowIncomeHistory}
               setShowAddIncome={setShowAddIncome}
-              // Actions from IncomeSection
+              setShowAddCredit={setShowAddCredit}
+              toggleIncomeReceived={toggleIncomeReceived}
               supabase={supabase}
               user={user}
             />
@@ -1709,7 +1843,7 @@ function DashboardContent() {
                   style={{
                     padding: '0.375rem 0.75rem',
                     borderRadius: '0.25rem',
-                    border: selectedCat === cat ? '1px solid #d1d5db' : '1px solid rgba(255,255,255,0.5)',
+                    border: selectedCat === cat ? '1px solid #d1d5db' : '1px soli rgba(255,255,255,0.5)',
                     background: selectedCat === cat ? 'white' : 'transparent',
                     color: selectedCat === cat ? '#8b5cf6' : 'white',
                     fontSize: '0.75rem',
@@ -1762,8 +1896,12 @@ function DashboardContent() {
               showIgnored={showIgnored}
               editingOTC={editingOTC}
               setEditingOTC={setEditingOTC}
-              toggleOneTimePaid={toggleOneTimePaid} // Pass this down
+              toggleOneTimePaid={toggleOneTimePaid}
               selectAllOnFocus={selectAllOnFocus}
+              addOneTimeCost={addOneTimeCost}
+              updateOTC={updateOTC}
+              toggleOTCIgnored={toggleOTCIgnored}
+              deleteOneTimeCost={deleteOneTimeCost}
             />
 
             {/* Categories Management with Budgets */}
@@ -2304,7 +2442,38 @@ function DashboardContent() {
           </div>
         )}
 
-
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                addBill(new FormData(e.target));
+              }}>
+                <input name="name" placeholder="Bill name" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <input name="dueDay" type="number" min="1" max="28" placeholder="Due day (1-28)" defaultValue="1" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {showSnapshots && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -2537,7 +2706,8 @@ function DashboardContent() {
                 showIncomeHistory={showIncomeHistory}
                 setShowIncomeHistory={setShowIncomeHistory}
                 setShowAddIncome={setShowAddIncome}
-                toggleIncomeReceived={toggleIncomeReceived} // This function is still expected as a prop by IncomeSection
+                setShowAddCredit={setShowAddCredit}
+                toggleIncomeReceived={toggleIncomeReceived}
                 supabase={supabase}
                 user={user}
               />
@@ -3394,6 +3564,38 @@ function DashboardContent() {
           </div>
         )}
 
+        {showAddBill && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
+                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Bill</h2>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                addBill(new FormData(e.target));
+              }}>
+                <input name="name" placeholder="Bill name" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="category" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input name="amount" type="number" step="0.01" placeholder="Amount" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="frequency" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <input name="dueDay" type="number" min="1" max="28" placeholder="Due day (1-28)" defaultValue="1" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
+                <select name="accountId" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Bill</button>
+                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {editingOTC && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
