@@ -15,6 +15,7 @@ import { useCloudTransactions } from '../hooks/useCloudTransactions';
 import { useAuth } from '../hooks/useAuth'; // NEW
 import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
+import BillsSection from './dashboard/BillsSection'; // NEW
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
 function DashboardContent() {
@@ -534,11 +535,11 @@ function DashboardContent() {
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
   const [showSnapshots, setShowSnapshots] = React.useState(false); // This will be replaced with transaction history UI
-  const [editingAccount, setEditingAccount] = React.useState(null);
+  // const [editingAccount, setEditingAccount] = React.useState(null); // Removed, should be handled by AccountsSection if needed
   const [editingBill, setEditingBill] = React.useState(null);
   const [editingOTC, setEditingOTC] = React.useState(null);
-  const [editingCredit, setEditingCredit] = React.useState(null);
-  const [editingIncome, setEditingIncome] = React.useState(null);
+  // const [editingCredit, setEditingCredit] = React.useState(null); // Removed, should be handled by IncomeSection if needed
+  // const [editingIncome, setEditingIncome] = React.useState(null); // Removed, should be handled by IncomeSection if needed
 
   // One-time cost form state
   const [otcName, setOtcName] = React.useState("");
@@ -952,307 +953,10 @@ function DashboardContent() {
     notify('Transactions exported successfully!', 'success');
   };
 
-  // RECURRING INCOME FUNCTIONS
-  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes = '') {
-    try {
-      if (!name || !amount || !frequency || !accountId) {
-        notify('Please fill in all required fields', 'error');
-        return;
-      }
-
-      const newIncomeId = crypto.randomUUID();
-      const payload = {
-        name: name.trim(),
-        amount: Number(amount),
-        frequency,
-        payDay: frequency === 'monthly' ? Number(payDay) : undefined,
-        weeklyDay: frequency === 'weekly' ? Number(payDay) : undefined,
-        biweeklyStart: frequency === 'biweekly' ? new Date().toISOString().slice(0, 10) : undefined,
-        yearlyMonth: frequency === 'yearly' ? 0 : undefined,
-        accountId,
-        notes: notes.trim()
-      };
-      
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'recurring_income_created',
-        newIncomeId,
-        payload,
-        `Created recurring income "${name.trim()}" for ${fmt(Number(amount))}`
-      );
-
-      if (transaction) {
-        setShowAddIncome(false);
-        notify(`Recurring income "${name}" added`, 'success');
-      }
-    } catch (error) {
-      console.error('Error adding recurring income:', error);
-      notify('Failed to add recurring income', 'error');
-    }
-  }
-
-  async function toggleIncomeReceived(income) {
-    try {
-      const currentMonth = yyyyMm();
-      const isReceived = income.receivedMonths?.includes(currentMonth);
-      
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'recurring_income_received',
-        income.id,
-        {
-          month: currentMonth,
-          is_received: !isReceived,
-          accountId: income.accountId,
-          amount: income.amount,
-          name: income.name // For income history
-        },
-        `Recurring income "${income.name}" marked as ${!isReceived ? 'received' : 'not received'} for ${currentMonth}`
-      );
-
-      if(transaction) {
-        notify(`${income.name} marked as ${!isReceived ? 'not received' : 'received'}`, 'success');
-      }
-    } catch (error) {
-      console.error('Error toggling income received:', error);
-      notify('Failed to update income status', 'error');
-    }
-  }
-
-  async function deleteIncome(incomeId) {
-    const income = recurringIncome.find(inc => inc.id === incomeId);
-    if (!income) return;
-    if (confirm('Delete this recurring income?')) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'recurring_income_deleted',
-          incomeId,
-          {},
-          `Deleted recurring income "${income.name}"`
-        );
-        if (transaction) {
-          notify('Recurring income deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting income:', error);
-        notify('Failed to delete income', 'error');
-      }
-    }
-  }
-
-  // UPCOMING CREDITS FUNCTIONS
-  async function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed = false, notes = '') {
-    try {
-      if (!name || !amount || !expectedDate || !accountId) {
-        notify('Please fill in all required fields', 'error');
-        return;
-      }
-      const newCreditId = crypto.randomUUID();
-      const payload = {
-        name: name.trim(),
-        amount: Number(amount),
-        expectedDate,
-        accountId,
-        guaranteed,
-        notes: notes.trim()
-      };
-      
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'credit_created',
-        newCreditId,
-        payload,
-        `Created credit "${name.trim()}" for ${fmt(Number(amount))}`
-      );
-
-      if (transaction) {
-        setShowAddCredit(false);
-        notify(`Upcoming credit "${name}" added`, 'success');
-      }
-    } catch (error) {
-      console.error('Error adding upcoming credit:', error);
-      notify('Failed to add upcoming credit', 'error');
-    }
-  }
-
-  async function receiveCredit(creditId, finalAccountId = null) {
-    try {
-      const credit = upcomingCredits.find(c => c.id === creditId);
-      if (!credit) return;
-      
-      const targetAccountId = finalAccountId || credit.accountId;
-      
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'credit_received',
-        creditId,
-        {
-          accountId: targetAccountId,
-          amount: credit.amount,
-          name: credit.name // For income history
-        },
-        `Received credit "${credit.name}" for ${fmt(credit.amount)}`
-      );
-      
-      if (transaction) {
-        const account = accounts.find(a => a.id === targetAccountId);
-        notify(`${fmt(credit.amount)} received in ${account?.name || 'account'}`, 'success');
-      }
-    } catch (error) {
-      console.error('Error receiving credit:', error);
-      notify('Failed to receive credit', 'error');
-    }
-  }
-
-  async function toggleCreditGuaranteed(creditId) {
-    try {
-      const credit = upcomingCredits.find(c => c.id === creditId);
-      if (!credit) return;
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'credit_guaranteed_toggled',
-        creditId,
-        { guaranteed: !credit.guaranteed },
-        `Credit "${credit.name}" guaranteed status set to ${!credit.guaranteed}`
-      );
-
-      if (transaction) {
-        notify(`Credit "${credit.name}" guaranteed status updated.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error toggling credit guaranteed:', error);
-      notify('Failed to update credit status', 'error');
-    }
-  }
-
-  async function toggleCreditIgnored(creditId) {
-    try {
-      const credit = upcomingCredits.find(c => c.id === creditId);
-      if (!credit) return;
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'credit_ignored_toggled',
-        creditId,
-        { ignored: !credit.ignored },
-        `Credit "${credit.name}" ignored status set to ${!credit.ignored}`
-      );
-
-      if (transaction) {
-        notify(`Credit "${credit.name}" ignored status updated.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error toggling credit ignored:', error);
-      notify('Failed to update credit status', 'error');
-    }
-  }
-
-  async function deleteCredit(creditId) {
-    const credit = upcomingCredits.find(c => c.id === creditId);
-    if (!credit) return;
-    if (confirm('Delete this upcoming credit?')) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'credit_deleted',
-          creditId,
-          {},
-          `Deleted credit "${credit.name}"`
-        );
-        if (transaction) {
-          notify('Upcoming credit deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting credit:', error);
-        notify('Failed to delete credit', 'error');
-      }
-    }
-  }
-
-  // Actions with error handling
-  async function togglePaid(b){
-    try {
-      const currentMonth = yyyyMm();
-      const isPaid = b.paidMonths.includes(currentMonth);
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'bill_payment',
-        b.id,
-        {
-          month: currentMonth,
-          is_paid: !isPaid,
-          accountId: b.accountId,
-          amount: b.amount
-        },
-        `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
-      );
-
-      if (transaction) {
-        notify(`${b.name} marked as ${!isPaid ? 'paid' : 'unpaid'}`, 'success');
-      }
-    } catch (error) {
-      console.error('Error toggling paid status:', error);
-      notify('Failed to update payment status', 'error');
-    }
-  }
-
-  async function toggleSkipThisMonth(b){
-    try {
-      const currentMonth = yyyyMm();
-      const isSkipped = b.skipMonths?.includes(currentMonth);
-      const newSkipMonths = isSkipped
-        ? (b.skipMonths || []).filter(m => m !== currentMonth)
-        : [...(b.skipMonths || []), currentMonth];
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'bill_modification',
-        b.id,
-        { changes: { skipMonths: newSkipMonths } },
-        `Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for ${currentMonth}`
-      );
-      if (transaction) {
-        notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
-      }
-    } catch (error) {
-      console.error('Error toggling skip month:', error);
-      notify('Failed to update skip status', 'error');
-    }
-  }
-
-  async function toggleBillIgnored(b){
-    try {
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'bill_ignored_toggled',
-        b.id,
-        { ignored: !b.ignored },
-        `Bill "${b.name}" ignored status set to ${!b.ignored}`
-      );
-
-      if (transaction) {
-        notify(`Bill "${b.name}" is now ${b.ignored ? 'shown' : 'hidden'}.`);
-      }
-    } catch (error) {
-      console.error('Error toggling bill ignored:', error);
-      notify('Failed to update ignore status', 'error');
-    }
-  }
-
+  // RECURRING INCOME FUNCTIONS (now passed to IncomeSection)
+  // UPCOMING CREDITS FUNCTIONS (now passed to IncomeSection)
+  // BILL ACTIONS (now passed to BillsSection)
+  // OTC ACTIONS
   async function toggleOneTimePaid(o){
     try {
       const isPaid = o.paid;
@@ -1293,29 +997,6 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error toggling OTC ignored:', error);
       notify('Failed to update ignore status', 'error');
-    }
-  }
-
-  async function deleteBill(billId){
-    const bill = bills.find(b => b.id === billId);
-    if (!bill) return;
-    if(confirm('Delete this bill?')){
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'bill_deleted',
-          billId,
-          {},
-          `Deleted bill "${bill.name}"`
-        );
-        if (transaction) {
-          notify('Bill deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting bill:', error);
-        notify('Failed to delete bill', 'error');
-      }
     }
   }
 
@@ -1379,6 +1060,37 @@ function DashboardContent() {
     }
   }
 
+  async function updateOTC(otcId, formData) {
+    try {
+      const changes = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        amount: Number(formData.get('amount')),
+        dueDate: formData.get('dueDate'),
+        accountId: formData.get('accountId'),
+        notes: formData.get('notes')
+      };
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'one_time_cost_modification',
+        otcId,
+        { changes: changes },
+        `Updated one-time cost "${changes.name}"`
+      );
+
+      if (transaction) {
+        setEditingOTC(null);
+        notify('One-time cost updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating one-time cost:', error);
+      notify('Failed to update one-time cost', 'error');
+    }
+  }
+
+  // CATEGORY FUNCTIONS
   async function addCategory(name){ 
     try {
       const nm = name.trim(); 
@@ -1599,6 +1311,7 @@ function DashboardContent() {
     }
   }
 
+  // BILL FUNCTIONS
   async function addBill(formData) {
     try {
       const newBillId = crypto.randomUUID();
@@ -1661,36 +1374,78 @@ function DashboardContent() {
     }
   }
 
-  async function updateOTC(otcId, formData) {
+  async function togglePaid(b){
     try {
-      const changes = {
-        name: formData.get('name'),
-        category: formData.get('category'),
-        amount: Number(formData.get('amount')),
-        dueDate: formData.get('dueDate'),
-        accountId: formData.get('accountId'),
-        notes: formData.get('notes')
-      };
+      const currentMonth = yyyyMm();
+      const isPaid = b.paidMonths.includes(currentMonth);
 
       const transaction = await logTransaction(
         supabase,
         user.id,
-        'one_time_cost_modification',
-        otcId,
-        { changes: changes },
-        `Updated one-time cost "${changes.name}"`
+        'bill_payment',
+        b.id,
+        {
+          month: currentMonth,
+          is_paid: !isPaid,
+          accountId: b.accountId,
+          amount: b.amount
+        },
+        `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
       );
 
       if (transaction) {
-        setEditingOTC(null);
-        notify('One-time cost updated successfully!');
+        notify(`${b.name} marked as ${!isPaid ? 'not paid' : 'paid'}`, 'success');
       }
     } catch (error) {
-      console.error('Error updating one-time cost:', error);
-      notify('Failed to update one-time cost', 'error');
+      console.error('Error toggling paid status:', error);
+      notify('Failed to update payment status', 'error');
     }
   }
 
+  async function toggleBillIgnored(b){
+    try {
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_ignored_toggled',
+        b.id,
+        { ignored: !b.ignored },
+        `Bill "${b.name}" ignored status set to ${!b.ignored}`
+      );
+
+      if (transaction) {
+        notify(`Bill "${b.name}" is now ${b.ignored ? 'shown' : 'hidden'}.`);
+      }
+    } catch (error) {
+      console.error('Error toggling bill ignored:', error);
+      notify('Failed to update ignore status', 'error');
+    }
+  }
+
+  async function deleteBill(billId){
+    const bill = bills.find(b => b.id === billId);
+    if (!bill) return;
+    if(confirm('Delete this bill?')){
+      try {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'bill_deleted',
+          billId,
+          {},
+          `Deleted bill "${bill.name}"`
+        );
+        if (transaction) {
+          notify('Bill deleted');
+        }
+      } catch (error) {
+        console.error('Error deleting bill:', error);
+        notify('Failed to delete bill', 'error');
+      }
+    }
+  }
+
+  // ACCOUNT FUNCTIONS (now passed to AccountsSection)
   async function addAccount(name, type, balance = 0) {
     try {
       if (!name || !type) {
@@ -1764,6 +1519,32 @@ function DashboardContent() {
   const selectAllOnFocus = (e) => {
     e.target.select();
   };
+
+  // Remaining functions not yet moved
+  async function toggleSkipThisMonth(b){
+    try {
+      const currentMonth = yyyyMm();
+      const isSkipped = b.skipMonths?.includes(currentMonth);
+      const newSkipMonths = isSkipped
+        ? (b.skipMonths || []).filter(m => m !== currentMonth)
+        : [...(b.skipMonths || []), currentMonth];
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'bill_modification',
+        b.id,
+        { changes: { skipMonths: newSkipMonths } },
+        `Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for ${currentMonth}`
+      );
+      if (transaction) {
+        notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
+      }
+    } catch (error) {
+      console.error('Error toggling skip month:', error);
+      notify('Failed to update skip status', 'error');
+    }
+  }
 
   if (isMobile) {
     return (
@@ -1901,6 +1682,13 @@ function DashboardContent() {
               deleteCredit={deleteCredit}
               supabase={supabase}
               user={user}
+              addRecurringIncome={addRecurringIncome}
+              toggleIncomeReceived={toggleIncomeReceived}
+              deleteIncome={deleteIncome}
+              addUpcomingCredit={addUpcomingCredit}
+              receiveCredit={receiveCredit}
+              toggleCreditGuaranteed={toggleCreditGuaranteed}
+              toggleCreditIgnored={toggleCreditIgnored}
             />
 
             <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
@@ -1975,74 +1763,23 @@ function DashboardContent() {
               ))}
             </div>
 
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>All Bills</h3>
-                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
-              </div>
-              
-              {bills
-                .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
-                .sort((a,b) => {
-                  const aDate = getNextOccurrence(a);
-                  const bDate = getNextOccurrence(b);
-                  return aDate - bDate;
-                })
-                .map(bill => {
-                  const account = accounts.find(a => a.id === bill.accountId);
-                  const isPaid = bill.paidMonths.includes(yyyyMm());
-                  const nextDate = getNextOccurrence(bill);
-                  
-                  return (
-                    <div key={bill.id} style={{ 
-                      background: '#f9fafb', 
-                      padding: '0.5rem', 
-                      borderRadius: '0.375rem',
-                      border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
-                      marginBottom: '0.375rem'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
-                      </div>
-                      
-                      <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                        {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
-                        {bill.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{bill.notes}</div>}
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={isPaid} 
-                            onChange={() => togglePaid(bill)} 
-                          />
-                          {isPaid ? '✅ Paid' : 'Not paid'}
-                        </label>
-                        <button
-                          onClick={() => setEditingBill(bill)}
-                          style={{ padding: '0.125rem 0.25rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => deleteBill(bill.id)}
-                          style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <button 
-                  onClick={() => setShowAddBill(true)}
-                  style={{ width: '100%', padding: '0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
-                >
-                  + Add Bill
-                </button>
-            </div>
+            <BillsSection
+              isMobile={isMobile}
+              bills={bills}
+              accounts={accounts}
+              activeCats={activeCats}
+              showIgnored={showIgnored}
+              selectedCats={selectedCats}
+              totalBillsForSelectedCategory={totalBillsForSelectedCategory}
+              togglePaid={togglePaid}
+              toggleBillIgnored={toggleBillIgnored}
+              deleteBill={deleteBill}
+              setShowAddBill={setShowAddBill}
+              setEditingBill={setEditingBill}
+              editingBill={editingBill}
+              updateBill={updateBill}
+              addBill={addBill}
+            />
 
             {/* One-Time Costs */}
             <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
@@ -2692,91 +2429,6 @@ function DashboardContent() {
           </div>
         )}
 
-        {showAddBill && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
-                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Bill</h2>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                addBill(new FormData(e.target));
-              }}>
-                <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="category" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="frequency" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
-                    Due Day of Month (1-28):
-                  </label>
-                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue="15" required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                    Enter the day of the month this bill is due (1-28)
-                  </div>
-                </div>
-                <select name="accountId" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Add Bill</button>
-                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {editingBill && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: '400px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
-                <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit Bill</h2>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                updateBill(editingBill.id, new FormData(e.target));
-              }}>
-                <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingBill.amount} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <select name="frequency" defaultValue={editingBill.frequency} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
-                    Due Day of Month (1-28):
-                  </label>
-                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month" defaultValue={editingBill.dueDay} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                    Enter the day of the month this bill is due (1-28)
-                  </div>
-                </div>
-                <select name="accountId" defaultValue={editingBill.accountId} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill.notes} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Update Bill</button>
-                  <button type="button" onClick={() => setEditingBill(null)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {editingOTC && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -3046,12 +2698,19 @@ function DashboardContent() {
                 deleteCredit={deleteCredit}
                 supabase={supabase}
                 user={user}
+                addRecurringIncome={addRecurringIncome}
+                toggleIncomeReceived={toggleIncomeReceived}
+                deleteIncome={deleteIncome}
+                addUpcomingCredit={addUpcomingCredit}
+                receiveCredit={receiveCredit}
+                toggleCreditGuaranteed={toggleCreditGuaranteed}
+                toggleCreditIgnored={toggleCreditIgnored}
               />
 
               {/* Due This Week Column */}
               <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Due This Week</h3>
-                
+              
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '500px', overflowY: 'auto' }}>
                   {upcoming.items
                     .filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category))
@@ -3059,7 +2718,7 @@ function DashboardContent() {
                       const name = it.bill ? it.bill.name : it.otc.name;
                       const amt = it.bill ? it.bill.amount : it.otc.amount;
                       const account = accounts.find(a => a.id === (it.bill ? it.bill.accountId : it.otc.accountId));
-                      
+                    
                       return (
                         <div key={idx} style={{ 
                           background: it.overdue ? '#fef2f2' : '#f9fafb',
@@ -3081,7 +2740,7 @@ function DashboardContent() {
                               {fmt(amt)}
                             </div>
                           </div>
-                          
+                        
                           <button
                             onClick={() => it.bill ? togglePaid(it.bill) : toggleOneTimePaid(it.otc)}
                             style={{
@@ -3101,14 +2760,14 @@ function DashboardContent() {
                         </div>
                       );
                     })}
-                  
+                
                   {upcoming.items.filter(it => selectedCats.includes(it.bill ? it.bill.category : it.otc.category)).length === 0 && (
                     <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
                       Nothing due this week! Great job!
                     </div>
                   )}
                 </div>
-                
+              
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#ede9fe', borderRadius: '0.5rem', border: '1px solid #c4b5fd' }}>
                   <div style={{ fontSize: '0.875rem', color: '#7c3aed', fontWeight: '500' }}>Week Total</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#7c3aed' }}>{fmt(upcoming.weekDueTotal)}</div>
@@ -3138,98 +2797,23 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Bills Management Section */}
-            <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1.125rem', fontWeight: '600', color: '#8b5cf6' }}>Total: {fmt(totalBillsForSelectedCategory)}</span>
-                  <button 
-                    onClick={() => setShowAddBill(true)}
-                    style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-                  >
-                    + Add Bill
-                  </button>
-                </div>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
-                {bills
-                  .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
-                  .sort((a,b) => {
-                    const aDate = getNextOccurrence(a);
-                    const bDate = getNextOccurrence(b);
-                    return aDate - bDate;
-                  })
-                  .map(bill => {
-                    const account = accounts.find(a => a.id === bill.accountId);
-                    const isPaid = bill.paidMonths.includes(yyyyMm());
-                    const nextDate = getNextOccurrence(bill);
-                    
-                    return (
-                      <div key={bill.id} style={{ 
-                        background: '#f9fafb', 
-                        padding: '1rem', 
-                        borderRadius: '0.5rem',
-                        border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
-                        opacity: bill.ignored ? 0.6 : 1
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                          <div>
-                            <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                              {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                              Next: {nextDate.toLocaleDateString()}
-                            </div>
-                            {bill.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{bill.notes}</div>}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(bill.amount)}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{bill.category}</div>
-                          </div>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={isPaid} 
-                              onChange={() => togglePaid(bill)} 
-                            />
-                            {isPaid ? 'Paid' : 'Not paid'}
-                          </label>
-                          <button
-                            onClick={() => setEditingBill(bill)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => toggleBillIgnored(bill)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            {bill.ignored ? 'Show' : 'Hide'}
-                          </button>
-                          <button
-                            onClick={() => deleteBill(bill.id)}
-                            style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-              
-              {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true)).length === 0 && (
-                <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
-                  No bills found. Add your first bill to get started!
-                </div>
-              )}
-            </div>
+            <BillsSection
+              isMobile={isMobile}
+              bills={bills}
+              accounts={accounts}
+              activeCats={activeCats}
+              showIgnored={showIgnored}
+              selectedCats={selectedCats}
+              totalBillsForSelectedCategory={totalBillsForSelectedCategory}
+              togglePaid={togglePaid}
+              toggleBillIgnored={toggleBillIgnored}
+              deleteBill={deleteBill}
+              setShowAddBill={setShowAddBill}
+              setEditingBill={setEditingBill}
+              editingBill={editingBill}
+              updateBill={updateBill}
+              addBill={addBill}
+            />
 
             {/* One-Time Costs Section */}
             <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
@@ -3975,91 +3559,6 @@ function DashboardContent() {
           </div>
         )}
 
-        {showAddBill && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
-                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Add New Bill</h2>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                addBill(new FormData(e.target));
-              }}>
-                <input name="name" placeholder="Bill name (e.g., Electric Bill)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                <select name="category" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                <select name="frequency" style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
-                    Due Day of Month (1-28):
-                  </label>
-                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue="15" required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Enter the day of the month this bill is due (1-28)
-                  </div>
-                </div>
-                <select name="accountId" style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Add Bill</button>
-                  <button type="button" onClick={() => setShowAddBill(false)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {editingBill && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', width: '90%', maxWidth: '500px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #e11d48 0%, #7c3aed 100%)', margin: '-3rem -3rem 1.5rem -3rem', padding: '2rem 3rem', borderRadius: '1rem 1rem 0 0' }}>
-                <h2 style={{ fontSize: '1.5rem', color: 'white', textAlign: 'center' }}>Edit Bill</h2>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                updateBill(editingBill.id, new FormData(e.target));
-              }}>
-                <input name="name" placeholder="Bill name" defaultValue={editingBill.name} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                <select name="category" defaultValue={editingBill.category} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Amount" defaultValue={editingBill.amount} required style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                <select name="frequency" defaultValue={editingBill.frequency} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
-                    Due Day of Month (1-28):
-                  </label>
-                  <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month" defaultValue={editingBill.dueDay} required style={{ width: '100%', padding: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }} />
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Enter the day of the month this bill is due (1-28)
-                  </div>
-                </div>
-                <select name="accountId" defaultValue={editingBill.accountId} style={{ width: '100%', padding: '1rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem' }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill.notes} style={{ width: '100%', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', resize: 'vertical', minHeight: '80px' }} />
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button type="submit" style={{ flex: 1, padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Update Bill</button>
-                  <button type="button" onClick={() => setEditingBill(null)} style={{ padding: '1rem 1.5rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {editingOTC && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
