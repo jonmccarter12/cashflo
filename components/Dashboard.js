@@ -2332,49 +2332,6 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* Sync Status - Right */}
-          <div style={{
-            position: 'absolute',
-            right: 0,
-            display: 'flex',
-            gap: '0.5rem',
-            alignItems: 'center'
-          }}>
-            {isSyncing && (
-              <span style={{
-                background: 'white',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '0.5rem',
-                color: '#16a34a',
-                border: '1px solid #bbf7d0',
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-              }}>
-                ⏳ Syncing...
-              </span>
-            )}
-            {!isSyncing && !hasErrors && (
-              <span style={{
-                background: 'white',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '0.5rem',
-                color: '#16a34a',
-                border: '1px solid #bbf7d0'
-              }}>
-                ✅ Synced
-              </span>
-            )}
-            {lastSyncTime > 0 && (
-              <span style={{
-                background: 'white',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '0.5rem',
-                border: '1px solid #e5e7eb',
-                color: '#6b7280'
-              }}>
-                🔄 {new Date(lastSyncTime).toLocaleTimeString()}
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Quick Stats Row */}
