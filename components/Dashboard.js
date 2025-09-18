@@ -980,7 +980,7 @@ function DashboardContent() {
       // Transaction type filter (only actual financial transactions - credits/debits)
       // Credits: money coming in
       const isCredit = tx.type === 'credit_received' ||
-                      tx.type === 'income_received' ||
+                      tx.type === 'recurring_income_received' ||
                       tx.type === 'account_balance_adjustment';
 
       // Debits: money going out
