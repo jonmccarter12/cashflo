@@ -607,6 +607,7 @@ function DashboardContent() {
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
+  const [showAddCategory, setShowAddCategory] = React.useState(false);
   const [showSnapshots, setShowSnapshots] = React.useState(false); // This will be replaced with transaction history UI
   const [editingBill, setEditingBill] = React.useState(null);
   const [editingOTC, setEditingOTC] = React.useState(null);
@@ -1926,23 +1927,23 @@ function DashboardContent() {
   }
 
   // CATEGORY FUNCTIONS
-  async function addCategory(name){ 
+  async function addCategory(name, budget = 500){
     try {
-      const nm = name.trim(); 
+      const nm = name.trim();
       if(!nm) {
         notify('Category name cannot be empty', 'error');
         return;
       }
-      if(categories.some(c=>c.name===nm)) { 
-        notify('Category already exists', 'error'); 
-        return; 
+      if(categories.some(c=>c.name===nm)) {
+        notify('Category already exists', 'error');
+        return;
       }
       const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
       const newCategoryId = crypto.randomUUID();
       const payload = {
         name: nm,
         order: maxOrder + 1,
-        budget: 0
+        budget: Number(budget) || 500
       };
 
       const transaction = await logTransaction(
@@ -1956,6 +1957,10 @@ function DashboardContent() {
 
       if (transaction) {
         notify('Category added');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
+        setShowAddCategory(false);
       }
     } catch (error) {
       console.error('Error adding category:', error);
@@ -3943,57 +3948,34 @@ function DashboardContent() {
               }}>
                 Add New Category
               </h4>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const categoryName = formData.get('categoryName');
-                  if (categoryName?.trim()) {
-                    addCategory(categoryName.trim());
-                    e.target.reset();
-                  }
-                }}
-                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-              >
-                <input
-                  name="categoryName"
-                  type="text"
-                  placeholder="Category name (e.g., Food, Entertainment)"
-                  required={true}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                />
+              <div style={{ textAlign: 'center' }}>
                 <button
-                  type="submit"
+                  onClick={() => setShowAddCategory(true)}
                   style={{
-                    padding: '0.5rem 1rem',
+                    padding: '0.75rem 1.5rem',
                     background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '0.375rem',
+                    borderRadius: '0.5rem',
                     cursor: 'pointer',
                     fontSize: '0.875rem',
                     fontWeight: '600',
-                    boxShadow: '0 2px 4px rgba(139, 92, 246, 0.3)',
-                    transition: 'all 0.2s ease'
+                    width: '100%',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 8px rgba(139, 92, 246, 0.3)'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.transform = 'translateY(-1px)';
-                    e.target.style.boxShadow = '0 4px 8px rgba(139, 92, 246, 0.4)';
+                    e.target.style.boxShadow = '0 6px 12px rgba(139, 92, 246, 0.4)';
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 4px rgba(139, 92, 246, 0.3)';
+                    e.target.style.boxShadow = '0 4px 8px rgba(139, 92, 246, 0.3)';
                   }}
                 >
-                  + Add Category
+                  + Add New Category
                 </button>
-              </form>
+              </div>
             </div>
           </div>
         </div>
@@ -4457,6 +4439,47 @@ function DashboardContent() {
                   Add Account
                 </button>
                 <button type="button" onClick={() => setShowAddAccount(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Dialog */}
+      {showAddCategory && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add New Category</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const categoryName = formData.get('categoryName');
+              const budget = formData.get('budget');
+              if (categoryName?.trim()) {
+                addCategory(categoryName.trim(), budget);
+              }
+            }}>
+              <input
+                name="categoryName"
+                placeholder="Category name (e.g., Food, Entertainment)"
+                required
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <input
+                name="budget"
+                type="number"
+                placeholder="Monthly budget (e.g., 500)"
+                defaultValue="500"
+                required
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Add Category
+                </button>
+                <button type="button" onClick={() => setShowAddCategory(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
               </div>
             </form>
           </div>
