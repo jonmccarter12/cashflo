@@ -177,9 +177,14 @@ export default function IncomeSection({
                     </div>
 
                     {/* Expected Date and Status Row */}
-                    <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                      {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
-                      {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <div>
+                        Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
+                      </div>
+                      <div>
+                        {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}>⚠️ OVERDUE</span>}
+                        {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}>GUARANTEED</span>}
+                      </div>
                     </div>
 
                     {/* Notes Row */}
