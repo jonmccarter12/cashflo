@@ -1,6 +1,7 @@
 import React from 'react';
 import { fmt, yyyyMm, getNextOccurrence } from '../../lib/utils';
 import { notify } from '../Notify';
+// import RetroactiveBillHistory from '../RetroactiveBillHistory';
 
 export default function BillsSection({
   isMobile,
@@ -13,13 +14,32 @@ export default function BillsSection({
   togglePaid,
   toggleBillIgnored,
   deleteBill,
-  setShowAddBill,
   setEditingBill,
   editingBill,
   updateBill,
   addBill,
+  user,
+  supabase
 }) {
   const selectAllOnFocus = (e) => e.target.select();
+  const [showRetroactiveHistory, setShowRetroactiveHistory] = React.useState(false);
+  const [pendingBillData, setPendingBillData] = React.useState(null);
+  const [showAddBillDialog, setShowAddBillDialog] = React.useState(false);
+
+  const handleAddBillWithHistory = (formData) => {
+    const billData = {
+      name: formData.get('name'),
+      category: formData.get('category'),
+      amount: Number(formData.get('amount')),
+      frequency: formData.get('frequency'),
+      dueDay: Number(formData.get('dueDay')),
+      accountId: formData.get('accountId'),
+      notes: formData.get('notes') || ''
+    };
+
+    setPendingBillData(billData);
+    setShowRetroactiveHistory(true);
+  };
 
   return (
     <>
@@ -27,7 +47,7 @@ export default function BillsSection({
       {isMobile && (
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>All Bills</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Recurring Bills</h3>
             <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
           </div>
           
@@ -86,9 +106,9 @@ export default function BillsSection({
                 </div>
               );
             })}
-            <button 
-              onClick={() => setShowAddBill(true)}
-              style={{ width: '100%', padding: '0.5rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
+            <button
+              onClick={() => setShowAddBillDialog(true)}
+              style={{ width: '100%', padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
             >
               + Add Bill
             </button>
@@ -99,12 +119,12 @@ export default function BillsSection({
       {!isMobile && (
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>All Bills</h3>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Recurring Bills</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span style={{ fontSize: '1.125rem', fontWeight: '600', color: '#8b5cf6' }}>Total: {fmt(totalBillsForSelectedCategory)}</span>
-              <button 
-                onClick={() => setShowAddBill(true)}
-                style={{ padding: '0.5rem 1rem', background: '#1f2937', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+              <button
+                onClick={() => setShowAddBillDialog(true)}
+                style={{ padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
               >
                 + Add Bill
               </button>
@@ -191,7 +211,7 @@ export default function BillsSection({
       )}
 
       {/* Common Dialog for Add/Edit Bill */}
-      {(showAddBill || editingBill) && (
+      {(showAddBillDialog || editingBill) && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
             <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
@@ -206,7 +226,7 @@ export default function BillsSection({
                 addBill(formData);
               }
               setEditingBill(null);
-              setShowAddBill(false);
+              setShowAddBillDialog(false);
             }}>
               <input name="name" placeholder="Bill name (e.g., Electric Bill)" defaultValue={editingBill?.name || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="category" defaultValue={editingBill?.category || activeCats[0]} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
@@ -232,14 +252,17 @@ export default function BillsSection({
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill?.notes || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem' }}>{editingBill ? 'Update Bill' : 'Add Bill'}</button>
-                <button type="button" onClick={() => { setEditingBill(null); setShowAddBill(false); }} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  {editingBill ? 'Update Bill' : 'Add Bill'}
+                </button>
+                <button type="button" onClick={() => { setEditingBill(null); setShowAddBillDialog(false); }} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </>
   );
 }
