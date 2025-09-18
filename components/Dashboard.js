@@ -2319,80 +2319,35 @@ function DashboardContent() {
       <div style={{
         marginBottom: '2rem',
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        padding: '1.5rem',
+        padding: isMobile ? '1rem' : '1.5rem',
         borderRadius: '1rem',
         boxShadow: '0 20px 40px rgba(139, 92, 246, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         border: '1px solid rgba(139, 92, 246, 0.3)'
       }}>
-        <div style={{
-          display: isMobile ? 'block' : 'flex',
-          alignItems: isMobile ? 'center' : 'center',
-          marginBottom: '1rem',
-          position: isMobile ? 'static' : 'relative',
-          minHeight: isMobile ? 'auto' : '80px',
-          paddingTop: '0.5rem',
-          paddingBottom: '0.5rem',
-          textAlign: isMobile ? 'center' : 'initial'
-        }}>
-          {/* Login/Logout Button - Left on desktop, below logo on mobile */}
-          <div style={{
-            position: isMobile ? 'static' : 'absolute',
-            left: isMobile ? 'auto' : 0,
-            order: isMobile ? 2 : 0,
-            marginTop: isMobile ? '1rem' : 0
-          }}>
-            {user ? (
-              <button
-                onClick={() => supabase.auth.signOut()}
+        {isMobile ? (
+          /* Mobile Layout - Logo first, then buttons below */
+          <div style={{ textAlign: 'center' }}>
+            {/* Logo */}
+            <div style={{ marginBottom: '0.75rem' }}>
+              <img
+                src="/logo.png"
+                alt="Cashfl0.io Logo"
                 style={{
-                  padding: '0.5rem 1rem',
-                  background: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
+                  height: '120px',
+                  width: 'auto',
+                  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                 }}
-              >
-                Logout
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {/* Google OAuth Button */}
-                <button
-                  onClick={() => supabase?.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                      redirectTo: window.location.origin,
-                      queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                        hd: 'cashfl0.io'
-                      }
-                    }
-                  })}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#4285f4',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}
-                >
-                  🚀 Google
-                </button>
+              />
+            </div>
 
-                {/* Email Login Button */}
+            {/* Login/Logout Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+              {user ? (
                 <button
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => supabase.auth.signOut()}
                   style={{
                     padding: '0.5rem 1rem',
-                    background: '#8b5cf6',
+                    background: '#dc2626',
                     color: 'white',
                     border: 'none',
                     borderRadius: '0.375rem',
@@ -2400,38 +2355,161 @@ function DashboardContent() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  Login
+                  Logout
                 </button>
-              </div>
-            )}
-          </div>
+              ) : (
+                <>
+                  {/* Google OAuth Button */}
+                  <button
+                    onClick={() => supabase?.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: {
+                        redirectTo: window.location.origin,
+                        queryParams: {
+                          access_type: 'offline',
+                          prompt: 'consent',
+                          hd: 'cashfl0.io'
+                        }
+                      }
+                    })}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#4285f4',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    🚀 Google
+                  </button>
 
-          {/* Centered App Title */}
-          <div style={{
-            position: isMobile ? 'static' : 'absolute',
-            left: isMobile ? 'auto' : '50%',
-            transform: isMobile ? 'none' : 'translateX(-50%)',
-            textAlign: 'center',
-            order: isMobile ? 1 : 0
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img
-                src="/logo.png"
-                alt="Cashfl0.io Logo"
-                style={{
-                  height: isMobile ? '140px' : '200px',
-                  width: 'auto',
-                  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
-                }}
-              />
+                  {/* Email Login Button */}
+                  <button
+                    onClick={() => setShowAuth(true)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#8b5cf6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Login
+                  </button>
+                </>
+              )}
             </div>
           </div>
+        ) : (
+          /* Desktop Layout - Flexbox with positioned elements */
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            position: 'relative',
+            minHeight: '80px',
+            paddingTop: '0.5rem',
+            paddingBottom: '0.5rem'
+          }}>
+            {/* Login/Logout Button - Left on desktop */}
+            <div style={{ position: 'absolute', left: 0 }}>
+              {user ? (
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Logout
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {/* Google OAuth Button */}
+                  <button
+                    onClick={() => supabase?.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: {
+                        redirectTo: window.location.origin,
+                        queryParams: {
+                          access_type: 'offline',
+                          prompt: 'consent',
+                          hd: 'cashfl0.io'
+                        }
+                      }
+                    })}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#4285f4',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    🚀 Google
+                  </button>
 
-        </div>
+                  {/* Email Login Button */}
+                  <button
+                    onClick={() => setShowAuth(true)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#8b5cf6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Login
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Centered App Title */}
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <img
+                  src="/logo.png"
+                  alt="Cashfl0.io Logo"
+                  style={{
+                    height: '200px',
+                    width: 'auto',
+                    filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats Row */}
         <div style={{
@@ -2491,117 +2569,53 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Category Filter - Show on both dashboard and transaction history */}
-      {(currentView === 'dashboard' || currentView === 'history') && (
+      {/* Navigation Tabs */}
+      <div style={{
+        marginBottom: '1.5rem',
+        background: 'white',
+        borderRadius: '1rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden'
+      }}>
         <div style={{
-          marginBottom: '2rem',
-          background: 'white',
-          padding: '0.5rem',
-          borderRadius: '1rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          display: 'flex',
+          background: '#f9fafb'
         }}>
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            overflowX: 'auto',
-            padding: '0.25rem 0',
-            alignItems: 'center',
-            justifyContent: 'flex-start'
-          }}>
-            <button
-              onClick={() => setSelectedCat('All')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: selectedCat === 'All' ? '#8b5cf6' : '#f3f4f6',
-                color: selectedCat === 'All' ? 'white' : '#6b7280',
-                border: '2px solid',
-                borderColor: selectedCat === 'All' ? '#8b5cf6' : '#e5e7eb',
-                borderRadius: '0.75rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              All
-            </button>
-            {activeCats.map(cat => {
-              const categoryData = categories.find(c => c.name === cat);
-              const spending = categorySpending[cat] || 0;
-              const budget = categoryData?.budget || 0;
-
-              // Determine budget status color
-              let budgetColor = '#e5e7eb'; // Default gray
-              if (budget > 0) {
-                const percentage = (spending / budget) * 100;
-                if (percentage >= 100) {
-                  budgetColor = '#ef4444'; // Red for over budget
-                } else if (percentage >= 80) {
-                  budgetColor = '#f59e0b'; // Orange for near budget
-                } else if (percentage >= 50) {
-                  budgetColor = '#10b981'; // Green for good
-                }
-              }
-
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCat(cat)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: selectedCat === cat ? '#8b5cf6' : '#f3f4f6',
-                    color: selectedCat === cat ? 'white' : '#6b7280',
-                    border: '2px solid',
-                    borderColor: selectedCat === cat ? '#8b5cf6' : budgetColor,
-                    borderRadius: '0.75rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  {budget > 0 && (
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: budgetColor,
-                      flexShrink: 0
-                    }} />
-                  )}
-                  {cat}
-                </button>
-              );
-            })}
-
-            {/* Show Ignored Button */}
-            <button
-              onClick={() => setShowIgnored(!showIgnored)}
-              style={{
-                padding: '0.5rem 0.75rem',
-                background: showIgnored ? '#f59e0b' : '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.75rem',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              {showIgnored ? '👁️ Hide Ignored' : '👁️‍🗨️ Show Ignored'}
-            </button>
-          </div>
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'dashboard' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'dashboard' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📊 Dashboard
+          </button>
+          <button
+            onClick={() => setCurrentView('history')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'history' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'history' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📋 Transaction History
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Summary Charts Section */}
       {(currentView === 'dashboard' || currentView === 'history') && (
@@ -2707,7 +2721,7 @@ function DashboardContent() {
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
                         const billsByCategory = {};
-                        bills.filter(b => selectedCats.includes(b.category) && !b.ignored).forEach(bill => {
+                        bills.filter(b => !b.ignored).forEach(bill => {
                           billsByCategory[bill.category] = (billsByCategory[bill.category] || 0) + bill.amount;
                         });
 
@@ -2753,7 +2767,7 @@ function DashboardContent() {
                   <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
                     {(() => {
                       const billsByCategory = {};
-                      bills.filter(b => selectedCats.includes(b.category) && !b.ignored).forEach(bill => {
+                      bills.filter(b => !b.ignored).forEach(bill => {
                         billsByCategory[bill.category] = (billsByCategory[bill.category] || 0) + bill.amount;
                       });
                       return Object.entries(billsByCategory).map(([category, amount], index) => (
@@ -2961,54 +2975,117 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div style={{
-        marginBottom: '1.5rem',
-        background: 'white',
-        borderRadius: '1rem',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden'
-      }}>
+      {/* Category Filter - Show on both dashboard and transaction history */}
+      {(currentView === 'dashboard' || currentView === 'history') && (
         <div style={{
-          display: 'flex',
-          background: '#f9fafb'
+          marginBottom: '2rem',
+          background: 'white',
+          padding: '0.5rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
         }}>
-          <button
-            onClick={() => setCurrentView('dashboard')}
-            style={{
-              flex: 1,
-              padding: '1rem 1.5rem',
-              background: currentView === 'dashboard' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'dashboard' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            onClick={() => setCurrentView('history')}
-            style={{
-              flex: 1,
-              padding: '1rem 1.5rem',
-              background: currentView === 'history' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'history' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            📋 Transaction History
-          </button>
-        </div>
-      </div>
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            overflowX: 'auto',
+            padding: '0.25rem 0',
+            alignItems: 'center',
+            justifyContent: 'flex-start'
+          }}>
+            <button
+              onClick={() => setSelectedCat('All')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: selectedCat === 'All' ? '#8b5cf6' : '#f3f4f6',
+                color: selectedCat === 'All' ? 'white' : '#6b7280',
+                border: '2px solid',
+                borderColor: selectedCat === 'All' ? '#8b5cf6' : '#e5e7eb',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              All
+            </button>
+            {activeCats.map(cat => {
+              const categoryData = categories.find(c => c.name === cat);
+              const spending = categorySpending[cat] || 0;
+              const budget = categoryData?.budget || 0;
 
+              // Determine budget status color
+              let budgetColor = '#e5e7eb'; // Default gray
+              if (budget > 0) {
+                const percentage = (spending / budget) * 100;
+                if (percentage >= 100) {
+                  budgetColor = '#ef4444'; // Red for over budget
+                } else if (percentage >= 80) {
+                  budgetColor = '#f59e0b'; // Orange for near budget
+                } else if (percentage >= 50) {
+                  budgetColor = '#10b981'; // Green for good
+                }
+              }
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCat(cat)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: selectedCat === cat ? '#8b5cf6' : '#f3f4f6',
+                    color: selectedCat === cat ? 'white' : '#6b7280',
+                    border: '2px solid',
+                    borderColor: selectedCat === cat ? '#8b5cf6' : budgetColor,
+                    borderRadius: '0.75rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {budget > 0 && (
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: budgetColor,
+                      flexShrink: 0
+                    }} />
+                  )}
+                  {cat}
+                </button>
+              );
+            })}
+
+            {/* Show Ignored Button */}
+            <button
+              onClick={() => setShowIgnored(!showIgnored)}
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: showIgnored ? '#f59e0b' : '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {showIgnored ? '👁️ Hide Ignored' : '👁️‍🗨️ Show Ignored'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dashboard Content */}
       {currentView === 'dashboard' && (

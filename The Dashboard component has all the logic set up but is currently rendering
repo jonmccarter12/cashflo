@@ -1,0 +1,6 @@
+return (
+    <div>
+      <h1>Dashboard Placeholder</h1>
+      <p>Dashboard UI will be rendered here</p>
+    </div>
+);

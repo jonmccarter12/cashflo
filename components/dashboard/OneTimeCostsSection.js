@@ -27,6 +27,7 @@ export default function OneTimeCostsSection({
   setEditingOTC,
   toggleOneTimePaid, // This function is passed from Dashboard.js
   selectAllOnFocus,
+  deleteOneTimeCost, // This function is passed from Dashboard.js
 }) {
 
   async function addOneTimeCost() {
@@ -115,28 +116,6 @@ export default function OneTimeCostsSection({
     }
   }
 
-  async function deleteOneTimeCost(otcId) {
-    const otc = oneTimeCosts.find(o => o.id === otcId);
-    if (!otc) return;
-    if (confirm('Delete this one-time cost?')) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'one_time_cost_deleted',
-          otcId,
-          {},
-          `Deleted one-time cost "${otc.name}"`
-        );
-        if (transaction) {
-          notify('One-time cost deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting one-time cost:', error);
-        notify('Failed to delete one-time cost', 'error');
-      }
-    }
-  }
 
   return (
     <>
