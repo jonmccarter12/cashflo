@@ -168,19 +168,22 @@ export default function IncomeSection({
                   marginBottom: '0.375rem'
                 }}>
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.375rem' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>{credit.name}</div>
-                        <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
-                          {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
-                          {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
-                        </div>
-                        {credit.notes && <div style={{ fontSize: '0.625rem', color: '#6b7280', marginTop: '0.125rem', fontStyle: 'italic' }}>{credit.notes}</div>}
-                      </div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a', marginLeft: '0.5rem' }}>
+                    {/* Name and Amount Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{credit.name}</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
                         +{fmt(credit.amount)}
                       </div>
                     </div>
+
+                    {/* Expected Date and Status Row */}
+                    <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
+                      {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
+                    </div>
+
+                    {/* Notes Row */}
+                    {credit.notes && <div style={{ fontSize: '0.625rem', color: '#6b7280', fontStyle: 'italic' }}>{credit.notes}</div>}
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
