@@ -129,11 +129,11 @@ function DashboardContent() {
     ];
     initialCategories.forEach(cat => categories.set(cat.id, cat));
 
-    // Default accounts
+    // Default accounts with proper UUIDs
     const initialAccounts = [
-      { id: 'cash', name:'Cash on Hand', type:'Cash', balance:0 },
-      { id: 'boabiz', name:'BOA – Business', type:'Bank', balance:0 },
-      { id: 'pers', name:'Personal Checking', type:'Bank', balance:0 },
+      { id: '550e8400-e29b-41d4-a716-446655440001', name:'Cash on Hand', type:'Cash', balance:0 },
+      { id: '550e8400-e29b-41d4-a716-446655440002', name:'BOA – Business', type:'Bank', balance:0 },
+      { id: '550e8400-e29b-41d4-a716-446655440003', name:'Personal Checking', type:'Bank', balance:0 },
     ];
     initialAccounts.forEach(acc => accounts.set(acc.id, acc));
 
@@ -601,7 +601,7 @@ function DashboardContent() {
   const [otcCategory, setOtcCategory] = React.useState(activeCats[0] || 'Personal');
   const [otcAmount, setOtcAmount] = React.useState(0);
   const [otcDueDate, setOtcDueDate] = React.useState(new Date().toISOString().slice(0,10));
-  const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || 'cash');
+  const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || '550e8400-e29b-41d4-a716-446655440001');
   const [otcNotes, setOtcNotes] = React.useState("");
 
   // Enhanced sync status tracking
