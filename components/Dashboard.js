@@ -968,8 +968,8 @@ function DashboardContent() {
             valB = b.payload?.amount || 0;
             break;
           case 'description':
-            valA = a.payload?.name || a.description || '';
-            valB = b.payload?.name || b.description || '';
+            valA = a.description || '';
+            valB = b.description || '';
             break;
           case 'timestamp':
             valA = new Date(a.timestamp).getTime();
@@ -982,15 +982,15 @@ function DashboardContent() {
 
         // Compare values
         if (typeof valA === 'number' && typeof valB === 'number') {
-          return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
+          return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
         } else {
           const aStr = String(valA).toLowerCase();
           const bStr = String(valB).toLowerCase();
           if (aStr < bStr) {
-            return sortConfig.direction === 'ascending' ? -1 : 1;
+            return sortConfig.direction === 'asc' ? -1 : 1;
           }
           if (aStr > bStr) {
-            return sortConfig.direction === 'ascending' ? 1 : -1;
+            return sortConfig.direction === 'asc' ? 1 : -1;
           }
           return 0;
         }
@@ -1012,8 +1012,7 @@ function DashboardContent() {
       // Transaction type filter (only actual financial transactions - credits/debits)
       // Credits: money coming in
       const isCredit = tx.type === 'credit_received' ||
-                      tx.type === 'recurring_income_received' ||
-                      tx.type === 'account_balance_adjustment';
+                      tx.type === 'recurring_income_received';
 
       // Debits: money going out
       const isDebit = tx.type === 'bill_payment' ||
@@ -1031,9 +1030,9 @@ function DashboardContent() {
   }, [sortedTransactions, transactionFilter, selectedCat, selectedCats, transactionTypeFilter]);
 
   const requestSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
+    let direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
     }
     setSortConfig({ key, direction });
   };
@@ -3999,10 +3998,16 @@ function DashboardContent() {
                   .slice(0, 100)
                   .map((tx, index) => {
                     // Extract transaction data
-                    const transactionName = tx.payload?.name || tx.description || 'No name';
+                    const transactionName = tx.description || 'No description';
                     const category = tx.payload?.category || '';
                     const amount = tx.payload?.amount || 0;
-                    const isDebit = tx.type?.includes('payment') || tx.type?.includes('cost');
+
+                    // Proper credit/debit detection based on transaction types
+                    const isCredit = tx.type === 'credit_received' ||
+                                    tx.type === 'recurring_income_received';
+
+                    const isDebit = tx.type === 'bill_payment' ||
+                                   tx.type === 'one_time_cost_payment';
 
                     return (
                       <div
