@@ -82,14 +82,20 @@ export default function BillsSection({
                   </div>
                   
                   <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.625rem' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={isPaid} 
-                        onChange={() => togglePaid(bill)} 
-                      />
+                    <button
+                      onClick={() => togglePaid(bill)}
+                      style={{
+                        padding: '0.125rem 0.25rem',
+                        background: isPaid ? '#10b981' : '#8b5cf6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.125rem',
+                        fontSize: '0.625rem',
+                        cursor: 'pointer'
+                      }}
+                    >
                       {isPaid ? '✅ Paid' : 'Mark Paid'}
-                    </label>
+                    </button>
                     <button
                       onClick={() => setEditingBill(bill)}
                       style={{ padding: '0.125rem 0.25rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
@@ -170,14 +176,20 @@ export default function BillsSection({
                     </div>
                     
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={isPaid} 
-                          onChange={() => togglePaid(bill)} 
-                        />
-                        {isPaid ? 'Paid' : 'Mark Paid'}
-                      </label>
+                      <button
+                        onClick={() => togglePaid(bill)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: isPaid ? '#10b981' : '#8b5cf6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        {isPaid ? '✅ Paid' : 'Mark Paid'}
+                      </button>
                       <button
                         onClick={() => setEditingBill(bill)}
                         style={{ padding: '0.25rem 0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}

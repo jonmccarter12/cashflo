@@ -1434,6 +1434,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`${otc.name} marked as ${!otc.paid ? 'paid' : 'unpaid'}`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling one-time cost paid status:', error);
