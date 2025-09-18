@@ -645,26 +645,30 @@ function DashboardContent() {
 
   // Sticky category filter scroll effect
   React.useEffect(() => {
+    let originalTop = null;
+
     const handleScroll = () => {
-      if (!categoryFilterRef.current || !billsSectionRef.current) return;
+      if (!categoryFilterRef.current) return;
 
-      const categoryFilterRect = categoryFilterRef.current.getBoundingClientRect();
-      const billsSectionRect = billsSectionRef.current.getBoundingClientRect();
-      const categoryFilterTop = categoryFilterRect.top + window.scrollY;
-      const billsSectionTop = billsSectionRect.top + window.scrollY;
+      // Store original position on first measurement
+      if (originalTop === null && !categoryFilterSticky) {
+        const rect = categoryFilterRef.current.getBoundingClientRect();
+        originalTop = rect.top + window.scrollY;
+      }
 
-      // Check if we've scrolled past the original position
-      const scrolledPastFilter = window.scrollY > categoryFilterTop - 100;
+      if (originalTop === null) return;
 
-      // Check if we're approaching the bills section (stop floating 100px before bills)
-      const approachingBills = window.scrollY > billsSectionTop - categoryFilterRect.height - 200;
+      // Make sticky when scrolled past original position
+      // Only fall back when scrolling up past the original position
+      const shouldBeSticky = window.scrollY > originalTop - 60;
 
-      setCategoryFilterSticky(scrolledPastFilter && !approachingBills);
+      setCategoryFilterSticky(shouldBeSticky);
     };
 
     window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Run once to set initial state
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [categoryFilterSticky]);
 
   // Calculate monthly recurring income total
   const monthlyRecurringIncomeTotal = React.useMemo(() => {
@@ -2369,14 +2373,14 @@ function DashboardContent() {
       }}>
         {isMobile ? (
           /* Mobile Layout - Logo first, then buttons below */
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
             {/* Logo */}
-            <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <img
                 src="/logo.png"
                 alt="Cashfl0.io Logo"
                 style={{
-                  height: '120px',
+                  height: '100px',
                   width: 'auto',
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                 }}
@@ -2384,7 +2388,7 @@ function DashboardContent() {
             </div>
 
             {/* Login/Logout Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
               {user ? (
                 <button
                   onClick={() => supabase.auth.signOut()}
@@ -3030,13 +3034,16 @@ function DashboardContent() {
             boxShadow: categoryFilterSticky ? '0 8px 16px rgba(0, 0, 0, 0.15)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             border: '1px solid #e5e7eb',
             position: categoryFilterSticky ? 'fixed' : 'static',
-            top: categoryFilterSticky ? '20px' : 'auto',
-            left: categoryFilterSticky ? '50%' : 'auto',
-            transform: categoryFilterSticky ? 'translateX(-50%)' : 'none',
-            width: categoryFilterSticky ? 'calc(100% - 4rem)' : 'auto',
-            maxWidth: categoryFilterSticky ? '1200px' : 'none',
+            top: categoryFilterSticky ? (isMobile ? '10px' : '15px') : 'auto',
+            left: categoryFilterSticky ? (isMobile ? '1rem' : '50%') : 'auto',
+            right: categoryFilterSticky && isMobile ? '1rem' : 'auto',
+            transform: categoryFilterSticky && !isMobile ? 'translateX(-50%)' : 'none',
+            width: categoryFilterSticky && !isMobile ? 'calc(100% - 4rem)' : 'auto',
+            maxWidth: categoryFilterSticky ? (isMobile ? 'none' : '1200px') : 'none',
             zIndex: categoryFilterSticky ? 1000 : 'auto',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            backdropFilter: categoryFilterSticky ? 'blur(8px)' : 'none',
+            background: categoryFilterSticky ? 'rgba(255, 255, 255, 0.95)' : 'white'
           }}>
           <div style={{
             display: 'flex',
