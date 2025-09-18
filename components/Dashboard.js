@@ -2366,21 +2366,21 @@ function DashboardContent() {
       <div style={{
         marginBottom: '2rem',
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        padding: isMobile ? '1rem' : '1.5rem',
+        padding: isMobile ? '0.5rem' : '1.5rem',
         borderRadius: '1rem',
         boxShadow: '0 20px 40px rgba(139, 92, 246, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         border: '1px solid rgba(139, 92, 246, 0.3)'
       }}>
         {isMobile ? (
           /* Mobile Layout - Logo first, then buttons below */
-          <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
+          <div style={{ textAlign: 'center' }}>
             {/* Logo */}
-            <div style={{ marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.25rem' }}>
               <img
                 src="/logo.png"
                 alt="Cashfl0.io Logo"
                 style={{
-                  height: '100px',
+                  height: '180px',
                   width: 'auto',
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                 }}
@@ -2388,7 +2388,7 @@ function DashboardContent() {
             </div>
 
             {/* Login/Logout Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
               {user ? (
                 <button
                   onClick={() => supabase.auth.signOut()}
