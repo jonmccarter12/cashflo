@@ -2409,7 +2409,7 @@ function DashboardContent() {
             </div>
 
             {/* Login/Logout Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', paddingBottom: '1rem' }}>
               {user ? (
                 <button
                   onClick={() => supabase.auth.signOut()}
