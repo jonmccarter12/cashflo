@@ -362,19 +362,19 @@ export default function IncomeSection({
                     borderRadius: '0.5rem',
                     border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                      <div>
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                         <div style={{ fontWeight: '500', fontSize: '1rem' }}>💳 {credit.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {new Date(credit.expectedDate).toLocaleDateString()}
-                          {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
-                          {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                          +{fmt(credit.amount)}
                         </div>
-                        {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{credit.notes}</div>}
                       </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
-                        +{fmt(credit.amount)}
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        {new Date(credit.expectedDate).toLocaleDateString()}
+                        {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                        {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
                       </div>
+                      {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{credit.notes}</div>}
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
