@@ -587,7 +587,6 @@ function DashboardContent() {
 
   // Dialog states
   const [showAddAccount, setShowAddAccount] = React.useState(false);
-  const [showAddBill, setShowAddBill] = React.useState(false);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
   const [showSnapshots, setShowSnapshots] = React.useState(false); // This will be replaced with transaction history UI
