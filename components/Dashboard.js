@@ -659,7 +659,7 @@ function DashboardContent() {
       if (originalTop === null) return;
 
       // Different offset for mobile vs desktop
-      const offset = isMobile ? 40 : 60;
+      const offset = isMobile ? 20 : 60;
 
       // Simple logic: sticky when scrolled past trigger point, not sticky when before it
       const triggerPoint = originalTop - offset;
