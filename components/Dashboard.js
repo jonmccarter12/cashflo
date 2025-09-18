@@ -1410,6 +1410,9 @@ function DashboardContent() {
       if (transaction) {
         setEditingOTC(null);
         notify('One-time cost updated successfully!');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error updating one-time cost:', error);
@@ -1632,6 +1635,9 @@ function DashboardContent() {
       if (transaction) {
         setEditingBill(null);
         notify(`Bill updated! Changes: ${significantChanges.join(', ')}`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error updating bill:', error);
@@ -2193,7 +2199,8 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        // Category budget updates are handled reactively by the transaction system
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error updating category budget:', error);
@@ -2219,6 +2226,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Moved ${categoryName} up`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error moving category up:', error);
@@ -2244,6 +2254,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Moved ${categoryName} down`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error moving category down:', error);
