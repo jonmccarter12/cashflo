@@ -600,6 +600,8 @@ function DashboardContent() {
   const [showSnapshots, setShowSnapshots] = React.useState(false); // This will be replaced with transaction history UI
   const [editingBill, setEditingBill] = React.useState(null);
   const [editingOTC, setEditingOTC] = React.useState(null);
+  const [editingTransaction, setEditingTransaction] = React.useState(null);
+  const [showTransactionEdit, setShowTransactionEdit] = React.useState(false);
 
   // One-time cost form state - these states are kept in DashboardContent
   // because they are used for calculations (e.g., upcoming.items, timeline)
@@ -2205,6 +2207,56 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error renaming category:', error);
       notify('Failed to rename category', 'error');
+    }
+  }
+
+  // Transaction management functions
+  async function deleteTransaction(transactionId) {
+    if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transaction_log')
+        .delete()
+        .eq('id', transactionId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      notify('Transaction deleted successfully', 'success');
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      notify('Failed to delete transaction', 'error');
+    }
+  }
+
+  async function editTransaction(transactionId, newDescription) {
+    if (!newDescription || !newDescription.trim()) {
+      notify('Description cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transaction_log')
+        .update({ description: newDescription.trim() })
+        .eq('id', transactionId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      notify('Transaction updated successfully', 'success');
+      setEditingTransaction(null);
+      setShowTransactionEdit(false);
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      notify('Failed to update transaction', 'error');
     }
   }
 
@@ -3816,7 +3868,7 @@ function DashboardContent() {
             </div>
           </div>
 
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
               No transactions found. Start using the app to see your transaction history!
             </div>
@@ -3827,7 +3879,7 @@ function DashboardContent() {
                 padding: '0.75rem 1rem',
                 borderBottom: '1px solid #e5e7eb',
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px',
+                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px 120px',
                 gap: '1rem',
                 fontSize: '0.875rem',
                 fontWeight: '600',
@@ -3837,15 +3889,11 @@ function DashboardContent() {
                 {!isMobile && <div>Date</div>}
                 {!isMobile && <div>Amount</div>}
                 <div>Type</div>
+                {!isMobile && <div>Actions</div>}
               </div>
 
               <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {transactions
-                  .filter(tx =>
-                    !transactionFilter ||
-                    tx.description?.toLowerCase().includes(transactionFilter.toLowerCase()) ||
-                    tx.action_type?.toLowerCase().includes(transactionFilter.toLowerCase())
-                  )
+                {filteredTransactions
                   .slice(0, 100)
                   .map((tx, index) => (
                     <div
@@ -3854,7 +3902,7 @@ function DashboardContent() {
                         padding: '0.75rem 1rem',
                         borderBottom: index < 99 ? '1px solid #f3f4f6' : 'none',
                         display: 'grid',
-                        gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px',
+                        gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px 120px',
                         gap: '1rem',
                         fontSize: '0.875rem',
                         alignItems: 'center'
@@ -3865,6 +3913,39 @@ function DashboardContent() {
                         {isMobile && (
                           <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
                             {new Date(tx.timestamp).toLocaleDateString()} • {tx.details?.amount ? fmt(tx.details.amount) : 'N/A'}
+                            <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
+                              <button
+                                onClick={() => {
+                                  setEditingTransaction(tx);
+                                  setShowTransactionEdit(true);
+                                }}
+                                style={{
+                                  padding: '0.125rem 0.25rem',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.625rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteTransaction(tx.id)}
+                                style={{
+                                  padding: '0.125rem 0.25rem',
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.625rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -3890,6 +3971,41 @@ function DashboardContent() {
                           {tx.action_type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
                         </span>
                       </div>
+                      {!isMobile && (
+                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                          <button
+                            onClick={() => {
+                              setEditingTransaction(tx);
+                              setShowTransactionEdit(true);
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => deleteTransaction(tx.id)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -4219,6 +4335,111 @@ function DashboardContent() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Transaction Dialog */}
+      {showTransactionEdit && editingTransaction && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit Transaction</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              editTransaction(editingTransaction.id, formData.get('description'));
+            }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                  Transaction Type:
+                </label>
+                <div style={{
+                  padding: '0.5rem',
+                  background: '#f3f4f6',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  color: '#6b7280'
+                }}>
+                  {editingTransaction.type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                  Date:
+                </label>
+                <div style={{
+                  padding: '0.5rem',
+                  background: '#f3f4f6',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  color: '#6b7280'
+                }}>
+                  {new Date(editingTransaction.timestamp).toLocaleString()}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                  Description:
+                </label>
+                <textarea
+                  name="description"
+                  defaultValue={editingTransaction.description || ''}
+                  placeholder="Enter transaction description..."
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    resize: 'vertical',
+                    minHeight: '80px',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingTransaction(null);
+                    setShowTransactionEdit(false);
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
