@@ -473,7 +473,7 @@ function DashboardContent() {
             const currentCategory = categories.get(tx.item_id);
             categories.set(tx.item_id, {
                 ...currentCategory,
-                budget: tx.payload.new_budget,
+                budget: tx.payload.budget,
                 updatedAt: tx.timestamp
             });
           }
@@ -2194,11 +2194,17 @@ function DashboardContent() {
 
       const budgetValue = Number(newBudget) || 0;
 
+      const category = categories.find(c => c.name === categoryName);
+      if (!category) {
+        notify('Category not found', 'error');
+        return;
+      }
+
       const transaction = await logTransaction(
         supabase,
         user.id,
         'category_budget_updated',
-        crypto.randomUUID(),
+        category.id,
         { category: categoryName, budget: budgetValue },
         `Updated budget for ${categoryName} to ${fmt(budgetValue)}`
       );
