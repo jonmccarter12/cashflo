@@ -3823,8 +3823,16 @@ function DashboardContent() {
                       {editingCategoryId === categoryData?.id ? (
                         <>
                           <input
+                            ref={(input) => {
+                              if (input) {
+                                input.budgetValue = budget;
+                              }
+                            }}
                             type="number"
                             defaultValue={budget}
+                            onChange={(e) => {
+                              e.target.budgetValue = Number(e.target.value);
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 updateCategoryBudget(cat, Number(e.target.value));
@@ -3842,6 +3850,24 @@ function DashboardContent() {
                             }}
                             autoFocus={true}
                           />
+                          <button
+                            onClick={(e) => {
+                              const input = e.target.parentElement.querySelector('input');
+                              updateCategoryBudget(cat, Number(input.value));
+                              setEditingCategoryId(null);
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✓
+                          </button>
                           <button
                             onClick={() => setEditingCategoryId(null)}
                             style={{
