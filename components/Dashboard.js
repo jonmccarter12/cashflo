@@ -532,7 +532,15 @@ function DashboardContent() {
   // Sync initial dummy data to transactions if no transactions exist and old local storage has data
   // This is a one-time migration for existing users.
   React.useEffect(() => {
-    if (!user?.id || !supabase || transactions.length > 0) return; // Only run if logged in, no transactions yet
+    if (!user?.id || !supabase) return;
+
+    // Check if migration has already been attempted for this user
+    const migrationKey = `migration_attempted_${user.id}`;
+    const migrationAttempted = localStorage.getItem(migrationKey);
+
+    if (migrationAttempted) {
+      return; // Skip migration if already attempted
+    }
 
     const migrateOldData = async () => {
       let initialTransactions = [];
@@ -544,6 +552,9 @@ function DashboardContent() {
       const oldCreditsData = loadData('bills_balance_dashboard_v3.1:credits', null);
       const oldIncomeData = loadData('bills_balance_dashboard_v3.1:income', null);
       const oldOtcData = loadData('bills_balance_dashboard_v3.1:otc', null);
+
+      // Mark migration as attempted regardless of whether there's data to migrate
+      localStorage.setItem(migrationKey, 'true');
 
       if (oldAccountData.data && oldAccountData.data.length > 0) {
         oldAccountData.data.forEach(acc => {
@@ -575,7 +586,7 @@ function DashboardContent() {
       }
     };
     migrateOldData();
-  }, [user?.id, supabase, transactions.length]); // `transactions.length` ensures it only runs if transactions are empty
+  }, [user?.id, supabase]); // Removed transactions.length dependency to prevent repeated attempts
 
   // Settings/UI with cloud sync - still use useCloudState for UI settings
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
@@ -602,6 +613,9 @@ function DashboardContent() {
   const [editingOTC, setEditingOTC] = React.useState(null);
   const [editingTransaction, setEditingTransaction] = React.useState(null);
   const [showTransactionEdit, setShowTransactionEdit] = React.useState(false);
+  const [categoryFilterSticky, setCategoryFilterSticky] = React.useState(false);
+  const categoryFilterRef = React.useRef(null);
+  const billsSectionRef = React.useRef(null);
 
   // One-time cost form state - these states are kept in DashboardContent
   // because they are used for calculations (e.g., upcoming.items, timeline)
@@ -628,6 +642,29 @@ function DashboardContent() {
   React.useEffect(() => {
     if(accounts.length && !accounts.find(a => a.id === otcAccountId)) setOtcAccountId(accounts[0].id);
   }, [accounts, otcAccountId]);
+
+  // Sticky category filter scroll effect
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (!categoryFilterRef.current || !billsSectionRef.current) return;
+
+      const categoryFilterRect = categoryFilterRef.current.getBoundingClientRect();
+      const billsSectionRect = billsSectionRef.current.getBoundingClientRect();
+      const categoryFilterTop = categoryFilterRect.top + window.scrollY;
+      const billsSectionTop = billsSectionRect.top + window.scrollY;
+
+      // Check if we've scrolled past the original position
+      const scrolledPastFilter = window.scrollY > categoryFilterTop - 100;
+
+      // Check if we're approaching the bills section (stop floating 100px before bills)
+      const approachingBills = window.scrollY > billsSectionTop - categoryFilterRect.height - 200;
+
+      setCategoryFilterSticky(scrolledPastFilter && !approachingBills);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Calculate monthly recurring income total
   const monthlyRecurringIncomeTotal = React.useMemo(() => {
@@ -1226,6 +1263,9 @@ function DashboardContent() {
     if (!credit) return;
     if (confirm('Delete this upcoming credit?')) {
       try {
+        // Optimistic update: Remove from UI immediately
+        setUpcomingCredits(prev => prev.filter(c => c.id !== creditId));
+
         const transaction = await logTransaction(
           supabase,
           user.id,
@@ -1240,6 +1280,9 @@ function DashboardContent() {
       } catch (error) {
         console.error('Error deleting credit:', error);
         notify('Failed to delete credit', 'error');
+
+        // Revert optimistic update on error
+        setUpcomingCredits(prev => [...prev, credit]);
       }
     }
   }
@@ -2977,14 +3020,24 @@ function DashboardContent() {
 
       {/* Category Filter - Show on both dashboard and transaction history */}
       {(currentView === 'dashboard' || currentView === 'history') && (
-        <div style={{
-          marginBottom: '2rem',
-          background: 'white',
-          padding: '0.5rem',
-          borderRadius: '1rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
-        }}>
+        <div
+          ref={categoryFilterRef}
+          style={{
+            marginBottom: '2rem',
+            background: 'white',
+            padding: '0.5rem',
+            borderRadius: '1rem',
+            boxShadow: categoryFilterSticky ? '0 8px 16px rgba(0, 0, 0, 0.15)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e5e7eb',
+            position: categoryFilterSticky ? 'fixed' : 'static',
+            top: categoryFilterSticky ? '20px' : 'auto',
+            left: categoryFilterSticky ? '50%' : 'auto',
+            transform: categoryFilterSticky ? 'translateX(-50%)' : 'none',
+            width: categoryFilterSticky ? 'calc(100% - 4rem)' : 'auto',
+            maxWidth: categoryFilterSticky ? '1200px' : 'none',
+            zIndex: categoryFilterSticky ? 1000 : 'auto',
+            transition: 'all 0.3s ease'
+          }}>
           <div style={{
             display: 'flex',
             gap: '0.5rem',
@@ -3085,6 +3138,11 @@ function DashboardContent() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Placeholder div to maintain layout when category filter is sticky */}
+      {categoryFilterSticky && (currentView === 'dashboard' || currentView === 'history') && (
+        <div style={{ height: '76px', marginBottom: '2rem' }} />
       )}
 
       {/* Dashboard Content */}
@@ -3327,7 +3385,7 @@ function DashboardContent() {
 
 
       {/* Third Row: Bills & One-Time Costs Section with Toggle */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div ref={billsSectionRef} style={{ marginBottom: '1.5rem' }}>
         <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           {/* Toggle Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
