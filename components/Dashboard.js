@@ -955,15 +955,45 @@ function DashboardContent() {
     let sortableItems = [...transactions];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        const valA = a[sortConfig.key] || '';
-        const valB = b[sortConfig.key] || '';
-        if (valA < valB) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
+        let valA, valB;
+
+        // Handle different sort keys
+        switch (sortConfig.key) {
+          case 'category':
+            valA = a.payload?.category || '';
+            valB = b.payload?.category || '';
+            break;
+          case 'amount':
+            valA = a.payload?.amount || 0;
+            valB = b.payload?.amount || 0;
+            break;
+          case 'description':
+            valA = a.payload?.name || a.description || '';
+            valB = b.payload?.name || b.description || '';
+            break;
+          case 'timestamp':
+            valA = new Date(a.timestamp).getTime();
+            valB = new Date(b.timestamp).getTime();
+            break;
+          default:
+            valA = a[sortConfig.key] || '';
+            valB = b[sortConfig.key] || '';
         }
-        if (valA > valB) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
+
+        // Compare values
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
+        } else {
+          const aStr = String(valA).toLowerCase();
+          const bStr = String(valB).toLowerCase();
+          if (aStr < bStr) {
+            return sortConfig.direction === 'ascending' ? -1 : 1;
+          }
+          if (aStr > bStr) {
+            return sortConfig.direction === 'ascending' ? 1 : -1;
+          }
+          return 0;
         }
-        return 0;
       });
     }
     return sortableItems;
@@ -3879,15 +3909,87 @@ function DashboardContent() {
                 padding: '0.75rem 1rem',
                 borderBottom: '1px solid #e5e7eb',
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px 120px',
+                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 1fr 120px 120px 100px 120px',
                 gap: '1rem',
                 fontSize: '0.875rem',
                 fontWeight: '600',
                 color: '#374151'
               }}>
-                <div>Description</div>
-                {!isMobile && <div>Date</div>}
-                {!isMobile && <div>Amount</div>}
+                <button
+                  onClick={() => requestSort('description')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    color: '#374151',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
+                  Name {sortConfig.key === 'description' && (sortConfig.direction === 'desc' ? '↓' : '↑')}
+                </button>
+                {!isMobile && (
+                  <button
+                    onClick={() => requestSort('category')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    Category {sortConfig.key === 'category' && (sortConfig.direction === 'desc' ? '↓' : '↑')}
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    onClick={() => requestSort('timestamp')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    Date {sortConfig.key === 'timestamp' && (sortConfig.direction === 'desc' ? '↓' : '↑')}
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    onClick={() => requestSort('amount')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      textAlign: 'right',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    Amount {sortConfig.key === 'amount' && (sortConfig.direction === 'desc' ? '↓' : '↑')}
+                  </button>
+                )}
                 <div>Type</div>
                 {!isMobile && <div>Actions</div>}
               </div>
@@ -3895,119 +3997,147 @@ function DashboardContent() {
               <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 {filteredTransactions
                   .slice(0, 100)
-                  .map((tx, index) => (
-                    <div
-                      key={tx.id || index}
-                      style={{
-                        padding: '0.75rem 1rem',
-                        borderBottom: index < 99 ? '1px solid #f3f4f6' : 'none',
-                        display: 'grid',
-                        gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px 120px',
-                        gap: '1rem',
-                        fontSize: '0.875rem',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: '500' }}>{tx.description || 'No description'}</div>
-                        {isMobile && (
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                            {new Date(tx.timestamp).toLocaleDateString()} • {tx.details?.amount ? fmt(tx.details.amount) : 'N/A'}
-                            <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
-                              <button
-                                onClick={() => {
-                                  setEditingTransaction(tx);
-                                  setShowTransactionEdit(true);
-                                }}
-                                style={{
-                                  padding: '0.125rem 0.25rem',
-                                  background: '#3b82f6',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '0.25rem',
-                                  fontSize: '0.625rem',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => deleteTransaction(tx.id)}
-                                style={{
-                                  padding: '0.125rem 0.25rem',
-                                  background: '#ef4444',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '0.25rem',
-                                  fontSize: '0.625rem',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Delete
-                              </button>
+                  .map((tx, index) => {
+                    // Extract transaction data
+                    const transactionName = tx.payload?.name || tx.description || 'No name';
+                    const category = tx.payload?.category || '';
+                    const amount = tx.payload?.amount || 0;
+                    const isDebit = tx.type?.includes('payment') || tx.type?.includes('cost');
+
+                    return (
+                      <div
+                        key={tx.id || index}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          borderBottom: index < 99 ? '1px solid #f3f4f6' : 'none',
+                          display: 'grid',
+                          gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 1fr 120px 120px 100px 120px',
+                          gap: '1rem',
+                          fontSize: '0.875rem',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {/* Name Column */}
+                        <div>
+                          <div style={{ fontWeight: '500' }}>{transactionName}</div>
+                          {isMobile && (
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                              {new Date(tx.timestamp).toLocaleDateString()} • {category} • {amount ? (isDebit ? '-' : '+') + fmt(amount) : 'N/A'}
+                              <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
+                                <button
+                                  onClick={() => {
+                                    setEditingTransaction(tx);
+                                    setShowTransactionEdit(true);
+                                  }}
+                                  style={{
+                                    padding: '0.125rem 0.25rem',
+                                    background: '#3b82f6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '0.25rem',
+                                    fontSize: '0.625rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteTransaction(tx.id)}
+                                  style={{
+                                    padding: '0.125rem 0.25rem',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '0.25rem',
+                                    fontSize: '0.625rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </div>
+                          )}
+                        </div>
+
+                        {/* Category Column */}
+                        {!isMobile && (
+                          <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                            {category}
+                          </div>
+                        )}
+
+                        {/* Date Column */}
+                        {!isMobile && (
+                          <div style={{ color: '#6b7280' }}>
+                            {new Date(tx.timestamp).toLocaleDateString()}
+                          </div>
+                        )}
+
+                        {/* Amount Column */}
+                        {!isMobile && (
+                          <div style={{
+                            fontWeight: '600',
+                            color: isDebit ? '#dc2626' : '#059669',
+                            textAlign: 'right'
+                          }}>
+                            {amount ? (isDebit ? '-' : '+') + fmt(amount) : 'N/A'}
+                          </div>
+                        )}
+
+                        {/* Type Column */}
+                        <div>
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.625rem',
+                            fontWeight: '600',
+                            background: isDebit ? '#fef3c7' : '#dbeafe',
+                            color: isDebit ? '#92400e' : '#1e40af'
+                          }}>
+                            {tx.type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
+                          </span>
+                        </div>
+
+                        {/* Actions Column */}
+                        {!isMobile && (
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            <button
+                              onClick={() => {
+                                setEditingTransaction(tx);
+                                setShowTransactionEdit(true);
+                              }}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                background: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.625rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => deleteTransaction(tx.id)}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.625rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🗑️ Delete
+                            </button>
                           </div>
                         )}
                       </div>
-                      {!isMobile && (
-                        <div style={{ color: '#6b7280' }}>
-                          {new Date(tx.timestamp).toLocaleDateString()}
-                        </div>
-                      )}
-                      {!isMobile && (
-                        <div style={{ fontWeight: '600' }}>
-                          {tx.details?.amount ? fmt(tx.details.amount) : 'N/A'}
-                        </div>
-                      )}
-                      <div>
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.625rem',
-                          fontWeight: '600',
-                          background: tx.action_type?.includes('payment') ? '#fef3c7' : '#dbeafe',
-                          color: tx.action_type?.includes('payment') ? '#92400e' : '#1e40af'
-                        }}>
-                          {tx.action_type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
-                        </span>
-                      </div>
-                      {!isMobile && (
-                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                          <button
-                            onClick={() => {
-                              setEditingTransaction(tx);
-                              setShowTransactionEdit(true);
-                            }}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              background: '#3b82f6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.625rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            onClick={() => deleteTransaction(tx.id)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              background: '#ef4444',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.625rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            🗑️ Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           )}
