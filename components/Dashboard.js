@@ -1142,6 +1142,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Credit "${credit.name}" received!`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error receiving credit:', error);
@@ -1165,6 +1168,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Credit "${credit.name}" is now ${!credit.guaranteed ? 'guaranteed' : 'not guaranteed'}`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling credit guaranteed:', error);
@@ -2208,16 +2214,22 @@ function DashboardContent() {
         border: '1px solid rgba(139, 92, 246, 0.3)'
       }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
+          display: isMobile ? 'block' : 'flex',
+          alignItems: isMobile ? 'center' : 'center',
           marginBottom: '1rem',
-          position: 'relative',
-          minHeight: isMobile ? '60px' : '80px',
+          position: isMobile ? 'static' : 'relative',
+          minHeight: isMobile ? 'auto' : '80px',
           paddingTop: '0.5rem',
-          paddingBottom: '0.5rem'
+          paddingBottom: '0.5rem',
+          textAlign: isMobile ? 'center' : 'initial'
         }}>
-          {/* Login/Logout Button - Left */}
-          <div style={{ position: 'absolute', left: 0 }}>
+          {/* Login/Logout Button - Left on desktop, below logo on mobile */}
+          <div style={{
+            position: isMobile ? 'static' : 'absolute',
+            left: isMobile ? 'auto' : 0,
+            order: isMobile ? 2 : 0,
+            marginTop: isMobile ? '1rem' : 0
+          }}>
             {user ? (
               <button
                 onClick={() => supabase.auth.signOut()}
@@ -2285,10 +2297,11 @@ function DashboardContent() {
 
           {/* Centered App Title */}
           <div style={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            textAlign: 'center'
+            position: isMobile ? 'static' : 'absolute',
+            left: isMobile ? 'auto' : '50%',
+            transform: isMobile ? 'none' : 'translateX(-50%)',
+            textAlign: 'center',
+            order: isMobile ? 1 : 0
           }}>
             <div style={{
               display: 'flex',

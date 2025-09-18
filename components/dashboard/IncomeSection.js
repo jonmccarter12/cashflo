@@ -167,20 +167,23 @@ export default function IncomeSection({
                   border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
                   marginBottom: '0.375rem'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{credit.name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
-                      +{fmt(credit.amount)}
-                    </span>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.375rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>{credit.name}</div>
+                        <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>
+                          {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
+                          {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
+                        </div>
+                        {credit.notes && <div style={{ fontSize: '0.625rem', color: '#6b7280', marginTop: '0.125rem', fontStyle: 'italic' }}>{credit.notes}</div>}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a', marginLeft: '0.5rem' }}>
+                        +{fmt(credit.amount)}
+                      </div>
+                    </div>
                   </div>
 
-                  <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                    {isOverdue ? '⚠️ OVERDUE' : ''} Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
-                    {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
-                    {credit.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{credit.notes}</div>}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
                     <select
                       value={credit.accountId}
                       onChange={async (e) => {
