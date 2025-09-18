@@ -646,16 +646,9 @@ function DashboardContent() {
   // Sticky category filter scroll effect
   React.useEffect(() => {
     let originalTop = null;
-    let lastScrollY = window.scrollY;
-    let scrollDirection = 'down';
 
     const handleScroll = () => {
       if (!categoryFilterRef.current) return;
-
-      // Detect scroll direction
-      const currentScrollY = window.scrollY;
-      scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up';
-      lastScrollY = currentScrollY;
 
       // Store original position on first measurement when not sticky
       if (originalTop === null && !categoryFilterSticky) {
@@ -668,15 +661,9 @@ function DashboardContent() {
       // Different offset for mobile vs desktop
       const offset = isMobile ? 80 : 60;
 
-      let shouldBeSticky;
-
-      if (scrollDirection === 'down') {
-        // When scrolling down, make sticky when passing original position
-        shouldBeSticky = window.scrollY > originalTop - offset;
-      } else {
-        // When scrolling up, return to original when we get close to original position
-        shouldBeSticky = window.scrollY > originalTop - offset + 30; // Return 30px before original trigger point
-      }
+      // Simple logic: sticky when scrolled past trigger point, not sticky when before it
+      const triggerPoint = originalTop - offset;
+      const shouldBeSticky = window.scrollY > triggerPoint;
 
       setCategoryFilterSticky(shouldBeSticky);
     };
@@ -684,7 +671,7 @@ function DashboardContent() {
     window.addEventListener('scroll', handleScroll);
     handleScroll(); // Run once to set initial state
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [categoryFilterSticky, isMobile]);
+  }, [isMobile]);
 
   // Calculate monthly recurring income total
   const monthlyRecurringIncomeTotal = React.useMemo(() => {
