@@ -148,8 +148,12 @@ export default function IncomeSection({
             </button>
           </div>
 
-          {upcomingCredits
-            .filter(c => !c.ignored)
+          {(() => {
+            console.log('IncomeSection - upcomingCredits:', upcomingCredits);
+            const filtered = upcomingCredits.filter(c => !c.ignored);
+            console.log('IncomeSection - filtered credits:', filtered);
+            return filtered;
+          })()
             .sort((a, b) => new Date(a.expectedDate) - new Date(b.expectedDate))
             .map(credit => {
               const account = accounts.find(a => a.id === credit.accountId);

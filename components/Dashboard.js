@@ -508,7 +508,7 @@ function DashboardContent() {
 
     // No automatic Uncategorized category - user manages all categories
 
-    return {
+    const result = {
       accounts: Array.from(accounts.values()),
       bills: Array.from(bills.values()),
       oneTimeCosts: Array.from(oneTimeCosts.values()),
@@ -517,6 +517,13 @@ function DashboardContent() {
       recurringIncome: Array.from(recurringIncome.values()),
       incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100) // Keep last 100 entries
     };
+
+    console.log('masterState - upcomingCredits count:', result.upcomingCredits.length);
+    if (result.upcomingCredits.length > 0) {
+      console.log('masterState - upcomingCredits:', result.upcomingCredits);
+    }
+
+    return result;
   }, [transactions]); // Depend on transactions
 
   // OLD: Master state -> NOW derived from transactions
