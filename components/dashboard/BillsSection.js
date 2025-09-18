@@ -88,7 +88,7 @@ export default function BillsSection({
                         checked={isPaid} 
                         onChange={() => togglePaid(bill)} 
                       />
-                      {isPaid ? '✅ Paid' : 'Not paid'}
+                      {isPaid ? '✅ Paid' : 'Mark Paid'}
                     </label>
                     <button
                       onClick={() => setEditingBill(bill)}
@@ -176,7 +176,7 @@ export default function BillsSection({
                           checked={isPaid} 
                           onChange={() => togglePaid(bill)} 
                         />
-                        {isPaid ? 'Paid' : 'Not paid'}
+                        {isPaid ? 'Paid' : 'Mark Paid'}
                       </label>
                       <button
                         onClick={() => setEditingBill(bill)}
