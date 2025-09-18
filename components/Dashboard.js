@@ -977,10 +977,22 @@ function DashboardContent() {
       const categoryMatch = selectedCat === 'All' ||
         (tx.payload?.category && selectedCats.includes(tx.payload.category));
 
-      // Transaction type filter (credits/debits)
-      const typeMatch = transactionTypeFilter === 'all' ||
-        (transactionTypeFilter === 'credits' && (tx.type?.includes('payment') || tx.type?.includes('income') || tx.type?.includes('credit'))) ||
-        (transactionTypeFilter === 'debits' && (tx.type?.includes('bill') || tx.type?.includes('expense') || tx.type?.includes('debit') || tx.type?.includes('cost')));
+      // Transaction type filter (only actual financial transactions - credits/debits)
+      // Credits: money coming in
+      const isCredit = tx.type === 'credit_received' ||
+                      tx.type === 'income_received' ||
+                      tx.type === 'account_balance_adjustment';
+
+      // Debits: money going out
+      const isDebit = tx.type === 'bill_payment' ||
+                     tx.type === 'one_time_cost_payment';
+
+      // Only show financial transactions (actual money movement)
+      const isFinancialTransaction = isCredit || isDebit;
+
+      const typeMatch = transactionTypeFilter === 'all' ? isFinancialTransaction :
+        (transactionTypeFilter === 'credits' && isCredit) ||
+        (transactionTypeFilter === 'debits' && isDebit);
 
       return textMatch && categoryMatch && typeMatch;
     });
