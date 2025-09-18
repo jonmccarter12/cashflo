@@ -2366,7 +2366,7 @@ function DashboardContent() {
       <div style={{
         marginBottom: '2rem',
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        padding: isMobile ? '0.5rem' : '1.5rem',
+        padding: isMobile ? '0.25rem' : '1.5rem',
         borderRadius: '1rem',
         boxShadow: '0 20px 40px rgba(139, 92, 246, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         border: '1px solid rgba(139, 92, 246, 0.3)'
@@ -2380,8 +2380,11 @@ function DashboardContent() {
                 src="/logo.png"
                 alt="Cashfl0.io Logo"
                 style={{
-                  height: '180px',
-                  width: 'auto',
+                  height: '120px',
+                  width: '100%',
+                  maxWidth: '400px',
+                  objectFit: 'cover',
+                  objectPosition: 'center center',
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
                   display: 'block',
                   margin: '0 auto'
