@@ -1879,6 +1879,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Account renamed to "${newName.trim()}"`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error renaming account:', error);
@@ -2287,6 +2290,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Category renamed to "${trimmedName}"`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error renaming category:', error);
@@ -3629,8 +3635,10 @@ function DashboardContent() {
               color: '#1f2937'
             }}>
               <span style={{ fontSize: '1rem', fontWeight: '600' }}>Category Budget Management</span>
-              <div style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#6b7280' }}>
-                🟢 Under Budget • 🟡 Close to Budget • 🔴 Over Budget
+              <div style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>🟢 Under Budget</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>🟡 Close to Budget</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>🔴 Over Budget</span>
               </div>
             </div>
             <div style={{
