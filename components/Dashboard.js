@@ -2375,20 +2375,22 @@ function DashboardContent() {
           /* Mobile Layout - Logo first, then buttons below */
           <div style={{ textAlign: 'center' }}>
             {/* Logo */}
-            <div style={{ marginBottom: '0.25rem' }}>
+            <div>
               <img
                 src="/logo.png"
                 alt="Cashfl0.io Logo"
                 style={{
                   height: '180px',
                   width: 'auto',
-                  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
+                  display: 'block',
+                  margin: '0 auto'
                 }}
               />
             </div>
 
             {/* Login/Logout Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', paddingBottom: '0.5rem' }}>
               {user ? (
                 <button
                   onClick={() => supabase.auth.signOut()}
