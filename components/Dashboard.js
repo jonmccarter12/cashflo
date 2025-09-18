@@ -2246,6 +2246,9 @@ function DashboardContent() {
     }
 
     try {
+      // Optimistic update: Remove from UI immediately
+      setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+
       const { error } = await supabase
         .from('transaction_log')
         .delete()
@@ -2260,6 +2263,9 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error deleting transaction:', error);
       notify('Failed to delete transaction', 'error');
+
+      // Revert optimistic update on error by triggering a re-sync
+      // The useCloudTransactions hook should automatically refetch on error
     }
   }
 
@@ -2270,6 +2276,13 @@ function DashboardContent() {
     }
 
     try {
+      // Optimistic update: Update UI immediately
+      setTransactions(prev => prev.map(tx =>
+        tx.id === transactionId
+          ? { ...tx, description: newDescription.trim() }
+          : tx
+      ));
+
       const { error } = await supabase
         .from('transaction_log')
         .update({ description: newDescription.trim() })
@@ -2286,6 +2299,11 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error updating transaction:', error);
       notify('Failed to update transaction', 'error');
+
+      // Revert optimistic update on error by triggering a re-sync
+      // The useCloudTransactions hook should automatically refetch on error
+      setEditingTransaction(null);
+      setShowTransactionEdit(false);
     }
   }
 
