@@ -1662,6 +1662,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling paid status:', error);
