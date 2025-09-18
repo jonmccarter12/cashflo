@@ -1422,7 +1422,6 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        setShowAddBill(false);
         notify('Bill added successfully!');
       } else {
         notify('Failed to save bill - transaction failed', 'error');
