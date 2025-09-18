@@ -2387,7 +2387,7 @@ function DashboardContent() {
                   width: '100%',
                   maxWidth: '400px',
                   objectFit: 'cover',
-                  objectPosition: 'center center',
+                  objectPosition: 'center 48%',
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
                   display: 'block',
                   margin: '0 auto'
