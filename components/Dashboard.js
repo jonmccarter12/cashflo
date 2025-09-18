@@ -674,8 +674,8 @@ function DashboardContent() {
         // When scrolling down, make sticky when passing original position
         shouldBeSticky = window.scrollY > originalTop - offset;
       } else {
-        // When scrolling up, return to original when close to original position
-        shouldBeSticky = window.scrollY > originalTop + 20; // Small buffer to prevent flicker
+        // When scrolling up, return to original when we get close to original position
+        shouldBeSticky = window.scrollY > originalTop - offset + 30; // Return 30px before original trigger point
       }
 
       setCategoryFilterSticky(shouldBeSticky);
