@@ -3077,26 +3077,14 @@ function DashboardContent() {
                     border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
                     position: 'relative'
                   }}>
-                    <div style={{
-                      position: 'absolute',
-                      top: '0.5rem',
-                      right: '0.5rem',
-                      background: credit.guaranteed ? '#16a34a' : '#8b5cf6',
-                      color: 'white',
-                      padding: '0.125rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      fontSize: '0.625rem',
-                      fontWeight: '600'
-                    }}>
-                      {credit.guaranteed ? 'GUARANTEED' : 'EXPECTED'}
-                    </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                      <div style={{ paddingRight: '4rem' }}>
+                      <div>
                         <div style={{ fontWeight: '500', fontSize: '1rem' }}>{credit.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
                           {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                          {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
                         </div>
                         {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{credit.notes}</div>}
                       </div>
