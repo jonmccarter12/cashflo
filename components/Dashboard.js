@@ -2594,7 +2594,7 @@ function DashboardContent() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#d97706' : '#dc2626') }}>
-              {fmt(weekNeedWithoutSavings)}
+              {fmt(weekNeedWithSavings)}
             </div>
             <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#92400e' : '#991b1b') }}>Need This Week</div>
           </div>
