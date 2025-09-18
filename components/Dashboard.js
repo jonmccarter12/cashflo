@@ -650,7 +650,7 @@ function DashboardContent() {
     const handleScroll = () => {
       if (!categoryFilterRef.current) return;
 
-      // Store original position on first measurement
+      // Store original position on first measurement when not sticky
       if (originalTop === null && !categoryFilterSticky) {
         const rect = categoryFilterRef.current.getBoundingClientRect();
         originalTop = rect.top + window.scrollY;
@@ -658,9 +658,12 @@ function DashboardContent() {
 
       if (originalTop === null) return;
 
+      // Different offset for mobile vs desktop
+      const offset = isMobile ? 80 : 60;
+
       // Make sticky when scrolled past original position
       // Only fall back when scrolling up past the original position
-      const shouldBeSticky = window.scrollY > originalTop - 60;
+      const shouldBeSticky = window.scrollY > originalTop - offset;
 
       setCategoryFilterSticky(shouldBeSticky);
     };
@@ -668,7 +671,7 @@ function DashboardContent() {
     window.addEventListener('scroll', handleScroll);
     handleScroll(); // Run once to set initial state
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [categoryFilterSticky]);
+  }, [categoryFilterSticky, isMobile]);
 
   // Calculate monthly recurring income total
   const monthlyRecurringIncomeTotal = React.useMemo(() => {
@@ -3054,10 +3057,11 @@ function DashboardContent() {
           <div style={{
             display: 'flex',
             gap: '0.5rem',
-            overflowX: 'auto',
+            overflowX: isMobile ? 'auto' : 'visible',
             padding: '0.25rem 0',
             alignItems: 'center',
-            justifyContent: 'flex-start'
+            justifyContent: 'flex-start',
+            flexWrap: isMobile ? 'nowrap' : 'wrap'
           }}>
             <button
               onClick={() => setSelectedCat('All')}
