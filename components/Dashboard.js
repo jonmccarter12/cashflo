@@ -597,7 +597,6 @@ function DashboardContent() {
 
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
-  const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
   const [editingCategoryName, setEditingCategoryName] = React.useState(null);
   const [tempCategoryName, setTempCategoryName] = React.useState('');
@@ -818,7 +817,7 @@ function DashboardContent() {
 
   const afterWeek = projectedWithIncome - upcoming.weekDueTotal;
   const afterMonth = projectedWithIncome - monthUnpaidTotal;
-  const netWorthValue = netWorthMode==='current'? currentLiquidWithGuaranteed : netWorthMode==='afterWeek'? afterWeek : afterMonth;
+  const netWorthValue = currentLiquidWithGuaranteed;
 
   const weekNeedWithoutSavings = upcoming.weekDueTotal;
   const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquidWithGuaranteed);
@@ -3556,35 +3555,6 @@ function DashboardContent() {
               />
               💰 Auto-deduct from cash
             </label>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#374151',
-              fontSize: '0.875rem',
-              background: '#f9fafb',
-              padding: '0.75rem',
-              borderRadius: '0.5rem',
-              border: '1px solid #e5e7eb'
-            }}>
-              <span>📊 Net Worth Mode:</span>
-              <select
-                value={netWorthMode}
-                onChange={(e) => setNetWorthMode(e.target.value)}
-                style={{
-                  background: 'white',
-                  color: '#374151',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.25rem',
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.75rem'
-                }}
-              >
-                <option value="current">Current</option>
-                <option value="afterWeek">After Week</option>
-                <option value="afterMonth">After Month</option>
-              </select>
-            </div>
           </div>
 
           {/* Sync Status */}
