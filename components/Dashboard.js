@@ -2568,7 +2568,8 @@ function DashboardContent() {
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
           gap: '1rem',
-          marginBottom: '1rem'
+          marginBottom: '1rem',
+          margin: isMobile ? '0 1rem 1rem 1rem' : '0 0 1rem 0'
         }}>
           <div style={{
             background: '#f0fdf4',
