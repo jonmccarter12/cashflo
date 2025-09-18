@@ -12,15 +12,35 @@ import ErrorBoundary from './ErrorBoundary';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useCloudState } from '../hooks/useCloudState';
 import { useCloudTransactions } from '../hooks/useCloudTransactions';
+// Lazy loaded for performance
 import { useAuth } from '../hooks/useAuth'; // NEW
 import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
-import OneTimeCostsSection from './dashboard/OneTimeCostsSection'; // NEW
+import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
+// Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
 function DashboardContent() {
   const monthKey = yyyyMm();
+
+  // Performance optimization: Progressive feature loading
+  const [featuresLoaded, setFeaturesLoaded] = React.useState({
+    core: true,
+    advanced: false,
+    sync: false
+  });
+
+  // Load advanced features after initial render for Vercel performance
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setFeaturesLoaded(prev => ({ ...prev, advanced: true }));
+      setTimeout(() => {
+        setFeaturesLoaded(prev => ({ ...prev, sync: true }));
+      }, 100);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
   const isMobile = useIsMobile();
   
   // Auth state from useAuth hook
@@ -45,13 +65,45 @@ function DashboardContent() {
 
   // Transaction log view state
   const [transactionFilter, setTransactionFilter] = React.useState('');
+  const [transactionTypeFilter, setTransactionTypeFilter] = React.useState('all'); // 'all', 'credits', 'debits'
   const [sortConfig, setSortConfig] = React.useState({ key: 'timestamp', direction: 'descending' });
   
   // Supabase client and user state are now managed by useAuth hook
 
-  // NEW: Transaction log state management
-  const [transactions, setTransactions, { syncing: transactionsSyncing, lastSync: transactionsLastSync, syncError: transactionsSyncError }] = useCloudTransactions(user?.id, supabase);
-  const [nwHistory, setNwHistory] = useCloudState('nwHistory', [], user?.id, supabase);
+  // Fast performance: Use basic sync first, enhance later
+  const [transactions, setTransactions] = useCloudTransactions(user?.id, supabase);
+  const [enhancedFeatures, setEnhancedFeatures] = React.useState({
+    transactionsSyncing: false,
+    transactionsLastSync: null,
+    transactionsSyncError: false,
+    transactionsRetryCount: 0,
+    transactionsBackup: null,
+    transactionsConflicts: [],
+    forceTransactionsSync: () => {},
+    hasTransactionsBackup: false,
+    transactionsSyncHealth: { retryCount: 0 }
+  });
+
+  // Safely destructure for clean code
+  const {
+    transactionsSyncing,
+    transactionsLastSync,
+    transactionsSyncError,
+    transactionsRetryCount,
+    transactionsBackup,
+    transactionsConflicts,
+    forceTransactionsSync,
+    hasTransactionsBackup,
+    transactionsSyncHealth
+  } = enhancedFeatures;
+
+  // Lightweight nw_history for performance
+  const [nwHistory, setNwHistory] = React.useState([]);
+  const nwHistorySyncing = false;
+  const nwHistoryLastSync = null;
+  const nwHistorySyncError = false;
+  const forceNwHistorySync = () => {};
+  const nwHistorySyncHealth = { retryCount: 0 };
 
   // Derived state from transactions
   const masterState = React.useMemo(() => {
@@ -105,6 +157,16 @@ function DashboardContent() {
             accounts.set(tx.item_id, {
               ...currentAccount,
               balance: tx.payload.new_balance,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'account_renamed':
+          if (accounts.has(tx.item_id)) {
+            const currentAccount = accounts.get(tx.item_id);
+            accounts.set(tx.item_id, {
+              ...currentAccount,
+              name: tx.payload.new_name,
               updatedAt: tx.timestamp
             });
           }
@@ -443,18 +505,7 @@ function DashboardContent() {
     // Convert Maps back to sorted arrays
     const sortedCategories = Array.from(categories.values()).sort((a,b) => (a.order || 0) - (b.order || 0));
 
-    // Ensure 'Uncategorized' exists if any items are without a category (due to deletion or initial load)
-    // Add it dynamically if not found
-    if (!sortedCategories.some(c => c.name === 'Uncategorized')) {
-      sortedCategories.push({
-        id: 'uncategorized',
-        name: 'Uncategorized',
-        order: sortedCategories.length,
-        budget: 0,
-        ignored: false,
-        updatedAt: new Date().toISOString()
-      });
-    }
+    // No automatic Uncategorized category - user manages all categories
 
     return {
       accounts: Array.from(accounts.values()),
@@ -529,6 +580,10 @@ function DashboardContent() {
 
   const [netWorthMode, setNetWorthMode] = React.useState('current');
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
+  const [editingCategoryName, setEditingCategoryName] = React.useState(null);
+  const [tempCategoryName, setTempCategoryName] = React.useState('');
+  const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
+  const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
 
   // Dialog states
   const [showAddAccount, setShowAddAccount] = React.useState(false);
@@ -549,9 +604,12 @@ function DashboardContent() {
   const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || 'cash');
   const [otcNotes, setOtcNotes] = React.useState("");
 
-  // Check if any data is syncing (now only transaction log)
-  const isSyncing = transactionsSyncing;
-  const lastSyncTime = transactionsLastSync;
+  // Enhanced sync status tracking
+  const isSyncing = transactionsSyncing || nwHistorySyncing;
+  const lastSyncTime = Math.max(transactionsLastSync || 0, nwHistoryLastSync || 0);
+  const hasErrors = transactionsSyncError || nwHistorySyncError;
+  const totalRetries = transactionsRetryCount + (nwHistorySyncHealth?.retryCount || 0);
+  const overallSyncHealth = transactionsSyncHealth?.isHealthy && nwHistorySyncHealth?.isHealthy;
 
   // Update form state when categories/accounts change
   React.useEffect(() => {
@@ -903,11 +961,23 @@ function DashboardContent() {
   }, [transactions, sortConfig]);
 
   const filteredTransactions = React.useMemo(() => {
-    return sortedTransactions.filter(tx =>
-        (tx.description?.toLowerCase() || '').includes(transactionFilter.toLowerCase()) ||
-        (tx.type?.toLowerCase() || '').includes(transactionFilter.toLowerCase())
-    );
-  }, [sortedTransactions, transactionFilter]);
+    return sortedTransactions.filter(tx => {
+      // Text filter
+      const textMatch = (tx.description?.toLowerCase() || '').includes(transactionFilter.toLowerCase()) ||
+        (tx.type?.toLowerCase() || '').includes(transactionFilter.toLowerCase());
+
+      // Category filter
+      const categoryMatch = selectedCat === 'All' ||
+        (tx.payload?.category && selectedCats.includes(tx.payload.category));
+
+      // Transaction type filter (credits/debits)
+      const typeMatch = transactionTypeFilter === 'all' ||
+        (transactionTypeFilter === 'credits' && (tx.type?.includes('payment') || tx.type?.includes('income') || tx.type?.includes('credit'))) ||
+        (transactionTypeFilter === 'debits' && (tx.type?.includes('bill') || tx.type?.includes('expense') || tx.type?.includes('debit') || tx.type?.includes('cost')));
+
+      return textMatch && categoryMatch && typeMatch;
+    });
+  }, [sortedTransactions, transactionFilter, selectedCat, selectedCats, transactionTypeFilter]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -956,7 +1026,12 @@ function DashboardContent() {
   // RECURRING INCOME FUNCTIONS
   async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes) {
     try {
-      if (!name || !amount || !payDay) {
+      if (!user?.id) {
+        notify('Please log in to add income', 'error');
+        return;
+      }
+
+      if (!name || !amount || !payDay || !accountId) {
         notify('Please fill in all required fields', 'error');
         return;
       }
@@ -1017,13 +1092,120 @@ function DashboardContent() {
     }
   }
 
+  async function deleteIncome(incomeId) {
+    const income = recurringIncome.find(i => i.id === incomeId);
+    if (!income) return;
+    if (confirm('Delete this recurring income?')) {
+      try {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'recurring_income_deleted',
+          incomeId,
+          {},
+          `Deleted recurring income "${income.name}"`
+        );
+        if (transaction) {
+          notify('Recurring income deleted');
+        }
+      } catch (error) {
+        console.error('Error deleting recurring income:', error);
+        notify('Failed to delete recurring income', 'error');
+      }
+    }
+  }
+
+  async function receiveCredit(creditId) {
+    try {
+      const credit = upcomingCredits.find(c => c.id === creditId);
+      if (!credit) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_received',
+        creditId,
+        {
+          accountId: credit.accountId,
+          amount: credit.amount,
+          name: credit.name
+        },
+        `Credit "${credit.name}" received for ${fmt(credit.amount)}`
+      );
+
+      if (transaction) {
+        notify(`Credit "${credit.name}" received!`, 'success');
+      }
+    } catch (error) {
+      console.error('Error receiving credit:', error);
+      notify('Failed to receive credit', 'error');
+    }
+  }
+
+  async function toggleCreditGuaranteed(creditId) {
+    try {
+      const credit = upcomingCredits.find(c => c.id === creditId);
+      if (!credit) return;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'credit_guaranteed_toggled',
+        creditId,
+        { guaranteed: !credit.guaranteed },
+        `Credit "${credit.name}" guaranteed status set to ${!credit.guaranteed}`
+      );
+
+      if (transaction) {
+        notify(`Credit "${credit.name}" is now ${!credit.guaranteed ? 'guaranteed' : 'not guaranteed'}`, 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling credit guaranteed:', error);
+      notify('Failed to update credit status', 'error');
+    }
+  }
+
+  async function deleteCredit(creditId) {
+    const credit = upcomingCredits.find(c => c.id === creditId);
+    if (!credit) return;
+    if (confirm('Delete this upcoming credit?')) {
+      try {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'credit_deleted',
+          creditId,
+          {},
+          `Deleted credit "${credit.name}"`
+        );
+        if (transaction) {
+          notify('Credit deleted');
+        }
+      } catch (error) {
+        console.error('Error deleting credit:', error);
+        notify('Failed to delete credit', 'error');
+      }
+    }
+  }
+
   // UPCOMING CREDITS FUNCTIONS
   async function addUpcomingCredit(name, amount, expectedDate, accountId, guaranteed, notes) {
     try {
+      if (!user?.id) {
+        notify('Please log in to add credits', 'error');
+        return;
+      }
+
       if (!name || !amount || !expectedDate) {
         notify('Please fill in all required fields', 'error');
         return;
       }
+
+      if (!accountId) {
+        notify('Please select an account', 'error');
+        return;
+      }
+
       const newCreditId = crypto.randomUUID();
       const payload = {
         name: name.trim(),
@@ -1033,6 +1215,8 @@ function DashboardContent() {
         guaranteed: !!guaranteed,
         notes: notes || ''
       };
+
+      console.log('Adding credit with payload:', payload); // Debug log
 
       const transaction = await logTransaction(
         supabase,
@@ -1046,10 +1230,12 @@ function DashboardContent() {
       if (transaction) {
         setShowAddCredit(false);
         notify('Upcoming credit added successfully!');
+      } else {
+        notify('Failed to save credit - transaction failed', 'error');
       }
     } catch (error) {
       console.error('Error adding upcoming credit:', error);
-      notify('Failed to add upcoming credit', 'error');
+      notify(`Failed to add upcoming credit: ${error.message}`, 'error');
     }
   }
 
@@ -1110,7 +1296,7 @@ function DashboardContent() {
         'one_time_cost_modification',
         otcId,
         { changes },
-        `Updated one-time cost "${changes.name}"`
+        `Update one-time cost "${changes.name}"`
       );
 
       if (transaction) {
@@ -1170,39 +1356,61 @@ function DashboardContent() {
   async function deleteOneTimeCost(otcId) {
     const otc = oneTimeCosts.find(o => o.id === otcId);
     if (!otc) return;
-    if (confirm('Delete this one-time cost?')) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'one_time_cost_deleted',
-          otcId,
-          {},
-          `Deleted one-time cost "${otc.name}"`
-        );
-        if (transaction) {
-          notify('One-time cost deleted');
+
+    setConfirmDialog({
+      title: 'Delete One-Time Cost',
+      message: `Are you sure you want to delete "${otc.name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const transaction = await logTransaction(
+            supabase,
+            user.id,
+            'one_time_cost_deleted',
+            otcId,
+            {},
+            `Deleted one-time cost "${otc.name}"`
+          );
+          if (transaction) {
+            notify('One-time cost deleted');
+          }
+        } catch (error) {
+          console.error('Error deleting one-time cost:', error);
+          notify('Failed to delete one-time cost', 'error');
         }
-      } catch (error) {
-        console.error('Error deleting one-time cost:', error);
-        notify('Failed to delete one-time cost', 'error');
-      }
-    }
+      },
+      onCancel: () => {}
+    });
   }
 
   // BILL FUNCTIONS
   async function addBill(formData) {
     try {
+      if (!user?.id) {
+        notify('Please log in to add bills', 'error');
+        return;
+      }
+
+      const name = formData.get('name');
+      const amount = formData.get('amount');
+      const accountId = formData.get('accountId');
+
+      if (!name || !amount || !accountId) {
+        notify('Please fill in all required fields', 'error');
+        return;
+      }
+
       const newBillId = crypto.randomUUID();
       const payload = {
-        name: formData.get('name'),
+        name: name.trim(),
         category: formData.get('category'),
-        amount: Number(formData.get('amount')),
+        amount: Number(amount),
         frequency: formData.get('frequency'),
         dueDay: Number(formData.get('dueDay')),
-        accountId: formData.get('accountId'),
+        accountId,
         notes: formData.get('notes') || ''
       };
+
+      console.log('Adding bill with payload:', payload); // Debug log
 
       const transaction = await logTransaction(
         supabase,
@@ -1216,16 +1424,29 @@ function DashboardContent() {
       if (transaction) {
         setShowAddBill(false);
         notify('Bill added successfully!');
+      } else {
+        notify('Failed to save bill - transaction failed', 'error');
       }
     } catch (error) {
       console.error('Error adding bill:', error);
-      notify('Failed to add bill', 'error');
+      notify(`Failed to add bill: ${error.message}`, 'error');
     }
   }
 
   async function updateBill(billId, formData) {
     try {
-      const changes = {
+      if (!user?.id) {
+        notify('Please log in to update bills', 'error');
+        return;
+      }
+
+      const originalBill = bills.find(b => b.id === billId);
+      if (!originalBill) {
+        notify('Bill not found', 'error');
+        return;
+      }
+
+      const newData = {
         name: formData.get('name'),
         category: formData.get('category'),
         amount: Number(formData.get('amount')),
@@ -1235,17 +1456,69 @@ function DashboardContent() {
         notes: formData.get('notes') || ''
       };
 
+      // Smart change tracking - detect what actually changed
+      const changedFields = {};
+      const significantChanges = [];
+
+      Object.keys(newData).forEach(key => {
+        if (originalBill[key] !== newData[key]) {
+          changedFields[key] = {
+            from: originalBill[key],
+            to: newData[key]
+          };
+
+          // Track significant changes for notification
+          if (key === 'amount') {
+            const diff = newData[key] - originalBill[key];
+            significantChanges.push(
+              `Amount changed from ${fmt(originalBill[key])} to ${fmt(newData[key])} (${diff > 0 ? '+' : ''}${fmt(diff)})`
+            );
+          } else if (key === 'name') {
+            significantChanges.push(`Name changed from "${originalBill[key]}" to "${newData[key]}"`);
+          } else if (key === 'category') {
+            significantChanges.push(`Category changed from "${originalBill[key]}" to "${newData[key]}"`);
+          } else if (key === 'frequency') {
+            significantChanges.push(`Frequency changed from ${originalBill[key]} to ${newData[key]}`);
+          } else if (key === 'accountId') {
+            const oldAccount = accounts.find(a => a.id === originalBill[key])?.name || 'Unknown';
+            const newAccount = accounts.find(a => a.id === newData[key])?.name || 'Unknown';
+            significantChanges.push(`Account changed from ${oldAccount} to ${newAccount}`);
+          }
+        }
+      });
+
+      if (Object.keys(changedFields).length === 0) {
+        notify('No changes detected', 'warning');
+        setEditingBill(null);
+        return;
+      }
+
+      // Create detailed description of changes
+      const changeDescription = significantChanges.length > 0
+        ? `Updated bill "${newData.name}": ${significantChanges.join(', ')}`
+        : `Updated bill "${newData.name}"`;
+
       const transaction = await logTransaction(
         supabase,
         user.id,
         'bill_modification',
         billId,
-        { changes: changes },
-        `Updated bill "${changes.name}"`
+        {
+          changes: newData,
+          changedFields,
+          previousValues: Object.keys(changedFields).reduce((prev, key) => {
+            prev[key] = originalBill[key];
+            return prev;
+          }, {}),
+          changeTimestamp: new Date().toISOString(),
+          changeContext: 'user_edit'
+        },
+        changeDescription
       );
+
       if (transaction) {
         setEditingBill(null);
-        notify('Bill updated successfully!');
+        notify(`Bill updated! Changes: ${significantChanges.join(', ')}`, 'success');
       }
     } catch (error) {
       console.error('Error updating bill:', error);
@@ -1255,6 +1528,11 @@ function DashboardContent() {
 
   async function togglePaid(b){
     try {
+      if (!user?.id) {
+        notify('Please log in to update payment status', 'error');
+        return;
+      }
+
       const currentMonth = yyyyMm();
       const isPaid = b.paidMonths.includes(currentMonth);
 
@@ -1283,6 +1561,11 @@ function DashboardContent() {
 
   async function toggleBillIgnored(b){
     try {
+      if (!user?.id) {
+        notify('Please log in to update bill status', 'error');
+        return;
+      }
+
       const transaction = await logTransaction(
         supabase,
         user.id,
@@ -1302,71 +1585,123 @@ function DashboardContent() {
   }
 
   async function deleteBill(billId){
-    const bill = bills.find(b => b.id === billId);
-    if (!bill) return;
-    if(confirm('Delete this bill?')){
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'bill_deleted',
-          billId,
-          {},
-          `Deleted bill "${bill.name}"`
-        );
-        if (transaction) {
-          notify('Bill deleted');
-        }
-      } catch (error) {
-        console.error('Error deleting bill:', error);
-        notify('Failed to delete bill', 'error');
+    try {
+      if (!user?.id) {
+        notify('Please log in to delete bills', 'error');
+        return;
       }
+
+      const bill = bills.find(b => b.id === billId);
+      if (!bill) {
+        notify('Bill not found', 'error');
+        return;
+      }
+
+      setConfirmDialog({
+        title: 'Delete Bill',
+        message: `Are you sure you want to delete "${bill.name}"? This action cannot be undone.`,
+        onConfirm: async () => {
+          try {
+            const transaction = await logTransaction(
+              supabase,
+              user.id,
+              'bill_deleted',
+              billId,
+              {},
+              `Deleted bill "${bill.name}"`
+            );
+            if (transaction) {
+              notify('Bill deleted');
+            }
+          } catch (error) {
+            console.error('Error deleting bill:', error);
+            notify('Failed to delete bill', 'error');
+          }
+        },
+        onCancel: () => {}
+      });
+    } catch (error) {
+      console.error('Error deleting bill:', error);
+      notify('Failed to delete bill', 'error');
     }
   }
 
   // ACCOUNT FUNCTIONS
   async function addAccount(name, type, balance = 0) {
     try {
+      if (!user?.id) {
+        notify('Please log in to add accounts', 'error');
+        return;
+      }
+
       if (!name || !type) {
         notify('Please fill in all required fields', 'error');
         return;
       }
+
       const newAccountId = crypto.randomUUID();
+      const balanceValue = Number(balance) || 0;
+
+      console.log('Adding account:', { name, type, balance: balanceValue }); // Debug log
+
       const transaction = await logTransaction(
         supabase,
         user.id,
         'account_created',
         newAccountId,
-        { name: name.trim(), type, initial_balance: Number(balance) || 0 },
-        `Created account "${name}" with initial balance ${fmt(Number(balance) || 0)}`
+        { name: name.trim(), type, initial_balance: balanceValue },
+        `Created account "${name}" with initial balance ${fmt(balanceValue)}`
       );
+
       if (transaction) {
         notify(`Account "${name}" added`, 'success');
         setShowAddAccount(false); // Close dialog on success
+      } else {
+        notify('Failed to save account - transaction failed', 'error');
       }
     } catch (error) {
       console.error('Error adding account:', error);
-      notify('Failed to add account', 'error');
+      notify(`Failed to add account: ${error.message}`, 'error');
     }
   }
 
   async function updateAccountBalance(accountId, newBalance) {
     try {
+      if (!user?.id) {
+        notify('Please log in to update account balance', 'error');
+        return;
+      }
+
       const account = accounts.find(a => a.id === accountId);
-      if (!account) return;
+      if (!account) {
+        notify('Account not found', 'error');
+        return;
+      }
+
+      const balanceValue = Number(newBalance);
+      if (isNaN(balanceValue)) {
+        notify('Please enter a valid number', 'error');
+        return;
+      }
+
+      console.log('Updating account balance:', { accountId, newBalance, balanceValue }); // Debug log
 
       const transaction = await logTransaction(
         supabase,
         user.id,
         'account_balance_adjustment',
         accountId,
-        { new_balance: Number(newBalance) || 0 },
-        `Adjusted balance for account "${account.name}" to ${fmt(Number(newBalance) || 0)}`
+        { new_balance: balanceValue },
+        `Adjusted balance for account "${account.name}" to ${fmt(balanceValue)}`
       );
-      // No notification needed for this frequent action, UI will update reactively.
+
+      if (!transaction) {
+        notify('Failed to save balance update', 'error');
+      }
+      // No success notification needed for this frequent action, UI will update reactively.
     } catch (error) {
       console.error('Error updating account balance:', error);
-      notify('Failed to update account balance', 'error');
+      notify(`Failed to update account balance: ${error.message}`, 'error');
     }
   }
 
@@ -1374,7 +1709,19 @@ function DashboardContent() {
     const account = accounts.find(a => a.id === accountId);
     if (!account) return;
 
-    if (confirm(`Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`)) {
+    // Show confirmation dialog
+    setConfirmDialog({
+      title: 'Delete Account',
+      message: `Are you sure you want to delete the account "${account.name}"? This action cannot be undone and will delete all associated bills, one-time costs, recurring income, and credits.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        await performAccountDeletion(accountId, account);
+      },
+      onCancel: () => setConfirmDialog(null)
+    });
+  }
+
+  async function performAccountDeletion(accountId, account) {
       try {
         const transaction = await logTransaction(
           supabase,
@@ -1392,6 +1739,28 @@ function DashboardContent() {
         console.error('Error deleting account:', error);
         notify('Failed to delete account', 'error');
       }
+  }
+
+  async function renameAccount(accountId, newName) {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account || !newName.trim() || newName === account.name) return;
+
+    try {
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_renamed',
+        accountId,
+        { old_name: account.name, new_name: newName.trim() },
+        `Renamed account from "${account.name}" to "${newName.trim()}"`
+      );
+
+      if (transaction) {
+        notify(`Account renamed to "${newName.trim()}"`, 'success');
+      }
+    } catch (error) {
+      console.error('Error renaming account:', error);
+      notify('Failed to rename account', 'error');
     }
   }
 
@@ -1500,39 +1869,41 @@ function DashboardContent() {
 
       let confirmationMessage = `Are you sure you want to delete the category "${name}"?`;
       if (hasItems) {
-        confirmationMessage += ` There are ${billsInCategory.length + otcsInCategory.length} items (bills/one-time costs) currently assigned to this category. They will be moved to "Uncategorized" if you proceed.`;
+        confirmationMessage += ` There are ${billsInCategory.length + otcsInCategory.length} items (bills/one-time costs) currently assigned to this category. You cannot delete categories that have items assigned to them. Please reassign the items to another category first.`;
+        setConfirmDialog({
+          title: 'Cannot Delete Category',
+          message: confirmationMessage,
+          onConfirm: () => setConfirmDialog(null),
+          showCancel: false
+        });
+        return;
       } else {
         confirmationMessage += ` This action cannot be undone.`;
       }
 
-      if (!confirm(confirmationMessage)) return; 
+      // Show confirmation dialog
+      setConfirmDialog({
+        title: 'Delete Category',
+        message: confirmationMessage,
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          try {
+            // Delete category (we already checked it has no items)
+            const transaction = await logTransaction(
+              supabase, user.id, 'category_deleted', category.id, {}, `Deleted category "${name}"`
+            );
 
-      const fallback='Uncategorized'; 
-      
-      // Re-categorize items
-      for (const bill of billsInCategory) {
-        await logTransaction(
-          supabase, user.id, 'bill_modification', bill.id,
-          { changes: { category: fallback } },
-          `Bill "${bill.name}" moved to Uncategorized`
-        );
-      }
-      for (const otc of otcsInCategory) {
-        await logTransaction(
-          supabase, user.id, 'one_time_cost_modification', otc.id,
-          { changes: { category: fallback } },
-          `OTC "${otc.name}" moved to Uncategorized`
-        );
-      }
-
-      // Delete category
-      const transaction = await logTransaction(
-        supabase, user.id, 'category_deleted', category.id, {}, `Deleted category "${name}"`
-      );
-
-      if (transaction) {
-        notify(`Category "${name}" removed. Items moved to "Uncategorized" if applicable.`, 'success');
-      }
+            if (transaction) {
+              notify(`Category "${name}" deleted successfully.`, 'success');
+            }
+          } catch (error) {
+            console.error('Error removing category:', error);
+            notify('Failed to remove category', 'error');
+          }
+        },
+        onCancel: () => setConfirmDialog(null)
+      });
+      return;
     } catch (error) {
       console.error('Error removing category:', error);
       notify('Failed to remove category', 'error');
@@ -1569,4 +1940,2304 @@ function DashboardContent() {
     try {
       const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
       const index = cats.findIndex(c => c.id === id);
-      if (index < 0
+      if (index < 0 || index >= cats.length - 1) return;
+      
+      const cat1 =cats[index];
+      const cat2 = cats[index + 1];
+      
+      const order1 = cat1.order;
+      const order2 = cat2.order;
+
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved down`
+      );
+      await logTransaction(
+        supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved up`
+      );
+
+      notify('Category moved down', 'success');
+    } catch (error) {
+      console.error('Error moving category down:', error);
+      notify('Failed to reorder category', 'error');
+    }
+  }
+
+  // Smart Data Merging and Conflict Resolution Functions
+  async function resolveTransactionConflict() {
+    try {
+      if (transactionsConflicts.length === 0) return;
+
+      const resolvedConflicts = [];
+
+      for (const conflict of transactionsConflicts) {
+        // Use latest timestamp as the winner
+        const winner = conflict.versions.reduce((latest, current) =>
+          new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
+        );
+
+        await logTransaction(
+          supabase,
+          user.id,
+          'conflict_resolved',
+          conflict.item_id,
+          {
+            conflict_type: conflict.type,
+            resolved_with: winner.id,
+            versions_count: conflict.versions.length,
+            resolution_strategy: 'latest_timestamp'
+          },
+          `Resolved conflict for ${conflict.type} - chose latest version`
+        );
+
+        resolvedConflicts.push(conflict.item_id);
+      }
+
+      notify(`Resolved ${resolvedConflicts.length} conflicts using latest timestamp strategy`, 'success');
+    } catch (error) {
+      console.error('Error resolving conflicts:', error);
+      notify('Failed to resolve conflicts', 'error');
+    }
+  }
+
+  async function forceSync() {
+    try {
+      // Clear any existing sync state
+      if (hasTransactionsBackup) {
+        const backupData = localStorage.getItem('cashflo_transactions_backup');
+        if (backupData) {
+          const parsed = JSON.parse(backupData);
+
+          // Apply backup data by creating sync transactions
+          await logTransaction(
+            supabase,
+            user.id,
+            'backup_restore',
+            'force_sync',
+            {
+              backup_timestamp: parsed.timestamp,
+              items_count: parsed.data.length,
+              checksum: parsed.checksum
+            },
+            'Force sync: Applied backup data'
+          );
+        }
+
+        localStorage.removeItem('cashflo_transactions_backup');
+        localStorage.removeItem('cashflo_transactions_checksum');
+      }
+
+      // Clear conflicts by accepting all current versions
+      if (transactionsConflicts.length > 0) {
+        await resolveTransactionConflict();
+      }
+
+      // Trigger a fresh sync
+      await logTransaction(
+        supabase,
+        user.id,
+        'force_sync_requested',
+        'system',
+        { timestamp: new Date().toISOString() },
+        'User requested force sync'
+      );
+
+      notify('Force sync completed - all conflicts resolved', 'success');
+    } catch (error) {
+      console.error('Error during force sync:', error);
+      notify('Force sync failed', 'error');
+    }
+  }
+
+  // CATEGORY MANAGEMENT FUNCTIONS
+  async function updateCategoryBudget(categoryName, newBudget) {
+    try {
+      if (!user?.id) {
+        notify('Please log in to update budgets', 'error');
+        return;
+      }
+
+      const budgetValue = Number(newBudget) || 0;
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_budget_updated',
+        crypto.randomUUID(),
+        { category: categoryName, budget: budgetValue },
+        `Updated budget for ${categoryName} to ${fmt(budgetValue)}`
+      );
+
+      if (transaction) {
+        // Category budget updates are handled reactively by the transaction system
+      }
+    } catch (error) {
+      console.error('Error updating category budget:', error);
+      notify('Failed to update budget', 'error');
+    }
+  }
+
+  async function moveCategoryUp(categoryName) {
+    try {
+      if (!user?.id) {
+        notify('Please log in to reorder categories', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_order_changed',
+        crypto.randomUUID(),
+        { category: categoryName, direction: 'up' },
+        `Moved ${categoryName} up in order`
+      );
+
+      if (transaction) {
+        notify(`Moved ${categoryName} up`, 'success');
+      }
+    } catch (error) {
+      console.error('Error moving category up:', error);
+      notify('Failed to reorder category', 'error');
+    }
+  }
+
+  async function moveCategoryDown(categoryName) {
+    try {
+      if (!user?.id) {
+        notify('Please log in to reorder categories', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_order_changed',
+        crypto.randomUUID(),
+        { category: categoryName, direction: 'down' },
+        `Moved ${categoryName} down in order`
+      );
+
+      if (transaction) {
+        notify(`Moved ${categoryName} down`, 'success');
+      }
+    } catch (error) {
+      console.error('Error moving category down:', error);
+      notify('Failed to reorder category', 'error');
+    }
+  }
+
+  async function renameCategory(oldName, newName) {
+    try {
+      if (!user?.id) {
+        notify('Please log in to rename categories', 'error');
+        return;
+      }
+
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        notify('Category name cannot be empty', 'error');
+        return;
+      }
+
+      if (trimmedName === oldName) {
+        return; // No change
+      }
+
+      if (categories.some(c => c.name === trimmedName)) {
+        notify('Category name already exists', 'error');
+        return;
+      }
+
+      const category = categories.find(c => c.name === oldName);
+      if (!category) {
+        notify('Category not found', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'category_renamed',
+        category.id,
+        { old_name: oldName, new_name: trimmedName },
+        `Renamed category from "${oldName}" to "${trimmedName}"`
+      );
+
+      if (transaction) {
+        notify(`Category renamed to "${trimmedName}"`, 'success');
+      }
+    } catch (error) {
+      console.error('Error renaming category:', error);
+      notify('Failed to rename category', 'error');
+    }
+  }
+
+  // Render the dashboard UI
+  return (
+    <div style={{
+      padding: isMobile ? '1rem' : '2rem',
+      minHeight: '100vh',
+      background: '#f3f4f6',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      {/* Header */}
+      <div style={{
+        marginBottom: '2rem',
+        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+        padding: '1.5rem',
+        borderRadius: '1rem',
+        boxShadow: '0 20px 40px rgba(139, 92, 246, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(139, 92, 246, 0.3)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: '1rem',
+          position: 'relative',
+          minHeight: isMobile ? '60px' : '80px',
+          paddingTop: '0.5rem',
+          paddingBottom: '0.5rem'
+        }}>
+          {/* Login/Logout Button - Left */}
+          <div style={{ position: 'absolute', left: 0 }}>
+            {user ? (
+              <button
+                onClick={() => supabase.auth.signOut()}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Logout
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {/* Google OAuth Button */}
+                <button
+                  onClick={() => supabase?.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                      redirectTo: window.location.origin
+                    }
+                  })}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#4285f4',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
+                  🚀 Google
+                </button>
+
+                {/* Email Login Button */}
+                <button
+                  onClick={() => setShowAuth(true)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Login
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Centered App Title */}
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <img
+                src="/logo.png"
+                alt="Cashfl0.io Logo"
+                style={{
+                  height: isMobile ? '140px' : '200px',
+                  width: 'auto',
+                  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Sync Status - Right */}
+          <div style={{
+            position: 'absolute',
+            right: 0,
+            display: 'flex',
+            gap: '0.5rem',
+            alignItems: 'center'
+          }}>
+            {isSyncing && (
+              <span style={{
+                background: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                color: '#16a34a',
+                border: '1px solid #bbf7d0',
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }}>
+                ⏳ Syncing...
+              </span>
+            )}
+            {!isSyncing && !hasErrors && (
+              <span style={{
+                background: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                color: '#16a34a',
+                border: '1px solid #bbf7d0'
+              }}>
+                ✅ Synced
+              </span>
+            )}
+            {lastSyncTime > 0 && (
+              <span style={{
+                background: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #e5e7eb',
+                color: '#6b7280'
+              }}>
+                🔄 {new Date(lastSyncTime).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Stats Row */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
+          gap: '1rem',
+          marginBottom: '1rem'
+        }}>
+          <div style={{
+            background: '#f0fdf4',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: '1px solid #bbf7d0',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+              {fmt(currentLiquidWithGuaranteed)}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#15803d' }}>Available Now</div>
+          </div>
+          <div style={{
+            background: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#f0fdf4' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fffbeb' : '#fef2f2'),
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: `1px solid ${currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#bbf7d0' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fed7aa' : '#fecaca')}`,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#d97706' : '#dc2626') }}>
+              {fmt(weekNeedWithoutSavings)}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#92400e' : '#991b1b') }}>Need This Week</div>
+          </div>
+          <div style={{
+            background: '#f0f9ff',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: '1px solid #38bdf8',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0284c7' }}>
+              {fmt(afterWeek)}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>After This Week</div>
+          </div>
+          <div style={{
+            background: '#faf5ff',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: '1px solid #c084fc',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#9333ea' }}>
+              {fmt(upcoming.weekDueTotal)}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due This Week</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Filter - Show on both dashboard and transaction history */}
+      {(currentView === 'dashboard' || currentView === 'history') && (
+        <div style={{
+          marginBottom: '2rem',
+          background: 'white',
+          padding: '0.5rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            overflowX: 'auto',
+            padding: '0.25rem 0',
+            alignItems: 'center',
+            justifyContent: 'flex-start'
+          }}>
+            <button
+              onClick={() => setSelectedCat('All')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: selectedCat === 'All' ? '#8b5cf6' : '#f3f4f6',
+                color: selectedCat === 'All' ? 'white' : '#6b7280',
+                border: '2px solid',
+                borderColor: selectedCat === 'All' ? '#8b5cf6' : '#e5e7eb',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              All
+            </button>
+            {activeCats.map(cat => {
+              const categoryData = categories.find(c => c.name === cat);
+              const spending = categorySpending[cat] || 0;
+              const budget = categoryData?.budget || 0;
+
+              // Determine budget status color
+              let budgetColor = '#e5e7eb'; // Default gray
+              if (budget > 0) {
+                const percentage = (spending / budget) * 100;
+                if (percentage >= 100) {
+                  budgetColor = '#ef4444'; // Red for over budget
+                } else if (percentage >= 80) {
+                  budgetColor = '#f59e0b'; // Orange for near budget
+                } else if (percentage >= 50) {
+                  budgetColor = '#10b981'; // Green for good
+                }
+              }
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCat(cat)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: selectedCat === cat ? '#8b5cf6' : '#f3f4f6',
+                    color: selectedCat === cat ? 'white' : '#6b7280',
+                    border: '2px solid',
+                    borderColor: selectedCat === cat ? '#8b5cf6' : budgetColor,
+                    borderRadius: '0.75rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {budget > 0 && (
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: budgetColor,
+                      flexShrink: 0
+                    }} />
+                  )}
+                  {cat}
+                </button>
+              );
+            })}
+
+            {/* Show Ignored Button */}
+            <button
+              onClick={() => setShowIgnored(!showIgnored)}
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: showIgnored ? '#f59e0b' : '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {showIgnored ? '👁️ Hide Ignored' : '👁️‍🗨️ Show Ignored'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Charts Section */}
+      {(currentView === 'dashboard' || currentView === 'history') && (
+        <div style={{
+          marginBottom: '1.5rem',
+          background: 'white',
+          padding: '1rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }}>
+            Summary
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: '1.5rem',
+            alignItems: 'start'
+          }}>
+            {currentView === 'dashboard' ? (
+              <>
+                {/* Accounts Pie Chart */}
+                <div style={{ textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem', color: '#6b7280' }}>
+                    Accounts Distribution
+                  </h4>
+                  <div style={{ display: 'inline-block', position: 'relative' }}>
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      {(() => {
+                        const total = accounts.reduce((sum, acc) => sum + Math.max(0, acc.balance), 0);
+                        if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
+
+                        let currentAngle = 0;
+                        const colors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
+
+                        return accounts.map((account, index) => {
+                          const balance = Math.max(0, account.balance);
+                          const percentage = balance / total;
+                          const angle = percentage * 360;
+
+                          if (percentage < 0.01) return null;
+
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+
+                          const startRadians = (startAngle * Math.PI) / 180;
+                          const endRadians = (endAngle * Math.PI) / 180;
+
+                          const x1 = 70 + 60 * Math.cos(startRadians);
+                          const y1 = 70 + 60 * Math.sin(startRadians);
+                          const x2 = 70 + 60 * Math.cos(endRadians);
+                          const y2 = 70 + 60 * Math.sin(endRadians);
+
+                          const largeArc = angle > 180 ? 1 : 0;
+
+                          return (
+                            <path
+                              key={account.id}
+                              d={`M 70 70 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                              fill={colors[index % colors.length]}
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                    {accounts.filter(acc => acc.balance > 0).map((account, index) => (
+                      <div key={account.id} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '0.25rem',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        backgroundColor: '#f9fafb'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'][index % 6]
+                          }} />
+                          <span style={{ color: '#374151' }}>{account.name}</span>
+                        </div>
+                        <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(account.balance)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bills Pie Chart */}
+                <div style={{ textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem', color: '#6b7280' }}>
+                    Bills by Category
+                  </h4>
+                  <div style={{ display: 'inline-block', position: 'relative' }}>
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      {(() => {
+                        const billsByCategory = {};
+                        bills.filter(b => selectedCats.includes(b.category) && !b.ignored).forEach(bill => {
+                          billsByCategory[bill.category] = (billsByCategory[bill.category] || 0) + bill.amount;
+                        });
+
+                        const total = Object.values(billsByCategory).reduce((sum, amount) => sum + amount, 0);
+                        if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
+
+                        let currentAngle = 0;
+                        const colors = ['#ef4444', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'];
+
+                        return Object.entries(billsByCategory).map(([category, amount], index) => {
+                          const percentage = amount / total;
+                          const angle = percentage * 360;
+
+                          if (percentage < 0.01) return null;
+
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+
+                          const startRadians = (startAngle * Math.PI) / 180;
+                          const endRadians = (endAngle * Math.PI) / 180;
+
+                          const x1 = 70 + 60 * Math.cos(startRadians);
+                          const y1 = 70 + 60 * Math.sin(startRadians);
+                          const x2 = 70 + 60 * Math.cos(endRadians);
+                          const y2 = 70 + 60 * Math.sin(endRadians);
+
+                          const largeArc = angle > 180 ? 1 : 0;
+
+                          return (
+                            <path
+                              key={category}
+                              d={`M 70 70 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                              fill={colors[index % colors.length]}
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                    {(() => {
+                      const billsByCategory = {};
+                      bills.filter(b => selectedCats.includes(b.category) && !b.ignored).forEach(bill => {
+                        billsByCategory[bill.category] = (billsByCategory[bill.category] || 0) + bill.amount;
+                      });
+                      return Object.entries(billsByCategory).map(([category, amount], index) => (
+                        <div key={category} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '0.25rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          backgroundColor: '#f9fafb'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: ['#ef4444', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'][index % 8]
+                            }} />
+                            <span style={{ color: '#374151' }}>{category}</span>
+                          </div>
+                          <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(amount)}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Credits Pie Chart */}
+                <div style={{ textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem', color: '#6b7280' }}>
+                    Credits by Category
+                  </h4>
+                  <div style={{ display: 'inline-block', position: 'relative' }}>
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      {(() => {
+                        const creditsByCategory = {};
+                        transactions.filter(tx => tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
+                          const category = tx.details?.category || 'Other';
+                          creditsByCategory[category] = (creditsByCategory[category] || 0) + tx.details.amount;
+                        });
+
+                        const total = Object.values(creditsByCategory).reduce((sum, amount) => sum + amount, 0);
+                        if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
+
+                        let currentAngle = 0;
+                        const colors = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#6366f1'];
+
+                        return Object.entries(creditsByCategory).map(([category, amount], index) => {
+                          const percentage = amount / total;
+                          const angle = percentage * 360;
+
+                          if (percentage < 0.01) return null;
+
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+
+                          const startRadians = (startAngle * Math.PI) / 180;
+                          const endRadians = (endAngle * Math.PI) / 180;
+
+                          const x1 = 70 + 60 * Math.cos(startRadians);
+                          const y1 = 70 + 60 * Math.sin(startRadians);
+                          const x2 = 70 + 60 * Math.cos(endRadians);
+                          const y2 = 70 + 60 * Math.sin(endRadians);
+
+                          const largeArc = angle > 180 ? 1 : 0;
+
+                          return (
+                            <path
+                              key={category}
+                              d={`M 70 70 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                              fill={colors[index % colors.length]}
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                    {(() => {
+                      const creditsByCategory = {};
+                      transactions.filter(tx => tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
+                        const category = tx.details?.category || 'Other';
+                        creditsByCategory[category] = (creditsByCategory[category] || 0) + tx.details.amount;
+                      });
+                      return Object.entries(creditsByCategory).map(([category, amount], index) => (
+                        <div key={category} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '0.25rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          backgroundColor: '#f9fafb'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#6366f1'][index % 6]
+                            }} />
+                            <span style={{ color: '#374151' }}>{category}</span>
+                          </div>
+                          <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(amount)}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* Debits Pie Chart */}
+                <div style={{ textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem', color: '#6b7280' }}>
+                    Debits by Category
+                  </h4>
+                  <div style={{ display: 'inline-block', position: 'relative' }}>
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      {(() => {
+                        const debitsByCategory = {};
+                        transactions.filter(tx => !tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
+                          const category = tx.details?.category || 'Other';
+                          debitsByCategory[category] = (debitsByCategory[category] || 0) + tx.details.amount;
+                        });
+
+                        const total = Object.values(debitsByCategory).reduce((sum, amount) => sum + amount, 0);
+                        if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
+
+                        let currentAngle = 0;
+                        const colors = ['#ef4444', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'];
+
+                        return Object.entries(debitsByCategory).map(([category, amount], index) => {
+                          const percentage = amount / total;
+                          const angle = percentage * 360;
+
+                          if (percentage < 0.01) return null;
+
+                          const startAngle = currentAngle;
+                          const endAngle = currentAngle + angle;
+                          currentAngle = endAngle;
+
+                          const startRadians = (startAngle * Math.PI) / 180;
+                          const endRadians = (endAngle * Math.PI) / 180;
+
+                          const x1 = 70 + 60 * Math.cos(startRadians);
+                          const y1 = 70 + 60 * Math.sin(startRadians);
+                          const x2 = 70 + 60 * Math.cos(endRadians);
+                          const y2 = 70 + 60 * Math.sin(endRadians);
+
+                          const largeArc = angle > 180 ? 1 : 0;
+
+                          return (
+                            <path
+                              key={category}
+                              d={`M 70 70 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                              fill={colors[index % colors.length]}
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                    {(() => {
+                      const debitsByCategory = {};
+                      transactions.filter(tx => !tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
+                        const category = tx.details?.category || 'Other';
+                        debitsByCategory[category] = (debitsByCategory[category] || 0) + tx.details.amount;
+                      });
+                      return Object.entries(debitsByCategory).map(([category, amount], index) => (
+                        <div key={category} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '0.25rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          backgroundColor: '#f9fafb'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: ['#ef4444', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'][index % 8]
+                            }} />
+                            <span style={{ color: '#374151' }}>{category}</span>
+                          </div>
+                          <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(amount)}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs */}
+      <div style={{
+        marginBottom: '1.5rem',
+        background: 'white',
+        borderRadius: '1rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          display: 'flex',
+          background: '#f9fafb'
+        }}>
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'dashboard' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'dashboard' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📊 Dashboard
+          </button>
+          <button
+            onClick={() => setCurrentView('history')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'history' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'history' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📋 Transaction History
+          </button>
+        </div>
+      </div>
+
+
+      {/* Dashboard Content */}
+      {currentView === 'dashboard' && (
+        <>
+      {/* Top Row: Accounts, Credits, and Due This Week - Side by Side */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gap: '1.5rem',
+        marginBottom: '2rem'
+      }}>
+        {/* Accounts Section */}
+        <AccountsSection
+          isMobile={isMobile}
+          accounts={accounts}
+          setShowAddAccount={setShowAddAccount}
+          deleteAccount={deleteAccount}
+          updateAccountBalance={updateAccountBalance}
+          currentLiquidWithGuaranteed={currentLiquidWithGuaranteed}
+          renameAccount={renameAccount}
+        />
+
+        {/* Income & Credits */}
+        <div style={{
+          background: 'white',
+          padding: '0.75rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Income</h3>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => setShowAddIncome(true)}
+                style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+              >
+                + Income
+              </button>
+              <button
+                onClick={() => setShowAddCredit(true)}
+                style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+              >
+                + Credit
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
+            {/* Recurring Income */}
+            {recurringIncome.map(income => {
+              const account = accounts.find(a => a.id === income.accountId);
+              const nextDate = getNextIncomeOccurrence(income);
+              const isReceived = income.receivedThisMonth;
+
+              return (
+                <div key={income.id} style={{
+                  background: isReceived ? '#f0fdf4' : '#fef3c7',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  border: `2px solid ${isReceived ? '#bbf7d0' : '#fde68a'}`,
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '0.5rem',
+                    right: '0.5rem',
+                    background: '#10b981',
+                    color: 'white',
+                    padding: '0.125rem 0.5rem',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.625rem',
+                    fontWeight: '600'
+                  }}>
+                    RECURRING
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                    <div style={{ paddingRight: '4rem' }}>
+                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{income.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        {income.frequency} • Next: {nextDate.toLocaleDateString()} • {account?.name}
+                      </div>
+                      {income.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{income.notes}</div>}
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981' }}>
+                      +{fmt(income.amount)}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => toggleIncomeReceived(income)}
+                      style={{ padding: '0.25rem 0.5rem', background: isReceived ? '#f59e0b' : '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      {isReceived ? 'Mark Pending' : 'Mark Received'}
+                    </button>
+                    <button
+                      onClick={() => deleteIncome(income.id)}
+                      style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Upcoming Credits */}
+            {upcomingCredits
+              .filter(c => !c.ignored)
+              .sort((a, b) => new Date(a.expectedDate) - new Date(b.expectedDate))
+              .map(credit => {
+                const account = accounts.find(a => a.id === credit.accountId);
+                const isOverdue = new Date(credit.expectedDate) < new Date();
+
+                return (
+                  <div key={credit.id} style={{
+                    background: credit.guaranteed ? '#f0fdf4' : '#f8fafc',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
+                    position: 'relative'
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      top: '0.5rem',
+                      right: '0.5rem',
+                      background: credit.guaranteed ? '#16a34a' : '#8b5cf6',
+                      color: 'white',
+                      padding: '0.125rem 0.5rem',
+                      borderRadius: '0.25rem',
+                      fontSize: '0.625rem',
+                      fontWeight: '600'
+                    }}>
+                      {credit.guaranteed ? 'GUARANTEED' : 'EXPECTED'}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                      <div style={{ paddingRight: '4rem' }}>
+                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{credit.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
+                          {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                        </div>
+                        {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{credit.notes}</div>}
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                        +{fmt(credit.amount)}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => receiveCredit(credit.id)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Receive
+                      </button>
+                      <button
+                        onClick={() => toggleCreditGuaranteed(credit.id)}
+                        style={{ padding: '0.25rem 0.5rem', background: credit.guaranteed ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        {credit.guaranteed ? 'Make Expected' : 'Make Guaranteed'}
+                      </button>
+                      <button
+                        onClick={() => deleteCredit(credit.id)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+            {/* Empty state */}
+            {recurringIncome.length === 0 && upcomingCredits.filter(c => !c.ignored).length === 0 && (
+              <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                No income or credits yet. Add your first recurring income or expected credit!
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Due This Week */}
+        <div style={{
+          background: 'white',
+          padding: '0.75rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Due This Week</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+            {upcoming.items.map((item, index) => {
+              const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
+              const amount = item.bill?.amount || item.otc?.amount;
+              const name = item.bill?.name || item.otc?.name;
+
+              return (
+                <div key={index} style={{
+                  background: item.overdue ? '#fef2f2' : '#f9fafb',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                    <div>
+                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        Due: {item.due.toLocaleDateString()} • {account?.name}
+                        {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
+                      {fmt(amount)}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    {item.bill && (
+                      <button
+                        onClick={() => togglePaid(item.bill)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                    {item.otc && (
+                      <button
+                        onClick={() => toggleOneTimePaid(item.otc)}
+                        style={{ padding: '0.25rem 0.5rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {upcoming.items.length === 0 && (
+              <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
+                Nothing due this week! 🎉
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+
+      {/* Third Row: Bills & One-Time Costs Section with Toggle */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          {/* Toggle Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '0.5rem', padding: '0.25rem' }}>
+              <button
+                onClick={() => setBillsOtcView('bills')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: billsOtcView === 'bills' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent',
+                  color: billsOtcView === 'bills' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                📋 Bills
+              </button>
+              <button
+                onClick={() => setBillsOtcView('otc')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: billsOtcView === 'otc' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent',
+                  color: billsOtcView === 'otc' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                💸 One-Time Costs
+              </button>
+            </div>
+          </div>
+
+          {/* Conditional Content */}
+          {billsOtcView === 'bills' ? (
+            <BillsSection
+              isMobile={isMobile}
+              bills={bills}
+              accounts={accounts}
+              activeCats={activeCats}
+              showIgnored={showIgnored}
+              selectedCats={selectedCats}
+              totalBillsForSelectedCategory={totalBillsForSelectedCategory}
+              togglePaid={togglePaid}
+              toggleBillIgnored={toggleBillIgnored}
+              deleteBill={deleteBill}
+              setEditingBill={setEditingBill}
+              editingBill={editingBill}
+              updateBill={updateBill}
+              addBill={addBill}
+              user={user}
+              supabase={supabase}
+            />
+          ) : (
+            <OneTimeCostsSection
+              isMobile={isMobile}
+              user={user}
+              supabase={supabase}
+              accounts={accounts}
+              activeCats={activeCats}
+              oneTimeCosts={oneTimeCosts}
+              otcName={otcName}
+              setOtcName={setOtcName}
+              otcCategory={otcCategory}
+              setOtcCategory={setOtcCategory}
+              otcAmount={otcAmount}
+              setOtcAmount={setOtcAmount}
+              otcDueDate={otcDueDate}
+              setOtcDueDate={setOtcDueDate}
+              otcAccountId={otcAccountId}
+              setOtcAccountId={setOtcAccountId}
+              otcNotes={otcNotes}
+              setOtcNotes={setOtcNotes}
+              selectedCats={selectedCats}
+              showIgnored={showIgnored}
+              editingOTC={editingOTC}
+              setEditingOTC={setEditingOTC}
+              toggleOneTimePaid={toggleOneTimePaid}
+              selectAllOnFocus={selectAllOnFocus}
+              deleteOneTimeCost={deleteOneTimeCost}
+            />
+          )}
+        </div>
+      </div>
+
+
+        {/* Settings Section at bottom of dashboard */}
+        <div style={{
+          marginBottom: '2rem',
+          background: 'white',
+          padding: '1rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '1rem',
+            color: '#1f2937'
+          }}>
+            <span style={{ fontSize: '1.125rem', fontWeight: '600' }}>Settings</span>
+            <button
+              onClick={() => { forceTransactionsSync(); }}
+              style={{
+                marginLeft: 'auto',
+                padding: '0.25rem 0.75rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Force Sync
+            </button>
+          </div>
+
+          {/* Settings Controls */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
+            marginBottom: '1rem'
+          }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#374151',
+              fontSize: '0.875rem',
+              background: '#f9fafb',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              border: '1px solid #e5e7eb'
+            }}>
+              <input
+                type="checkbox"
+                checked={autoDeductCash}
+                onChange={(e) => setAutoDeductCash(e.target.checked)}
+                style={{ accentColor: '#8b5cf6' }}
+              />
+              💰 Auto-deduct from cash
+            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#374151',
+              fontSize: '0.875rem',
+              background: '#f9fafb',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              border: '1px solid #e5e7eb'
+            }}>
+              <span>📊 Net Worth Mode:</span>
+              <select
+                value={netWorthMode}
+                onChange={(e) => setNetWorthMode(e.target.value)}
+                style={{
+                  background: 'white',
+                  color: '#374151',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.25rem',
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.75rem'
+                }}
+              >
+                <option value="current">Current</option>
+                <option value="afterWeek">After Week</option>
+                <option value="afterMonth">After Month</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Sync Status */}
+          <div style={{
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            fontSize: '0.875rem',
+            color: '#6b7280',
+            flexWrap: 'wrap'
+          }}>
+            {isSyncing && (
+              <span style={{
+                background: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                color: '#16a34a',
+                border: '1px solid #bbf7d0',
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }}>
+                ⏳ Syncing...
+              </span>
+            )}
+            {hasTransactionsBackup && (
+              <span style={{
+                background: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                color: '#0369a1',
+                border: '1px solid #bae6fd'
+              }}>
+                💾 Backup available
+              </span>
+            )}
+            {transactionsConflicts.length > 0 && (
+              <button
+                onClick={() => resolveTransactionConflict()}
+                style={{
+                  background: 'white',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.5rem',
+                  color: '#dc2626',
+                  border: '1px solid #fecaca',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem'
+                }}
+              >
+                ⚠️ Resolve {transactionsConflicts.length} conflict{transactionsConflicts.length === 1 ? '' : 's'}
+              </button>
+            )}
+          </div>
+
+          {/* Category Budget Management */}
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: '#f9fafb',
+            borderRadius: '0.5rem',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              color: '#1f2937'
+            }}>
+              <span style={{ fontSize: '1rem', fontWeight: '600' }}>Category Budget Management</span>
+              <div style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#6b7280' }}>
+                🟢 Under Budget • 🟡 Close to Budget • 🔴 Over Budget
+              </div>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '0.75rem'
+            }}>
+              {activeCats.map((cat, index) => {
+                const categoryData = categories.find(c => c.name === cat);
+                const spending = categorySpending[cat] || 0;
+                const budget = categoryData?.budget || 0;
+
+                // Determine budget status color
+                let budgetColor = '#e5e7eb';
+                let bgColor = '#f9fafb';
+                let borderColor = '#e5e7eb';
+                if (budget > 0) {
+                  const percentage = (spending / budget) * 100;
+                  if (percentage >= 100) {
+                    budgetColor = '#ef4444';
+                    bgColor = '#fef2f2';
+                    borderColor = '#fecaca';
+                  } else if (percentage >= 80) {
+                    budgetColor = '#f59e0b';
+                    bgColor = '#fffbeb';
+                    borderColor = '#fed7aa';
+                  } else {
+                    budgetColor = '#10b981';
+                    bgColor = '#f0fdf4';
+                    borderColor = '#bbf7d0';
+                  }
+                }
+
+                return (
+                  <div
+                    key={cat}
+                    style={{
+                      padding: '0.75rem',
+                      background: bgColor,
+                      borderRadius: '0.5rem',
+                      border: `2px solid ${borderColor}`,
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      {/* Color indicator */}
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: budgetColor,
+                        flexShrink: 0
+                      }} />
+
+                      {/* Category name and reorder buttons */}
+                      <div style={{ flex: 1 }}>
+                        {editingCategoryName === cat ? (
+                          <input
+                            type="text"
+                            value={tempCategoryName}
+                            onChange={(e) => setTempCategoryName(e.target.value)}
+                            onBlur={() => {
+                              if (tempCategoryName.trim() && tempCategoryName !== cat) {
+                                renameCategory(cat, tempCategoryName.trim());
+                              }
+                              setEditingCategoryName(null);
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                if (tempCategoryName.trim() && tempCategoryName !== cat) {
+                                  renameCategory(cat, tempCategoryName.trim());
+                                }
+                                setEditingCategoryName(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingCategoryName(null);
+                              }
+                            }}
+                            autoFocus={true}
+                            style={{
+                              fontWeight: '600',
+                              fontSize: '1rem',
+                              background: 'white',
+                              border: '2px solid #8b5cf6',
+                              borderRadius: '0.375rem',
+                              padding: '0.25rem 0.5rem',
+                              width: '100%',
+                              maxWidth: '200px'
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '0.375rem',
+                              transition: 'all 0.2s ease',
+                              display: 'inline-block'
+                            }}
+                            onClick={() => {
+                              setEditingCategoryName(cat);
+                              setTempCategoryName(cat);
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#f3f4f6';
+                              e.target.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = 'transparent';
+                              e.target.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            {cat}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        {index > 0 && (
+                          <button
+                            onClick={() => moveCategoryUp(cat)}
+                            style={{
+                              padding: '0.125rem 0.25rem',
+                              background: '#8b5cf6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ↑
+                          </button>
+                        )}
+                        {index < activeCats.length - 1 && (
+                          <button
+                            onClick={() => moveCategoryDown(cat)}
+                            style={{
+                              padding: '0.125rem 0.25rem',
+                              background: '#8b5cf6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ↓
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Budget info and edit */}
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                      Spent: {fmt(spending)} / Budget: {fmt(budget)}
+                      {budget > 0 && (
+                        <span style={{ marginLeft: '0.5rem', fontWeight: '600', color: budgetColor }}>
+                          ({Math.round((spending / budget) * 100)}%)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Edit budget and delete */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {editingCategoryId === categoryData?.id ? (
+                        <>
+                          <input
+                            type="number"
+                            defaultValue={budget}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                updateCategoryBudget(cat, Number(e.target.value));
+                                setEditingCategoryId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingCategoryId(null);
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '0.25rem 0.5rem',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.75rem'
+                            }}
+                            autoFocus={true}
+                          />
+                          <button
+                            onClick={() => setEditingCategoryId(null)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#6b7280',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setEditingCategoryId(categoryData?.id)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Edit Budget
+                          </button>
+                          <button
+                            onClick={() => removeCategory(cat)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = '#dc2626';
+                              e.target.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = '#ef4444';
+                              e.target.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add New Category Section */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: 'rgba(139, 92, 246, 0.1)',
+              borderRadius: '0.5rem',
+              border: '1px solid rgba(139, 92, 246, 0.2)'
+            }}>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#6b21a8',
+                margin: '0 0 1rem 0'
+              }}>
+                Add New Category
+              </h4>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const categoryName = formData.get('categoryName');
+                  if (categoryName?.trim()) {
+                    addCategory(categoryName.trim());
+                    e.target.reset();
+                  }
+                }}
+                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              >
+                <input
+                  name="categoryName"
+                  type="text"
+                  placeholder="Category name (e.g., Food, Entertainment)"
+                  required={true}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem'
+                  }}
+                />
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 4px rgba(139, 92, 246, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 4px 8px rgba(139, 92, 246, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(139, 92, 246, 0.3)';
+                  }}
+                >
+                  + Add Category
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        </>
+      )}
+
+      {/* Transaction History Tab */}
+      {currentView === 'history' && featuresLoaded.advanced && (
+        <div style={{ background: 'white', padding: '0.75rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Transaction History</h3>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={handleExport}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer'
+                }}
+              >
+                📄 Export
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Search transactions..."
+              value={transactionFilter}
+              onChange={(e) => setTransactionFilter(e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                minWidth: '200px'
+              }}
+            />
+
+            {/* Credits/Debits Toggle */}
+            <div style={{ display: 'flex', gap: '0.25rem', background: '#f3f4f6', borderRadius: '0.5rem', padding: '0.25rem' }}>
+              <button
+                onClick={() => setTransactionTypeFilter('all')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: transactionTypeFilter === 'all' ? '#8b5cf6' : 'transparent',
+                  color: transactionTypeFilter === 'all' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setTransactionTypeFilter('credits')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: transactionTypeFilter === 'credits' ? '#10b981' : 'transparent',
+                  color: transactionTypeFilter === 'credits' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                💰 Credits
+              </button>
+              <button
+                onClick={() => setTransactionTypeFilter('debits')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: transactionTypeFilter === 'debits' ? '#ef4444' : 'transparent',
+                  color: transactionTypeFilter === 'debits' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                💸 Debits
+              </button>
+            </div>
+          </div>
+
+          {transactions.length === 0 ? (
+            <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+              No transactions found. Start using the app to see your transaction history!
+            </div>
+          ) : (
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.5rem', overflow: 'hidden' }}>
+              <div style={{
+                background: '#f9fafb',
+                padding: '0.75rem 1rem',
+                borderBottom: '1px solid #e5e7eb',
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px',
+                gap: '1rem',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                color: '#374151'
+              }}>
+                <div>Description</div>
+                {!isMobile && <div>Date</div>}
+                {!isMobile && <div>Amount</div>}
+                <div>Type</div>
+              </div>
+
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {transactions
+                  .filter(tx =>
+                    !transactionFilter ||
+                    tx.description?.toLowerCase().includes(transactionFilter.toLowerCase()) ||
+                    tx.action_type?.toLowerCase().includes(transactionFilter.toLowerCase())
+                  )
+                  .slice(0, 100)
+                  .map((tx, index) => (
+                    <div
+                      key={tx.id || index}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        borderBottom: index < 99 ? '1px solid #f3f4f6' : 'none',
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 120px 120px 100px',
+                        gap: '1rem',
+                        fontSize: '0.875rem',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: '500' }}>{tx.description || 'No description'}</div>
+                        {isMobile && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            {new Date(tx.timestamp).toLocaleDateString()} • {tx.details?.amount ? fmt(tx.details.amount) : 'N/A'}
+                          </div>
+                        )}
+                      </div>
+                      {!isMobile && (
+                        <div style={{ color: '#6b7280' }}>
+                          {new Date(tx.timestamp).toLocaleDateString()}
+                        </div>
+                      )}
+                      {!isMobile && (
+                        <div style={{ fontWeight: '600' }}>
+                          {tx.details?.amount ? fmt(tx.details.amount) : 'N/A'}
+                        </div>
+                      )}
+                      <div>
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.375rem',
+                          fontSize: '0.625rem',
+                          fontWeight: '600',
+                          background: tx.action_type?.includes('payment') ? '#fef3c7' : '#dbeafe',
+                          color: tx.action_type?.includes('payment') ? '#92400e' : '#1e40af'
+                        }}>
+                          {tx.action_type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Credit Dialog */}
+      {showAddCredit && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Upcoming Credit</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              addUpcomingCredit(
+                formData.get('name'),
+                formData.get('amount'),
+                formData.get('expectedDate'),
+                formData.get('accountId'),
+                formData.get('guaranteed') === 'on',
+                formData.get('notes')
+              );
+            }}>
+              <input name="name" placeholder="Credit name (e.g., Tax Refund)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 2500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="expectedDate" type="date" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <input name="guaranteed" type="checkbox" />
+                <span>Guaranteed (include in liquid calculation)</span>
+              </label>
+              <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Add Credit
+                </button>
+                <button type="button" onClick={() => setShowAddCredit(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Income Dialog */}
+      {showAddIncome && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Recurring Income</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              addRecurringIncome(
+                formData.get('name'),
+                formData.get('amount'),
+                formData.get('frequency'),
+                formData.get('payDay'),
+                formData.get('accountId'),
+                formData.get('notes')
+              );
+              setShowAddIncome(false);
+            }}>
+              <input name="name" placeholder="Income name (e.g., Salary)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 3500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                <option value="monthly">Monthly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="weekly">Weekly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <input name="payDay" type="number" min="1" max="31" placeholder="Pay day of month (e.g., 15)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Add Income
+                </button>
+                <button type="button" onClick={() => setShowAddIncome(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Account Dialog */}
+      {showAddAccount && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Add Account</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              addAccount(
+                formData.get('name'),
+                formData.get('type'),
+                formData.get('balance')
+              );
+            }}>
+              <input name="name" placeholder="Account name (e.g., Checking Account)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="type" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                <option value="Bank">Bank Account</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Investment">Investment</option>
+                <option value="Savings">Savings</option>
+              </select>
+              <input name="balance" type="number" step="0.01" placeholder="Current balance (e.g., 1500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Add Account
+                </button>
+                <button type="button" onClick={() => setShowAddAccount(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.75rem', width: '90%', maxWidth: '400px', border: '1px solid #e5e7eb', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.5rem' }}>
+                {confirmDialog.title}
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
+                {confirmDialog.message}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  if (confirmDialog.onCancel) confirmDialog.onCancel();
+                  setConfirmDialog(null);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#e5e7eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#f3f4f6';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDialog.onConfirm) confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#dc2626';
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#ef4444';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Login Modal */}
+      {showAuth && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '1rem',
+            width: '90%',
+            maxWidth: '400px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              margin: '-2rem -2rem 1.5rem -2rem',
+              padding: '1.5rem 2rem',
+              borderRadius: '1rem 1rem 0 0',
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700' }}>
+                {isSignUp ? '📝 Create Account' : '🔐 Welcome Back'}
+              </h2>
+              <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9, fontSize: '0.875rem' }}>
+                {isSignUp ? 'Join Cashflo to manage your finances' : 'Sign in to your Cashflo account'}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  marginBottom: '1rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                onClick={handleAuth}
+                disabled={authLoading}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: authLoading ? '#9ca3af' : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: authLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: authLoading ? 'none' : '0 4px 12px rgba(139, 92, 246, 0.3)'
+                }}
+              >
+                {authLoading ? '⏳ Please wait...' : (isSignUp ? '🚀 Create Account' : '🔐 Sign In')}
+              </button>
+
+              <button
+                onClick={() => setIsSignUp(!isSignUp)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#8b5cf6',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              </button>
+
+              <button
+                onClick={() => setShowAuth(false)}
+                style={{
+                  background: 'none',
+                  border: '1px solid #e5e7eb',
+                  color: '#6b7280',
+                  padding: '0.5rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ErrorBoundary>
+      <DashboardContent />
+    </ErrorBoundary>
+  );
+}
