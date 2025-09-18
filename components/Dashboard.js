@@ -1237,6 +1237,9 @@ function DashboardContent() {
       if (transaction) {
         setShowAddCredit(false);
         notify('Upcoming credit added successfully!');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       } else {
         notify('Failed to save credit - transaction failed', 'error');
       }
@@ -1430,6 +1433,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify('Bill added successfully!');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       } else {
         notify('Failed to save bill - transaction failed', 'error');
       }
@@ -1662,6 +1668,9 @@ function DashboardContent() {
       if (transaction) {
         notify(`Account "${name}" added`, 'success');
         setShowAddAccount(false); // Close dialog on success
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       } else {
         notify('Failed to save account - transaction failed', 'error');
       }
@@ -1701,7 +1710,10 @@ function DashboardContent() {
         `Adjusted balance for account "${account.name}" to ${fmt(balanceValue)}`
       );
 
-      if (!transaction) {
+      if (transaction) {
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
+      } else {
         notify('Failed to save balance update', 'error');
       }
       // No success notification needed for this frequent action, UI will update reactively.
