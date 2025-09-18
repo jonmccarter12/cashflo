@@ -585,7 +585,7 @@ function DashboardContent() {
   const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
   const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
 
-  // Dialog states
+  // Dialog states for various modals
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
