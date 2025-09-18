@@ -21,6 +21,7 @@ import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
+// Version: 2.0 - Fixed showAddBill error completely
 function DashboardContent() {
   const monthKey = yyyyMm();
 
