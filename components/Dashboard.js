@@ -1661,7 +1661,7 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`${b.name} marked as ${!isPaid ? 'not paid' : 'paid'}`, 'success');
+        notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
       }
     } catch (error) {
       console.error('Error toggling paid status:', error);
