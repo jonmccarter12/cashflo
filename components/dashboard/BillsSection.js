@@ -25,6 +25,12 @@ export default function BillsSection({
   const [showRetroactiveHistory, setShowRetroactiveHistory] = React.useState(false);
   const [pendingBillData, setPendingBillData] = React.useState(null);
   const [showAddBillDialog, setShowAddBillDialog] = React.useState(false);
+  const [selectedFrequency, setSelectedFrequency] = React.useState('monthly');
+
+  // Update frequency when editing bill changes
+  React.useEffect(() => {
+    setSelectedFrequency(editingBill?.frequency || 'monthly');
+  }, [editingBill]);
 
   const handleAddBillWithHistory = (formData) => {
     const billData = {
@@ -245,21 +251,101 @@ export default function BillsSection({
                 {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" defaultValue={editingBill?.amount || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <select name="frequency" defaultValue={editingBill?.frequency || 'monthly'} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <select
+                name="frequency"
+                value={selectedFrequency}
+                onChange={(e) => setSelectedFrequency(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              >
                 <option value="monthly">Monthly</option>
                 <option value="weekly">Weekly</option>
                 <option value="biweekly">Bi-weekly</option>
                 <option value="yearly">Yearly</option>
               </select>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
-                  Due Day of Month (1-28):
-                </label>
-                <input name="dueDay" type="number" min="1" max="28" placeholder="Day of month (e.g., 15)" defaultValue={editingBill?.dueDay || '15'} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                  Enter the day of the month this bill is due (1-28)
+
+              {/* Dynamic scheduling fields based on frequency */}
+              {selectedFrequency === 'monthly' && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Due Day of Month (1-31):
+                  </label>
+                  <input name="dueDay" type="number" min="1" max="31" placeholder="Day of month (e.g., 15)" defaultValue={editingBill?.dueDay || '15'} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    For dates like 31st, bills will fall on the last day of shorter months
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {selectedFrequency === 'weekly' && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Day of Week:
+                  </label>
+                  <select name="weeklyDay" defaultValue={editingBill?.weeklyDay || '1'} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', marginBottom: '0.5rem' }}>
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                  </select>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Weekly Schedule:
+                  </label>
+                  <select name="weeklySchedule" defaultValue={editingBill?.weeklySchedule || 'every'} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                    <option value="every">Every week</option>
+                    <option value="first">First week of month</option>
+                    <option value="second">Second week of month</option>
+                    <option value="third">Third week of month</option>
+                    <option value="fourth">Fourth week of month</option>
+                    <option value="last">Last week of month</option>
+                  </select>
+                </div>
+              )}
+
+              {selectedFrequency === 'biweekly' && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Start Date (for bi-weekly cycle):
+                  </label>
+                  <input
+                    name="biweeklyStart"
+                    type="date"
+                    defaultValue={editingBill?.biweeklyStart ? new Date(editingBill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}
+                    required
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Bill will repeat every 14 days from this date
+                  </div>
+                </div>
+              )}
+
+              {selectedFrequency === 'yearly' && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                    Month and Day:
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select name="yearlyMonth" defaultValue={editingBill?.yearlyMonth || '0'} required style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                      <option value="0">January</option>
+                      <option value="1">February</option>
+                      <option value="2">March</option>
+                      <option value="3">April</option>
+                      <option value="4">May</option>
+                      <option value="5">June</option>
+                      <option value="6">July</option>
+                      <option value="7">August</option>
+                      <option value="8">September</option>
+                      <option value="9">October</option>
+                      <option value="10">November</option>
+                      <option value="11">December</option>
+                    </select>
+                    <input name="dueDay" type="number" min="1" max="31" placeholder="Day" defaultValue={editingBill?.dueDay || '1'} required style={{ width: '80px', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                  </div>
+                </div>
+              )}
               <select name="accountId" defaultValue={editingBill?.accountId || accounts[0]?.id} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>

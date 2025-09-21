@@ -1515,15 +1515,34 @@ function DashboardContent() {
       }
 
       const newBillId = crypto.randomUUID();
+      const frequency = formData.get('frequency');
+
       const payload = {
         name: name.trim(),
         category: formData.get('category'),
         amount: Number(amount),
-        frequency: formData.get('frequency'),
-        dueDay: Number(formData.get('dueDay')),
+        frequency,
         accountId,
         notes: formData.get('notes') || ''
       };
+
+      // Add frequency-specific fields
+      if (frequency === 'monthly' || frequency === 'yearly') {
+        payload.dueDay = Number(formData.get('dueDay'));
+      }
+
+      if (frequency === 'yearly') {
+        payload.yearlyMonth = Number(formData.get('yearlyMonth'));
+      }
+
+      if (frequency === 'weekly') {
+        payload.weeklyDay = Number(formData.get('weeklyDay'));
+        payload.weeklySchedule = formData.get('weeklySchedule');
+      }
+
+      if (frequency === 'biweekly') {
+        payload.biweeklyStart = formData.get('biweeklyStart');
+      }
 
       console.log('Adding bill with payload:', payload); // Debug log
 
@@ -1563,15 +1582,34 @@ function DashboardContent() {
         return;
       }
 
+      const frequency = formData.get('frequency');
+
       const newData = {
         name: formData.get('name'),
         category: formData.get('category'),
         amount: Number(formData.get('amount')),
-        frequency: formData.get('frequency'),
-        dueDay: Number(formData.get('dueDay')),
+        frequency,
         accountId: formData.get('accountId'),
         notes: formData.get('notes') || ''
       };
+
+      // Add frequency-specific fields
+      if (frequency === 'monthly' || frequency === 'yearly') {
+        newData.dueDay = Number(formData.get('dueDay'));
+      }
+
+      if (frequency === 'yearly') {
+        newData.yearlyMonth = Number(formData.get('yearlyMonth'));
+      }
+
+      if (frequency === 'weekly') {
+        newData.weeklyDay = Number(formData.get('weeklyDay'));
+        newData.weeklySchedule = formData.get('weeklySchedule');
+      }
+
+      if (frequency === 'biweekly') {
+        newData.biweeklyStart = formData.get('biweeklyStart');
+      }
 
       // Smart change tracking - detect what actually changed
       const changedFields = {};
@@ -1656,25 +1694,60 @@ function DashboardContent() {
       const currentMonth = yyyyMm();
       const isPaid = b.paidMonths.includes(currentMonth);
 
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'bill_payment',
-        b.id,
-        {
-          month: currentMonth,
-          is_paid: !isPaid,
-          accountId: b.accountId,
-          amount: b.amount
-        },
-        `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
-      );
+      // Smart transaction handling - check for recent opposing transaction
+      const recentOpposingTransaction = transactions
+        .filter(tx =>
+          tx.type === 'bill_payment' &&
+          tx.item_id === b.id &&
+          tx.payload.month === currentMonth &&
+          tx.payload.is_paid === isPaid // Find the opposite of what we want to set
+        )
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]; // Most recent first
 
-      if (transaction) {
-        notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
+      if (recentOpposingTransaction) {
+        // Remove the opposing transaction instead of adding a new one
+        try {
+          const { error } = await supabase
+            .from('transaction_log')
+            .delete()
+            .eq('id', recentOpposingTransaction.id);
 
-        // Optimistic update - add transaction to local state immediately
-        setTransactions(prev => [...prev, transaction]);
+          if (error) throw error;
+
+          // Update local state by removing the transaction
+          setTransactions(prev => prev.filter(tx => tx.id !== recentOpposingTransaction.id));
+
+          notify(`${b.name} payment status reverted`, 'success');
+        } catch (deleteError) {
+          console.error('Error removing opposing transaction:', deleteError);
+          // Fallback to creating new transaction if delete fails
+          await createNewPaymentTransaction();
+        }
+      } else {
+        // No recent opposing transaction, create a new one
+        await createNewPaymentTransaction();
+      }
+
+      async function createNewPaymentTransaction() {
+        const transaction = await logTransaction(
+          supabase,
+          user.id,
+          'bill_payment',
+          b.id,
+          {
+            month: currentMonth,
+            is_paid: !isPaid,
+            accountId: b.accountId,
+            amount: b.amount
+          },
+          `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
+        );
+
+        if (transaction) {
+          notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
+          // Optimistic update - add transaction to local state immediately
+          setTransactions(prev => [...prev, transaction]);
+        }
       }
     } catch (error) {
       console.error('Error toggling paid status:', error);
