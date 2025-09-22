@@ -592,6 +592,14 @@ function DashboardContent() {
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
   const [showIgnored, setShowIgnored] = useCloudState('showIgnored', false, user?.id, supabase);
   const [selectedCat, setSelectedCat] = useCloudState('selectedCat', 'All', user?.id, supabase);
+
+  // Ensure first-time users or users without data start with "All" category
+  React.useEffect(() => {
+    if (user?.id && accounts.length === 0 && bills.length === 0 && oneTimeCosts.length === 0 && selectedCat !== 'All') {
+      // This looks like a new user with no data, force category to "All"
+      setSelectedCat('All');
+    }
+  }, [user?.id, accounts.length, bills.length, oneTimeCosts.length, selectedCat, setSelectedCat]);
   
   const [showIncomeHistory, setShowIncomeHistory] = React.useState(false); // Managed locally for UI toggle
 
@@ -1381,6 +1389,9 @@ function DashboardContent() {
         setOtcDueDate(new Date().toISOString().slice(0,10));
         setOtcNotes('');
         notify('One-time cost added successfully!');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error adding one-time cost:', error);

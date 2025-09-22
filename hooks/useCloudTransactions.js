@@ -4,6 +4,8 @@ import { notify } from '../components/Notify';
 
 export function useCloudTransactions(userId, supabase) {
   const [transactions, setTransactions] = React.useState(() => {
+    // Only load from localStorage if we have a userId - prevents loading wrong user data
+    if (!userId) return [];
     const { data } = loadData(TRANSACTION_LOG_KEY, []);
     return data;
   });
@@ -18,6 +20,9 @@ export function useCloudTransactions(userId, supabase) {
       setTransactions([]); // Clear transactions if user logs out
       return;
     }
+
+    // Don't clear transactions immediately - keep them until we fetch new ones
+    // This prevents the 0 balance flash when switching users or refreshing
 
     async function fetchInitialTransactions() {
       setSyncing(true);
