@@ -100,62 +100,62 @@ export const IRS_TAX_CATEGORIES = [
   'Other Deductible'
 ];
 
-// 2024 Tax Brackets
+// 2024 Tax Brackets (Corrected)
 const TAX_BRACKETS_2024 = {
   single: [
-    { min: 0, max: 11600, rate: 0.10 },
-    { min: 11600, max: 47150, rate: 0.12 },
-    { min: 47150, max: 100525, rate: 0.22 },
-    { min: 100525, max: 191050, rate: 0.24 },
-    { min: 191050, max: 243725, rate: 0.32 },
-    { min: 243725, max: 609350, rate: 0.35 },
-    { min: 609350, max: Infinity, rate: 0.37 }
+    { min: 0, max: 11000, rate: 0.10 },
+    { min: 11000, max: 44725, rate: 0.12 },
+    { min: 44725, max: 95375, rate: 0.22 },
+    { min: 95375, max: 182050, rate: 0.24 },
+    { min: 182050, max: 231250, rate: 0.32 },
+    { min: 231250, max: 578125, rate: 0.35 },
+    { min: 578125, max: Infinity, rate: 0.37 }
   ],
   marriedJoint: [
-    { min: 0, max: 23200, rate: 0.10 },
-    { min: 23200, max: 94300, rate: 0.12 },
-    { min: 94300, max: 201050, rate: 0.22 },
-    { min: 201050, max: 383900, rate: 0.24 },
-    { min: 383900, max: 487450, rate: 0.32 },
-    { min: 487450, max: 731200, rate: 0.35 },
-    { min: 731200, max: Infinity, rate: 0.37 }
+    { min: 0, max: 22000, rate: 0.10 },
+    { min: 22000, max: 89450, rate: 0.12 },
+    { min: 89450, max: 190750, rate: 0.22 },
+    { min: 190750, max: 364200, rate: 0.24 },
+    { min: 364200, max: 462500, rate: 0.32 },
+    { min: 462500, max: 693750, rate: 0.35 },
+    { min: 693750, max: Infinity, rate: 0.37 }
   ],
   marriedSeparate: [
-    { min: 0, max: 11600, rate: 0.10 },
-    { min: 11600, max: 47150, rate: 0.12 },
-    { min: 47150, max: 100525, rate: 0.22 },
-    { min: 100525, max: 191950, rate: 0.24 },
-    { min: 191950, max: 243725, rate: 0.32 },
-    { min: 243725, max: 365600, rate: 0.35 },
-    { min: 365600, max: Infinity, rate: 0.37 }
+    { min: 0, max: 11000, rate: 0.10 },
+    { min: 11000, max: 44725, rate: 0.12 },
+    { min: 44725, max: 95375, rate: 0.22 },
+    { min: 95375, max: 182100, rate: 0.24 },
+    { min: 182100, max: 231250, rate: 0.32 },
+    { min: 231250, max: 346875, rate: 0.35 },
+    { min: 346875, max: Infinity, rate: 0.37 }
   ],
   headOfHousehold: [
-    { min: 0, max: 16550, rate: 0.10 },
-    { min: 16550, max: 63100, rate: 0.12 },
-    { min: 63100, max: 100500, rate: 0.22 },
-    { min: 100500, max: 191050, rate: 0.24 },
-    { min: 191050, max: 243700, rate: 0.32 },
-    { min: 243700, max: 609350, rate: 0.35 },
-    { min: 609350, max: Infinity, rate: 0.37 }
+    { min: 0, max: 15700, rate: 0.10 },
+    { min: 15700, max: 59850, rate: 0.12 },
+    { min: 59850, max: 95350, rate: 0.22 },
+    { min: 95350, max: 182050, rate: 0.24 },
+    { min: 182050, max: 231250, rate: 0.32 },
+    { min: 231250, max: 578100, rate: 0.35 },
+    { min: 578100, max: Infinity, rate: 0.37 }
   ],
   qualifyingWidow: [
-    { min: 0, max: 23200, rate: 0.10 },
-    { min: 23200, max: 94300, rate: 0.12 },
-    { min: 94300, max: 201050, rate: 0.22 },
-    { min: 201050, max: 383900, rate: 0.24 },
-    { min: 383900, max: 487450, rate: 0.32 },
-    { min: 487450, max: 731200, rate: 0.35 },
-    { min: 731200, max: Infinity, rate: 0.37 }
+    { min: 0, max: 22000, rate: 0.10 },
+    { min: 22000, max: 89450, rate: 0.12 },
+    { min: 89450, max: 190750, rate: 0.22 },
+    { min: 190750, max: 364200, rate: 0.24 },
+    { min: 364200, max: 462500, rate: 0.32 },
+    { min: 462500, max: 693750, rate: 0.35 },
+    { min: 693750, max: Infinity, rate: 0.37 }
   ]
 };
 
-// Standard Deductions 2024
+// Standard Deductions 2024 (Corrected)
 const STANDARD_DEDUCTIONS_2024 = {
-  single: 14600,
-  marriedJoint: 29200,
-  marriedSeparate: 14600,
-  headOfHousehold: 21900,
-  qualifyingWidow: 29200
+  single: 13850,
+  marriedJoint: 27700,
+  marriedSeparate: 13850,
+  headOfHousehold: 20800,
+  qualifyingWidow: 27700
 };
 
 // EITC Income Limits 2024
@@ -321,10 +321,14 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   const calculateSelfEmploymentTax = (seIncome) => {
     if (seIncome <= 0) return 0;
     const seIncome92_35 = seIncome * 0.9235; // SE income subject to SE tax
-    const socialSecurityBase = Math.min(seIncome92_35, 160200); // 2024 SS wage base
+    const socialSecurityBase = Math.min(seIncome92_35, 168600); // 2024 SS wage base
     const socialSecurityTax = socialSecurityBase * 0.124; // 12.4%
     const medicareTax = seIncome92_35 * 0.029; // 2.9%
-    return socialSecurityTax + medicareTax;
+
+    // Additional Medicare tax for high earners
+    const additionalMedicareTax = seIncome > 200000 ? (seIncome - 200000) * 0.009 : 0;
+
+    return socialSecurityTax + medicareTax + additionalMedicareTax;
   };
 
   // Calculate Child Tax Credit
@@ -426,47 +430,47 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
     const transactionIncome = calculateIncomeFromTransactions();
 
     // Use transaction data if available, otherwise fall back to manual entry
-    const income = transactionIncome.totalIncome > 0 ? transactionIncome.w2Income : (Number(annualIncome) || 0);
-    const seIncome = transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : (Number(selfEmploymentIncome) || 0);
+    const income = transactionIncome.totalIncome > 0 ? transactionIncome.w2Income : (Number(taxProfile.annualIncome) || 0);
+    const seIncome = transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : (Number(taxProfile.selfEmploymentIncome) || 0);
     const trackedExpenses = calculateTrackedExpenses();
 
     // Calculate AGI
     const seDeduction = seIncome > 0 ? calculateSelfEmploymentTax(seIncome) * 0.5 : 0; // Half of SE tax is deductible
-    const iraDeduction = Number(traditionalIRA) || 0;
-    const hsa = Number(hsaContributions) || 0;
-    const studentLoan = Math.min(Number(studentLoanInterest) || 0, 2500); // $2500 limit
+    const iraDeduction = Number(taxProfile.traditionalIRA) || 0;
+    const hsa = Number(taxProfile.hsaContributions) || 0;
+    const studentLoan = Math.min(Number(taxProfile.studentLoanInterest) || 0, 2500); // $2500 limit
 
     const agi = income + seIncome - seDeduction - iraDeduction - hsa - studentLoan;
 
     // Calculate deductions
-    const standardDeduction = STANDARD_DEDUCTIONS_2024[filingStatus];
+    const standardDeduction = STANDARD_DEDUCTIONS_2024[taxProfile.filingStatus];
     const itemizedDeductions =
       trackedExpenses.total +
-      (Number(stateLocalTaxes) || 0) +
-      (Number(mortgageInterest) || 0) +
-      (Number(charitableDonations) || 0) +
-      Math.max(0, (Number(medicalExpenses) || 0) - agi * 0.075); // Medical expenses over 7.5% AGI
+      (Number(taxProfile.stateLocalTaxes) || 0) +
+      (Number(taxProfile.mortgageInterest) || 0) +
+      (Number(taxProfile.charitableDonations) || 0) +
+      Math.max(0, (Number(taxProfile.medicalExpenses) || 0) - agi * 0.075); // Medical expenses over 7.5% AGI
 
     const totalDeductions = Math.max(standardDeduction, itemizedDeductions);
     const taxableIncome = Math.max(0, agi - totalDeductions);
 
     // Calculate taxes
-    const incomeTax = calculateIncomeTax(taxableIncome, filingStatus);
+    const incomeTax = calculateIncomeTax(taxableIncome, taxProfile.filingStatus);
     const seTax = calculateSelfEmploymentTax(seIncome);
     const grossTax = incomeTax + seTax;
 
     // Calculate credits
-    const childTaxCredit = calculateChildTaxCredit(agi, Number(numChildren), filingStatus);
-    const eitc = calculateEITC(agi, Number(numChildren), filingStatus);
-    const educationCredit = calculateEducationCredit(educationExpenses, agi, filingStatus);
-    const dependentCareCredit = calculateDependentCareCredit(dependentCareExpenses, agi, Number(numChildren));
+    const childTaxCredit = calculateChildTaxCredit(agi, Number(taxProfile.numChildren), taxProfile.filingStatus);
+    const eitc = calculateEITC(agi, Number(taxProfile.numChildren), taxProfile.filingStatus);
+    const educationCredit = calculateEducationCredit(taxProfile.educationExpenses, agi, taxProfile.filingStatus);
+    const dependentCareCredit = calculateDependentCareCredit(taxProfile.dependentCareExpenses, agi, Number(taxProfile.numChildren));
 
     const totalCredits = childTaxCredit + eitc + educationCredit + dependentCareCredit;
     const netTax = Math.max(0, grossTax - totalCredits);
 
     // Calculate payments
-    const withholdings = Number(totalWithholdings) || 0;
-    const quarterlyPaid = Number(estimatedQuarterlyPaid) || 0;
+    const withholdings = Number(taxProfile.totalWithholdings) || 0;
+    const quarterlyPaid = Number(taxProfile.estimatedQuarterlyPaid) || 0;
     const totalPaid = withholdings + quarterlyPaid;
 
     return {
@@ -602,8 +606,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
               Filing Status:
             </label>
             <select
-              value={filingStatus}
-              onChange={(e) => setFilingStatus(e.target.value)}
+              value={taxProfile.filingStatus}
+              onChange={(e) => setTaxProfile(prev => ({ ...prev, filingStatus: e.target.value }))}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
             >
               <option value="single">Single</option>
@@ -625,8 +629,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </label>
             <input
               type="number"
-              value={transactionIncome.w2Income > 0 ? transactionIncome.w2Income : annualIncome}
-              onChange={(e) => setAnnualIncome(e.target.value)}
+              value={transactionIncome.w2Income > 0 ? transactionIncome.w2Income : taxProfile.annualIncome}
+              onChange={(e) => setTaxProfile(prev => ({ ...prev, annualIncome: e.target.value }))}
               onFocus={selectAllOnFocus}
               placeholder={transactionIncome.w2Income > 0 ? "Auto-calculated from transactions" : "Enter annual income"}
               style={{
@@ -651,8 +655,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </label>
             <input
               type="number"
-              value={transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : selfEmploymentIncome}
-              onChange={(e) => setSelfEmploymentIncome(e.target.value)}
+              value={transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : taxProfile.selfEmploymentIncome}
+              onChange={(e) => setTaxProfile(prev => ({ ...prev, selfEmploymentIncome: e.target.value }))}
               onFocus={selectAllOnFocus}
               placeholder={transactionIncome.selfEmploymentIncome > 0 ? "Auto-calculated from transactions" : "1099 income, business profits"}
               style={{
@@ -689,8 +693,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
               </label>
               <input
                 type="number"
-                value={numChildren}
-                onChange={(e) => setNumChildren(Math.max(0, Number(e.target.value)))}
+                value={taxProfile.numChildren}
+                onChange={(e) => setTaxProfile(prev => ({ ...prev, numChildren: Math.max(0, Number(e.target.value)) }))}
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
             </div>
@@ -700,8 +704,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
               </label>
               <input
                 type="number"
-                value={numOtherDependents}
-                onChange={(e) => setNumOtherDependents(Math.max(0, Number(e.target.value)))}
+                value={taxProfile.numOtherDependents}
+                onChange={(e) => setTaxProfile(prev => ({ ...prev, numOtherDependents: Math.max(0, Number(e.target.value)) }))}
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
             </div>
@@ -713,8 +717,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </label>
             <input
               type="number"
-              value={totalWithholdings}
-              onChange={(e) => setTotalWithholdings(e.target.value)}
+              value={taxProfile.totalWithholdings}
+              onChange={(e) => setTaxProfile(prev => ({ ...prev, totalWithholdings: e.target.value }))}
               onFocus={selectAllOnFocus}
               placeholder="Federal tax withheld from paychecks"
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
@@ -727,8 +731,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </label>
             <input
               type="number"
-              value={estimatedQuarterlyPaid}
-              onChange={(e) => setEstimatedQuarterlyPaid(e.target.value)}
+              value={taxProfile.estimatedQuarterlyPaid}
+              onChange={(e) => setTaxProfile(prev => ({ ...prev, estimatedQuarterlyPaid: e.target.value }))}
               onFocus={selectAllOnFocus}
               placeholder="Self-employment quarterly payments"
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
@@ -747,8 +751,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={traditional401k}
-                  onChange={(e) => setTraditional401k(e.target.value)}
+                  value={taxProfile.traditional401k}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, traditional401k: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -759,8 +763,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={traditionalIRA}
-                  onChange={(e) => setTraditionalIRA(e.target.value)}
+                  value={taxProfile.traditionalIRA}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, traditionalIRA: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -771,8 +775,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={hsaContributions}
-                  onChange={(e) => setHSAContributions(e.target.value)}
+                  value={taxProfile.hsaContributions}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, hsaContributions: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -791,8 +795,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={educationExpenses}
-                  onChange={(e) => setEducationExpenses(e.target.value)}
+                  value={taxProfile.educationExpenses}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, educationExpenses: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -803,8 +807,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={studentLoanInterest}
-                  onChange={(e) => setStudentLoanInterest(e.target.value)}
+                  value={taxProfile.studentLoanInterest}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, studentLoanInterest: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -815,8 +819,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={dependentCareExpenses}
-                  onChange={(e) => setDependentCareExpenses(e.target.value)}
+                  value={taxProfile.dependentCareExpenses}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, dependentCareExpenses: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -835,8 +839,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={stateLocalTaxes}
-                  onChange={(e) => setStateLocalTaxes(e.target.value)}
+                  value={taxProfile.stateLocalTaxes}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, stateLocalTaxes: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   placeholder="Max $10,000"
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
@@ -848,8 +852,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={mortgageInterest}
-                  onChange={(e) => setMortgageInterest(e.target.value)}
+                  value={taxProfile.mortgageInterest}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, mortgageInterest: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -860,8 +864,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={charitableDonations}
-                  onChange={(e) => setCharitableDonations(e.target.value)}
+                  value={taxProfile.charitableDonations}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, charitableDonations: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 />
@@ -872,8 +876,8 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
                 </label>
                 <input
                   type="number"
-                  value={medicalExpenses}
-                  onChange={(e) => setMedicalExpenses(e.target.value)}
+                  value={taxProfile.medicalExpenses}
+                  onChange={(e) => setTaxProfile(prev => ({ ...prev, medicalExpenses: e.target.value }))}
                   onFocus={selectAllOnFocus}
                   placeholder="Only amount over 7.5% AGI counts"
                   style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
@@ -894,7 +898,7 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
 
             <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
               <span style={{ color: '#6b7280' }}>Total Income:</span>
-              <span style={{ fontWeight: '600' }}>{fmt((Number(annualIncome) || 0) + (Number(selfEmploymentIncome) || 0))}</span>
+              <span style={{ fontWeight: '600' }}>{fmt((Number(taxProfile.annualIncome) || 0) + (Number(taxProfile.selfEmploymentIncome) || 0))}</span>
             </div>
 
             <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
