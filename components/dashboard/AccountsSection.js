@@ -268,7 +268,9 @@ export default function AccountsSection({
                         fontWeight: '700',
                         background: 'rgba(255, 255, 255, 0.1)',
                         color: 'white',
-                        outline: 'none'
+                        outline: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'textfield'
                       }}
                     />
                   </div>
@@ -430,7 +432,9 @@ export default function AccountsSection({
                       textAlign: 'right',
                       fontWeight: '600',
                       background: 'transparent',
-                      color: '#1f2937'
+                      color: '#1f2937',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'textfield'
                     }}
                   />
                 </div>
@@ -706,7 +710,9 @@ export default function AccountsSection({
                           fontWeight: '700',
                           background: 'rgba(255, 255, 255, 0.1)',
                           color: 'white',
-                          outline: 'none'
+                          outline: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'textfield'
                         }}
                       />
                     </div>
@@ -921,7 +927,9 @@ export default function AccountsSection({
                       textAlign: 'right',
                       fontWeight: '700',
                       background: 'transparent',
-                      color: '#1f2937'
+                      color: '#1f2937',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'textfield'
                     }}
                   />
                 </div>
