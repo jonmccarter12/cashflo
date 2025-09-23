@@ -4,8 +4,6 @@ import { notify } from '../components/Notify';
 
 export function useCloudTransactions(userId, supabase) {
   const [transactions, setTransactions] = React.useState(() => {
-    // Only load from localStorage if we have a userId - prevents loading wrong user data
-    if (!userId) return [];
     const { data } = loadData(TRANSACTION_LOG_KEY, []);
     return data;
   });
