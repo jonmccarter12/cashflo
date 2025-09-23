@@ -32,8 +32,8 @@ export default function SwipeableCard({
         setTimeout(() => setShowActions(false), 2000);
       }
     },
-    threshold: 60,
-    velocity: 0.3
+    threshold: 40, // Lower threshold for easier swiping
+    velocity: 0.1   // Much lower velocity requirement (100 pixels/second)
   });
 
   const longPressGestures = useLongPress(

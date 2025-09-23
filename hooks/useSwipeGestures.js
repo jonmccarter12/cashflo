@@ -15,6 +15,7 @@ export function useSwipeGestures({
   const minSwipeDistance = threshold;
 
   const onTouchStart = (e) => {
+    e.preventDefault(); // Prevent other touch handlers from interfering
     touchEnd.current = null; // otherwise the swipe is fired even with usual touch events
     touchStart.current = {
       x: e.targetTouches[0].clientX,
@@ -24,6 +25,8 @@ export function useSwipeGestures({
   };
 
   const onTouchMove = (e) => {
+    if (!touchStart.current) return;
+    e.preventDefault(); // Prevent scrolling during swipe
     touchEnd.current = {
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
@@ -31,16 +34,17 @@ export function useSwipeGestures({
     };
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = (e) => {
     if (!touchStart.current || !touchEnd.current) return;
+    e.preventDefault();
 
     const distanceX = touchStart.current.x - touchEnd.current.x;
     const distanceY = touchStart.current.y - touchEnd.current.y;
-    const timeElapsed = touchEnd.current.time - touchStart.current.time;
+    const timeElapsed = Math.max(touchEnd.current.time - touchStart.current.time, 1); // Prevent division by zero
 
-    // Calculate velocity
-    const velocityX = Math.abs(distanceX) / timeElapsed;
-    const velocityY = Math.abs(distanceY) / timeElapsed;
+    // Calculate velocity in pixels per second (more reasonable scale)
+    const velocityX = Math.abs(distanceX) / (timeElapsed / 1000);
+    const velocityY = Math.abs(distanceY) / (timeElapsed / 1000);
 
     const isLeftSwipe = distanceX > minSwipeDistance;
     const isRightSwipe = distanceX < -minSwipeDistance;
@@ -50,16 +54,33 @@ export function useSwipeGestures({
     // Determine if horizontal or vertical swipe is more dominant
     const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
 
+    // Convert velocity threshold to pixels/second (velocity was in pixels/ms, now pixels/s)
+    const velocityThreshold = velocity * 1000;
+
+    console.log('Swipe debug:', {
+      distanceX,
+      distanceY,
+      timeElapsed,
+      velocityX,
+      velocityY,
+      velocityThreshold,
+      isHorizontalSwipe,
+      isLeftSwipe,
+      isRightSwipe
+    });
+
     if (isHorizontalSwipe) {
-      if (isLeftSwipe && velocityX > velocity && onSwipeLeft) {
+      if (isLeftSwipe && velocityX > velocityThreshold && onSwipeLeft) {
+        console.log('Triggering left swipe');
         onSwipeLeft();
-      } else if (isRightSwipe && velocityX > velocity && onSwipeRight) {
+      } else if (isRightSwipe && velocityX > velocityThreshold && onSwipeRight) {
+        console.log('Triggering right swipe');
         onSwipeRight();
       }
     } else {
-      if (isUpSwipe && velocityY > velocity && onSwipeUp) {
+      if (isUpSwipe && velocityY > velocityThreshold && onSwipeUp) {
         onSwipeUp();
-      } else if (isDownSwipe && velocityY > velocity && onSwipeDown) {
+      } else if (isDownSwipe && velocityY > velocityThreshold && onSwipeDown) {
         onSwipeDown();
       }
     }
