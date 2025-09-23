@@ -1,7 +1,6 @@
 import React from 'react';
 import { fmt, yyyyMm, getNextOccurrence } from '../../lib/utils';
 import { notify } from '../Notify';
-import { SwipeableBillCard, triggerHaptic } from '../SwipeableCard';
 // import RetroactiveBillHistory from '../RetroactiveBillHistory';
 
 export default function BillsSection({
@@ -71,53 +70,52 @@ export default function BillsSection({
               const nextDate = getNextOccurrence(bill);
               
               return (
-                <SwipeableBillCard
-                  key={bill.id}
-                  bill={bill}
-                  onMarkPaid={(bill) => {
-                    triggerHaptic('success');
-                    togglePaid(bill);
-                  }}
-                  onEdit={(bill) => {
-                    triggerHaptic('light');
-                    setEditingBill(bill);
-                  }}
-                  onDelete={(bill) => {
-                    triggerHaptic('error');
-                    if (confirm(`Delete ${bill.name}?`)) {
-                      deleteBill(bill.id);
-                    }
-                  }}
-                  style={{ marginBottom: '0.375rem' }}
-                >
-                  <div style={{
-                    background: 'var(--bg-secondary)',
-                    padding: '0.5rem',
-                    borderRadius: '0.375rem',
-                    border: `2px solid ${isPaid ? 'var(--success)' : 'var(--border-primary)'}`,
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{bill.name}</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>{fmt(bill.amount)}</span>
-                    </div>
-
-                    <div style={{ fontSize: '0.625rem', color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
-                      {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
-                      {bill.notes && <div style={{ marginTop: '0.0625rem', fontStyle: 'italic' }}>{bill.notes}</div>}
-                    </div>
-
-                    {/* Swipe hint for mobile */}
-                    <div style={{
-                      fontSize: '0.5rem',
-                      color: 'var(--text-tertiary)',
-                      textAlign: 'center',
-                      marginTop: '0.25rem',
-                      opacity: 0.7
-                    }}>
-                      👈 Swipe right to pay • Swipe left to delete • Long press to edit 👉
-                    </div>
+                <div key={bill.id} style={{
+                  background: '#f9fafb',
+                  padding: '0.5rem',
+                  borderRadius: '0.375rem',
+                  border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
+                  marginBottom: '0.375rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
                   </div>
-                </SwipeableBillCard>
+
+                  <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
+                    {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
+                    {bill.notes && <div style={{ marginTop: '0.0625rem', fontStyle: 'italic' }}>{bill.notes}</div>}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => togglePaid(bill)}
+                      style={{
+                        padding: '0.125rem 0.25rem',
+                        background: isPaid ? '#10b981' : '#8b5cf6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.125rem',
+                        fontSize: '0.625rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isPaid ? '✅ Paid' : 'Mark Paid'}
+                    </button>
+                    <button
+                      onClick={() => setEditingBill(bill)}
+                      style={{ padding: '0.125rem 0.25rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteBill(bill.id)}
+                      style={{ padding: '0.125rem 0.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               );
             })}
             <button
@@ -160,26 +158,26 @@ export default function BillsSection({
                 
                 return (
                   <div key={bill.id} style={{
-                    background: 'var(--bg-secondary)',
+                    background: '#f9fafb',
                     padding: '1rem',
                     borderRadius: '0.5rem',
-                    border: `2px solid ${isPaid ? 'var(--success)' : 'var(--border-primary)'}`,
+                    border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
                     opacity: bill.ignored ? 0.6 : 1
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: '500', fontSize: '1rem', color: 'var(--text-primary)' }}>{bill.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           Next: {nextDate.toLocaleDateString()}
                         </div>
-                        {bill.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '0.25rem' }}>{bill.notes}</div>}
+                        {bill.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{bill.notes}</div>}
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{fmt(bill.amount)}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{bill.category}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(bill.amount)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{bill.category}</div>
                       </div>
                     </div>
 
