@@ -1258,26 +1258,73 @@ function DashboardContent() {
   };
 
   // RECURRING INCOME FUNCTIONS
-  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes, source) {
+  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes, source, incomeType, hourlyRate, hoursPerPeriod, federalTaxRate, stateTaxRate, socialSecurityRate, medicareRate, otherDeductions) {
     try {
       if (!user?.id) {
         notify('Please log in to add income', 'error');
         return;
       }
 
-      if (!name || !amount || !payDay || !accountId || !source) {
+      if (!name || !payDay || !accountId || !source) {
         notify('Please fill in all required fields', 'error');
         return;
       }
+
+      // Calculate gross amount based on income type
+      let grossAmount;
+      if (incomeType === 'hourly') {
+        if (!hourlyRate || !hoursPerPeriod) {
+          notify('Please fill in hourly rate and hours per period', 'error');
+          return;
+        }
+        grossAmount = Number(hourlyRate) * Number(hoursPerPeriod);
+      } else {
+        if (!amount) {
+          notify('Please fill in the salary amount', 'error');
+          return;
+        }
+        grossAmount = Number(amount);
+      }
+
+      // Calculate tax withholdings and net amount
+      let netAmount = grossAmount;
+      const taxDetails = {};
+
+      if (federalTaxRate || stateTaxRate || socialSecurityRate || medicareRate || otherDeductions) {
+        const federalTax = grossAmount * (Number(federalTaxRate) || 0) / 100;
+        const stateTax = grossAmount * (Number(stateTaxRate) || 0) / 100;
+        const socialSecurity = grossAmount * (Number(socialSecurityRate) || 6.2) / 100;
+        const medicare = grossAmount * (Number(medicareRate) || 1.45) / 100;
+        const otherDed = Number(otherDeductions) || 0;
+
+        const totalTaxes = federalTax + stateTax + socialSecurity + medicare + otherDed;
+        netAmount = grossAmount - totalTaxes;
+
+        taxDetails = {
+          federalTax: federalTax.toFixed(2),
+          stateTax: stateTax.toFixed(2),
+          socialSecurity: socialSecurity.toFixed(2),
+          medicare: medicare.toFixed(2),
+          otherDeductions: otherDed.toFixed(2),
+          totalTaxes: totalTaxes.toFixed(2),
+          taxRate: ((totalTaxes / grossAmount) * 100).toFixed(1)
+        };
+      }
+
       const newIncomeId = crypto.randomUUID();
       const payload = {
         name: name.trim(),
-        amount: Number(amount),
+        amount: netAmount, // Store net amount as the main amount
+        grossAmount: grossAmount,
         frequency,
         payDay: Number(payDay),
         accountId,
         notes: notes || '',
-        source: source.trim()
+        source: source.trim(),
+        incomeType: incomeType || 'salary',
+        hourlyRate: incomeType === 'hourly' ? Number(hourlyRate) : null,
+        hoursPerPeriod: incomeType === 'hourly' ? Number(hoursPerPeriod) : null,
+        taxDetails: Object.keys(taxDetails).length > 0 ? taxDetails : null
       };
 
       const transaction = await logTransaction(
@@ -4786,7 +4833,15 @@ function DashboardContent() {
                 formData.get('payDay'),
                 formData.get('accountId'),
                 formData.get('notes'),
-                formData.get('source')
+                formData.get('source'),
+                formData.get('incomeType'),
+                formData.get('hourlyRate'),
+                formData.get('hoursPerPeriod'),
+                formData.get('federalTaxRate'),
+                formData.get('stateTaxRate'),
+                formData.get('socialSecurityRate'),
+                formData.get('medicareRate'),
+                formData.get('otherDeductions')
               );
               setShowAddIncome(false);
             }}>
@@ -4861,7 +4916,50 @@ function DashboardContent() {
                   </div>
                 );
               })()}
+
+              {/* Income Type Selection */}
+              <select name="incomeType" id="incomeType" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+                const hourlyFields = document.getElementById('hourlyFields');
+                const amountField = document.querySelector('input[name="amount"]');
+                if (e.target.value === 'hourly') {
+                  hourlyFields.style.display = 'block';
+                  amountField.placeholder = 'Hourly rate (e.g., 25.00)';
+                  amountField.required = false;
+                } else {
+                  hourlyFields.style.display = 'none';
+                  amountField.placeholder = 'Amount (e.g., 3500.00)';
+                  amountField.required = true;
+                }
+              }}>
+                <option value="salary">💰 Salary/Fixed Amount</option>
+                <option value="hourly">⏰ Hourly Rate</option>
+              </select>
+
+              {/* Amount or Hourly Rate */}
               <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 3500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+
+              {/* Hourly Fields (Hidden by default) */}
+              <div id="hourlyFields" style={{ display: 'none', marginBottom: '0.5rem' }}>
+                <input name="hourlyRate" type="number" step="0.01" placeholder="Hourly rate (e.g., 25.00)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="hoursPerPeriod" type="number" step="0.5" placeholder="Expected hours per pay period (e.g., 80)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              </div>
+
+              {/* Tax Withholding Section */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.75rem', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>💸 Tax Withholding (Optional)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <input name="federalTaxRate" type="number" step="0.1" min="0" max="50" placeholder="Federal tax %" style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
+                  <input name="stateTaxRate" type="number" step="0.1" min="0" max="20" placeholder="State tax %" style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <input name="socialSecurityRate" type="number" step="0.1" min="0" max="10" placeholder="Social Security %" defaultValue="6.2" style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
+                  <input name="medicareRate" type="number" step="0.01" min="0" max="5" placeholder="Medicare %" defaultValue="1.45" style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
+                </div>
+                <input name="otherDeductions" type="number" step="0.01" min="0" placeholder="Other deductions ($ amount)" style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  💡 Leave blank to use gross amounts. Fill in to see your take-home pay.
+                </div>
+              </div>
               <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 <option value="monthly">Monthly</option>
                 <option value="biweekly">Bi-weekly</option>

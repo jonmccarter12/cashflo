@@ -98,14 +98,31 @@ export default function IncomeSection({
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                         <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#000' }}>{income.name}</span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
-                          +{fmt(income.amount)}
-                        </span>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
+                            +{fmt(income.amount)}
+                          </span>
+                          {income.grossAmount && income.grossAmount !== income.amount && (
+                            <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>
+                              Gross: {fmt(income.grossAmount)}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
-                        {income.frequency} • Next: {nextDate.toLocaleDateString()} • {account?.name}
+                        {income.incomeType === 'hourly' ? (
+                          <>⏰ ${income.hourlyRate}/hr × {income.hoursPerPeriod}h • {income.frequency}</>
+                        ) : (
+                          <>💰 {income.frequency}</>
+                        )}
+                        {' • Next: ' + nextDate.toLocaleDateString() + ' • ' + account?.name}
                         {isReceived && <span style={{ color: '#16a34a', fontWeight: '600' }}> • RECEIVED THIS MONTH</span>}
+                        {income.taxDetails && (
+                          <div style={{ marginTop: '0.125rem', fontSize: '0.6rem', color: '#f59e0b' }}>
+                            💸 Tax rate: {income.taxDetails.taxRate}% • Take-home: {fmt(income.amount)}
+                          </div>
+                        )}
                         {income.notes && <div style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>{income.notes}</div>}
                       </div>
 
@@ -325,15 +342,39 @@ export default function IncomeSection({
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>🔄 {income.name}</div>
+                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>
+                          {income.incomeType === 'hourly' ? '⏰' : '🔄'} {income.name}
+                        </div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {income.frequency} • Next: {nextDate.toLocaleDateString()}
+                          {income.incomeType === 'hourly' ? (
+                            <>${income.hourlyRate}/hr × {income.hoursPerPeriod}h • {income.frequency}</>
+                          ) : (
+                            <>{income.frequency}</>
+                          )}
+                          {' • Next: ' + nextDate.toLocaleDateString()}
                           {isReceived && <span style={{ color: '#16a34a', fontWeight: '600' }}> • RECEIVED</span>}
                         </div>
+                        {income.taxDetails && (
+                          <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '0.25rem' }}>
+                            💸 Effective tax rate: {income.taxDetails.taxRate}% • Take-home: {fmt(income.amount)}
+                            <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '0.125rem' }}>
+                              Federal: ${income.taxDetails.federalTax} • State: ${income.taxDetails.stateTax} •
+                              SS: ${income.taxDetails.socialSecurity} • Medicare: ${income.taxDetails.medicare}
+                              {Number(income.taxDetails.otherDeductions) > 0 && <> • Other: ${income.taxDetails.otherDeductions}</>}
+                            </div>
+                          </div>
+                        )}
                         {income.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{income.notes}</div>}
                       </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
-                        +{fmt(income.amount)}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                          +{fmt(income.amount)}
+                        </div>
+                        {income.grossAmount && income.grossAmount !== income.amount && (
+                          <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                            Gross: {fmt(income.grossAmount)}
+                          </div>
+                        )}
                       </div>
                     </div>
 
