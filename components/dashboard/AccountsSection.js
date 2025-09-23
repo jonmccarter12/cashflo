@@ -280,7 +280,7 @@ export default function AccountsSection({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>Utilization</span>
                       <span style={{ fontSize: '0.75rem', fontWeight: '700', color: utilizationColor }}>
-                        {utilization.toFixed(1)}%
+                        {utilization.toFixed(1)} %
                       </span>
                     </div>
                     <div style={{
@@ -718,7 +718,7 @@ export default function AccountsSection({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <span style={{ fontSize: '0.875rem', color: '#94a3b8', fontWeight: '500' }}>Utilization</span>
                         <span style={{ fontSize: '0.875rem', fontWeight: '700', color: utilizationColor }}>
-                          {utilization.toFixed(1)}%
+                          {utilization.toFixed(1)} %
                         </span>
                       </div>
                       <div style={{
