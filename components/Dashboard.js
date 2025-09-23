@@ -3467,7 +3467,7 @@ function DashboardContent() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb'
         }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Due This Week</h3>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#000' }}>Due This Week</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
@@ -3483,7 +3483,7 @@ function DashboardContent() {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                     <div>
-                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{name}</div>
+                      <div style={{ fontWeight: '500', fontSize: '1rem', color: '#000' }}>{name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                         Due: {item.due.toLocaleDateString()} • {account?.name}
                         {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
