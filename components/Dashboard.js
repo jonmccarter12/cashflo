@@ -2803,7 +2803,7 @@ function DashboardContent() {
         {/* Quick Stats Row */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)',
           gap: '1rem',
           marginBottom: '1rem',
           margin: isMobile ? '0 1rem 1rem 1rem' : '0 0 1rem 0'
@@ -2855,6 +2855,18 @@ function DashboardContent() {
               {fmt(upcoming.weekDueTotal)}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due This Week</div>
+          </div>
+          <div style={{
+            background: '#f8fafc',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: '1px solid #cbd5e1',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#475569' }}>
+              {fmt(netWorthValue)}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Net Worth</div>
           </div>
         </div>
       </div>
