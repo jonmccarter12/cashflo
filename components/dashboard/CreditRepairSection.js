@@ -501,26 +501,37 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     }));
 
     try {
-      const result = await connectToCreditBureau(bureau, {
-        // These would be real credentials in production
-        apiKey: 'demo_key',
-        clientId: 'demo_client'
-      });
-
-      if (result.success) {
+      // Check if user profile is complete
+      if (!userProfile.ssn || !userProfile.dateOfBirth || !userProfile.fullName) {
+        notify('Please complete your profile information first (SSN, DOB, Full Name required)', 'error');
         setCreditConnection(prev => ({
           ...prev,
-          [bureau]: { connected: true, loading: false }
+          [bureau]: { connected: false, loading: false }
         }));
+        return;
+      }
+
+      const result = await connectToCreditBureau(bureau, userProfile);
+
+      setCreditConnection(prev => ({
+        ...prev,
+        [bureau]: { connected: result.success, loading: false }
+      }));
+
+      if (result.success) {
+        // Update credit data with real information
+        setCreditData(result.data);
 
         // Fetch live score
-        const scoreData = await fetchLiveCreditScore(bureau);
+        const scoreData = await fetchLiveCreditScore(bureau, userProfile);
         setLiveScores(prev => ({
           ...prev,
           [bureau]: scoreData
         }));
 
-        notify(`Successfully connected to ${bureau}! Live credit data loaded.`, 'success');
+        notify(`Successfully connected to ${bureau}! ${result.source === 'sample' ? 'Using sample data.' : 'Live credit data loaded.'}`, result.source === 'sample' ? 'warning' : 'success');
+      } else {
+        notify(`Unable to connect to ${bureau}: ${result.message}`, 'warning');
       }
     } catch (error) {
       setCreditConnection(prev => ({
@@ -528,6 +539,78 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
         [bureau]: { connected: false, loading: false }
       }));
       notify(`Failed to connect to ${bureau}. Please check your credentials.`, 'error');
+    }
+  };
+
+  // Credit Karma style multi-bureau pull (2 of 3 bureaus)
+  const pullMultiBureauCredit = async () => {
+    // Check if user profile is complete
+    if (!userProfile.ssn || !userProfile.dateOfBirth || !userProfile.fullName) {
+      notify('Please complete your profile information first (SSN, DOB, Full Name required)', 'error');
+      return;
+    }
+
+    const bureaus = ['experian', 'equifax', 'transunion'];
+    const pullPromises = [];
+    let successfulPulls = 0;
+
+    notify('Connecting to credit bureaus... This may take a moment.', 'info');
+
+    // Set all bureaus to loading
+    bureaus.forEach(bureau => {
+      setCreditConnection(prev => ({
+        ...prev,
+        [bureau]: { ...prev[bureau], loading: true }
+      }));
+    });
+
+    // Try to connect to all 3 bureaus (Credit Karma style)
+    for (const bureau of bureaus) {
+      try {
+        const result = await connectToCreditBureau(bureau, userProfile);
+
+        setCreditConnection(prev => ({
+          ...prev,
+          [bureau]: { connected: result.success, loading: false }
+        }));
+
+        if (result.success) {
+          successfulPulls++;
+          // Merge credit data from multiple sources
+          setCreditData(prevData => ({
+            ...prevData,
+            ...result.data,
+            creditScores: {
+              ...prevData.creditScores,
+              ...result.data.creditScores
+            },
+            accounts: [...(prevData.accounts || []), ...(result.data.accounts || [])],
+            inquiries: [...(prevData.inquiries || []), ...(result.data.inquiries || [])]
+          }));
+
+          // Fetch live score for this bureau
+          const scoreData = await fetchLiveCreditScore(bureau, userProfile);
+          setLiveScores(prev => ({
+            ...prev,
+            [bureau]: scoreData
+          }));
+        }
+      } catch (error) {
+        console.error(`Failed to connect to ${bureau}:`, error);
+        setCreditConnection(prev => ({
+          ...prev,
+          [bureau]: { connected: false, loading: false }
+        }));
+      }
+    }
+
+    // Report results
+    if (successfulPulls >= 2) {
+      notify(`Successfully connected to ${successfulPulls} credit bureaus! Your credit profile has been updated.`, 'success');
+    } else if (successfulPulls === 1) {
+      notify(`Connected to 1 credit bureau. Some data may be limited.`, 'warning');
+    } else {
+      notify(`Unable to connect to credit bureaus at this time. Using sample data for demonstration.`, 'error');
     }
   };
 
@@ -1409,6 +1492,41 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* Credit Karma Style Check Score Button */}
+            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1rem', color: 'white' }}>
+              <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: '1.125rem', fontWeight: '700', marginBottom: '0.25rem' }}>
+                  📊 Check Your Credit Score
+                </div>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                  Get your credit scores from 2 of 3 major bureaus - just like Credit Karma!
+                </div>
+              </div>
+
+              <button
+                onClick={pullMultiBureauCredit}
+                disabled={Object.values(creditConnection).some(conn => conn.loading)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: Object.values(creditConnection).some(conn => conn.loading) ? 'wait' : 'pointer',
+                  opacity: Object.values(creditConnection).some(conn => conn.loading) ? 0.7 : 1,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                {Object.values(creditConnection).some(conn => conn.loading) ?
+                  '🔄 Checking...' :
+                  '🚀 Check My Score Now'
+                }
+              </button>
             </div>
 
             {/* Credit Monitoring Toggle */}
