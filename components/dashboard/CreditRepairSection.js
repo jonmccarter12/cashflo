@@ -8,7 +8,11 @@ import {
   fetchLiveCreditScore,
   setupCreditMonitoring,
   simulateCreditImprovement,
-  CREDIT_BUREAU_APIS
+  CREDIT_BUREAU_APIS,
+  canCheckCredit,
+  saveCreditCheckHistory,
+  getTimeUntilNextCheck,
+  CREDIT_CHECK_POLICIES
 } from '../../lib/creditApis';
 
 // AI-powered credit analysis engine
@@ -466,6 +470,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
   });
   const [liveScores, setLiveScores] = React.useState({});
   const [creditMonitoring, setCreditMonitoring] = React.useState(false);
+  const [checkLimits, setCheckLimits] = React.useState(canCheckCredit());
 
   // Load saved profile data
   React.useEffect(() => {
@@ -544,6 +549,14 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
 
   // Credit Karma style multi-bureau pull (2 of 3 bureaus)
   const pullMultiBureauCredit = async () => {
+    // Check frequency limits first
+    const currentLimits = canCheckCredit();
+    if (!currentLimits.canCheck) {
+      const timeUntil = getTimeUntilNextCheck();
+      notify(`${currentLimits.message} You can check again ${timeUntil}. (${currentLimits.todayCount}/${currentLimits.dailyLimit} today, ${currentLimits.weekCount}/${currentLimits.weeklyLimit} this week)`, 'warning');
+      return;
+    }
+
     // Check if user profile is complete
     if (!userProfile.ssn || !userProfile.dateOfBirth || !userProfile.fullName) {
       notify('Please complete your profile information first (SSN, DOB, Full Name required)', 'error');
@@ -604,11 +617,25 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
       }
     }
 
+    // Save check to history and update limits
+    const successfulBureaus = bureaus.filter(bureau =>
+      creditConnection[bureau] && creditConnection[bureau].connected
+    );
+
+    saveCreditCheckHistory({
+      bureaus: successfulBureaus,
+      success: successfulPulls > 0,
+      source: successfulPulls > 0 ? 'multi_bureau_pull' : 'failed_attempt'
+    });
+
+    // Update check limits state
+    setCheckLimits(canCheckCredit());
+
     // Report results
     if (successfulPulls >= 2) {
-      notify(`Successfully connected to ${successfulPulls} credit bureaus! Your credit profile has been updated.`, 'success');
+      notify(`Successfully connected to ${successfulPulls} credit bureaus! Your credit profile has been updated. (Soft pull - no impact on credit score)`, 'success');
     } else if (successfulPulls === 1) {
-      notify(`Connected to 1 credit bureau. Some data may be limited.`, 'warning');
+      notify(`Connected to 1 credit bureau. Some data may be limited. (Soft pull - no impact on credit score)`, 'warning');
     } else {
       notify(`Unable to connect to credit bureaus at this time. Using sample data for demonstration.`, 'error');
     }
@@ -1503,27 +1530,32 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                 <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
                   Get your credit scores from 2 of 3 major bureaus - just like Credit Karma!
                 </div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem' }}>
+                  💡 Soft pull only - no impact on your credit score | Checks today: {checkLimits.todayCount}/{checkLimits.dailyLimit}
+                </div>
               </div>
 
               <button
                 onClick={pullMultiBureauCredit}
-                disabled={Object.values(creditConnection).some(conn => conn.loading)}
+                disabled={Object.values(creditConnection).some(conn => conn.loading) || !checkLimits.canCheck}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
-                  background: 'rgba(255,255,255,0.2)',
+                  background: !checkLimits.canCheck ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
                   color: 'white',
                   border: '1px solid rgba(255,255,255,0.3)',
                   borderRadius: '0.5rem',
                   fontSize: '1rem',
                   fontWeight: '600',
-                  cursor: Object.values(creditConnection).some(conn => conn.loading) ? 'wait' : 'pointer',
-                  opacity: Object.values(creditConnection).some(conn => conn.loading) ? 0.7 : 1,
+                  cursor: (Object.values(creditConnection).some(conn => conn.loading) || !checkLimits.canCheck) ? 'not-allowed' : 'pointer',
+                  opacity: (Object.values(creditConnection).some(conn => conn.loading) || !checkLimits.canCheck) ? 0.5 : 1,
                   backdropFilter: 'blur(10px)'
                 }}
               >
                 {Object.values(creditConnection).some(conn => conn.loading) ?
                   '🔄 Checking...' :
+                  !checkLimits.canCheck ?
+                  `⏰ Check again ${getTimeUntilNextCheck()}` :
                   '🚀 Check My Score Now'
                 }
               </button>
