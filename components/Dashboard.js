@@ -762,17 +762,22 @@ function DashboardContent() {
     }
   }, [recurringIncome]);
 
-  // Calculate liquid including guaranteed credits
+  // Calculate liquid including guaranteed credits (excluding savings accounts)
   const currentLiquidWithGuaranteed = React.useMemo(() => {
     try {
-      const baseBalance = accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
+      // Exclude savings accounts from liquid calculations for "Need This Week"
+      const baseBalance = accounts
+        .filter(a => a.type !== 'Savings')
+        .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
       const guaranteedCredits = upcomingCredits
         .filter(c => c.guaranteed && !c.ignored)
         .reduce((s, c) => s + (Number(c.amount) || 0), 0);
       return baseBalance + guaranteedCredits;
     } catch (error) {
       console.error('Error calculating liquid with guaranteed:', error);
-      return accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
+      return accounts
+        .filter(a => a.type !== 'Savings')
+        .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     }
   }, [accounts, upcomingCredits]);
 
@@ -781,16 +786,29 @@ function DashboardContent() {
     return currentLiquidWithGuaranteed + monthlyRecurringIncomeTotal;
   }, [currentLiquidWithGuaranteed, monthlyRecurringIncomeTotal]);
 
-  // Derived calculations with error handling
+  // Derived calculations with error handling (excluding savings accounts)
   const currentLiquid = React.useMemo(()=> {
     try {
-      return accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
+      // Exclude savings accounts from liquid calculations
+      return accounts
+        .filter(a => a.type !== 'Savings')
+        .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     } catch (error) {
       console.error('Error calculating current liquid:', error);
       return 0;
     }
   }, [accounts]);
-  
+
+  // Total net worth including savings accounts (for display purposes)
+  const totalNetWorth = React.useMemo(() => {
+    try {
+      return accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
+    } catch (error) {
+      console.error('Error calculating total net worth:', error);
+      return 0;
+    }
+  }, [accounts]);
+
   const upcoming = React.useMemo(()=>{
     try {
       const now = new Date();
@@ -877,7 +895,7 @@ function DashboardContent() {
 
   const afterWeek = projectedWithIncome - upcoming.weekDueTotal;
   const afterMonth = projectedWithIncome - monthUnpaidTotal;
-  const netWorthValue = currentLiquidWithGuaranteed;
+  const netWorthValue = totalNetWorth; // Include savings accounts in net worth display
 
   const weekNeedWithoutSavings = upcoming.weekDueTotal;
   const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquidWithGuaranteed);
@@ -4635,6 +4653,10 @@ function DashboardContent() {
                   typeSelect.innerHTML = `
                     <option value="Credit Card">Credit Card</option>
                     <option value="Store Card">Store Credit Card</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Auto Loan">Auto Loan</option>
+                    <option value="Student Loan">Student Loan</option>
+                    <option value="Line of Credit">Line of Credit</option>
                     <option value="Business Credit">Business Credit Card</option>
                   `;
                   typeSelect.value = 'Credit Card'; // Set default value
@@ -4708,6 +4730,10 @@ function DashboardContent() {
                   typeSelect.innerHTML = `
                     <option value="Credit Card">Credit Card</option>
                     <option value="Store Card">Store Credit Card</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Auto Loan">Auto Loan</option>
+                    <option value="Student Loan">Student Loan</option>
+                    <option value="Line of Credit">Line of Credit</option>
                     <option value="Business Credit">Business Credit Card</option>
                   `;
                 } else {
@@ -4728,6 +4754,10 @@ function DashboardContent() {
                   <>
                     <option value="Credit Card">Credit Card</option>
                     <option value="Store Card">Store Credit Card</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Auto Loan">Auto Loan</option>
+                    <option value="Student Loan">Student Loan</option>
+                    <option value="Line of Credit">Line of Credit</option>
                     <option value="Business Credit">Business Credit Card</option>
                   </>
                 ) : (
