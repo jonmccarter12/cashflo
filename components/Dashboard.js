@@ -18,6 +18,7 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
+import ThemeToggle from './ThemeToggle';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -2592,6 +2593,11 @@ function DashboardContent() {
             paddingTop: '0.5rem',
             paddingBottom: '0.5rem'
           }}>
+            {/* Theme Toggle - Right on desktop */}
+            <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
+              <ThemeToggle size="medium" />
+            </div>
+
             {/* Login/Logout Button - Left on desktop */}
             <div style={{ position: 'absolute', left: 0 }}>
               {user ? (
