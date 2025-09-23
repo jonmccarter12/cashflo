@@ -19,7 +19,7 @@ import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import TaxSection from './dashboard/TaxSection';
-import CreditSection from './dashboard/CreditSection';
+import CreditRepairSection from './dashboard/CreditRepairSection';
 import TransactionImport from './TransactionImport';
 // Lazy load for performance
 
@@ -4839,7 +4839,7 @@ function DashboardContent() {
 
       {/* Credit Accounts Tab */}
       {currentView === 'credit' && (
-        <CreditSection
+        <CreditRepairSection
           isMobile={isMobile}
           accounts={accounts}
           transactions={transactions}
