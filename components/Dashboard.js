@@ -19,6 +19,7 @@ import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import ThemeToggle from './ThemeToggle';
+import { SwipeableBillCard, triggerHaptic } from './SwipeableCard';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -3473,23 +3474,81 @@ function DashboardContent() {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;
               const name = item.bill?.name || item.otc?.name;
+              const category = item.bill?.category || item.otc?.category;
 
+              // For mobile, use SwipeableBillCard if it's a bill
+              if (isMobile && item.bill) {
+                return (
+                  <SwipeableBillCard
+                    key={index}
+                    bill={item.bill}
+                    onMarkPaid={(bill) => {
+                      triggerHaptic('success');
+                      togglePaid(bill);
+                    }}
+                    onEdit={(bill) => {
+                      triggerHaptic('light');
+                      setEditingBill(bill);
+                    }}
+                    onDelete={(bill) => {
+                      triggerHaptic('error');
+                      if (confirm(`Delete ${bill.name}?`)) {
+                        deleteBill(bill.id);
+                      }
+                    }}
+                    style={{ marginBottom: '0' }}
+                  >
+                    <div style={{
+                      background: item.overdue ? 'var(--error-bg)' : 'var(--bg-secondary)',
+                      padding: '0.75rem',
+                      borderRadius: '0.375rem',
+                      border: `2px solid ${item.overdue ? 'var(--error)' : 'var(--border-primary)'}`,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                        <div>
+                          <div style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{name}</div>
+                          <div style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
+                            Due: {item.due.toLocaleDateString()} • {category} • {account?.name}
+                            {item.overdue && <span style={{ color: 'var(--error)', fontWeight: '600' }}> • OVERDUE</span>}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '1rem', fontWeight: '700', color: item.overdue ? 'var(--error)' : 'var(--text-primary)' }}>
+                          {fmt(amount)}
+                        </div>
+                      </div>
+
+                      {/* Swipe hint for mobile */}
+                      <div style={{
+                        fontSize: '0.5rem',
+                        color: 'var(--text-tertiary)',
+                        textAlign: 'center',
+                        marginTop: '0.25rem',
+                        opacity: 0.7
+                      }}>
+                        👈 Swipe right to pay • Swipe left to delete • Long press to edit 👉
+                      </div>
+                    </div>
+                  </SwipeableBillCard>
+                );
+              }
+
+              // For desktop or one-time costs, use regular div
               return (
                 <div key={index} style={{
-                  background: item.overdue ? '#fef2f2' : '#f9fafb',
+                  background: item.overdue ? 'var(--error-bg)' : 'var(--bg-secondary)',
                   padding: '1rem',
                   borderRadius: '0.5rem',
-                  border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
+                  border: `2px solid ${item.overdue ? 'var(--error)' : 'var(--border-primary)'}`
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                     <div>
-                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                        Due: {item.due.toLocaleDateString()} • {account?.name}
-                        {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
+                      <div style={{ fontWeight: '500', fontSize: '1rem', color: 'var(--text-primary)' }}>{name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Due: {item.due.toLocaleDateString()} • {category} • {account?.name}
+                        {item.overdue && <span style={{ color: 'var(--error)', fontWeight: '600' }}> • OVERDUE</span>}
                       </div>
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? 'var(--error)' : 'var(--text-primary)' }}>
                       {fmt(amount)}
                     </div>
                   </div>
