@@ -3535,20 +3535,20 @@ function DashboardContent() {
               // For desktop or one-time costs, use regular div
               return (
                 <div key={index} style={{
-                  background: item.overdue ? 'var(--error-bg)' : 'var(--bg-secondary)',
+                  background: item.overdue ? '#fef2f2' : '#f9fafb',
                   padding: '1rem',
                   borderRadius: '0.5rem',
-                  border: `2px solid ${item.overdue ? 'var(--error)' : 'var(--border-primary)'}`
+                  border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                     <div>
-                      <div style={{ fontWeight: '500', fontSize: '1rem', color: 'var(--text-primary)' }}>{name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Due: {item.due.toLocaleDateString()} • {category} • {account?.name}
-                        {item.overdue && <span style={{ color: 'var(--error)', fontWeight: '600' }}> • OVERDUE</span>}
+                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        Due: {item.due.toLocaleDateString()} • {account?.name}
+                        {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
                       </div>
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? 'var(--error)' : 'var(--text-primary)' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
                       {fmt(amount)}
                     </div>
                   </div>
