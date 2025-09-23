@@ -2884,7 +2884,8 @@ function DashboardContent() {
             padding: '0.75rem',
             borderRadius: '0.5rem',
             border: '1px solid #fbbf24',
-            textAlign: 'center'
+            textAlign: 'center',
+            gridColumn: isMobile ? 'span 2' : 'auto'
           }}>
             <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#d97706' }}>
               {fmt(netWorthValue)}
@@ -2971,15 +2972,31 @@ function DashboardContent() {
                   <div style={{ display: 'inline-block', position: 'relative' }}>
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
-                        const total = accounts.reduce((sum, acc) => sum + Math.max(0, acc.balance), 0);
+                        const total = accounts.reduce((sum, acc) => {
+                          if (acc.accountType === 'credit') {
+                            // For credit cards, show available credit (limit - balance)
+                            const availableCredit = Math.max(0, (acc.creditLimit || 0) - (acc.balance || 0));
+                            return sum + availableCredit;
+                          } else {
+                            // For regular accounts, show positive balances
+                            return sum + Math.max(0, acc.balance);
+                          }
+                        }, 0);
                         if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
 
                         let currentAngle = 0;
                         const colors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
                         return accounts.map((account, index) => {
-                          const balance = Math.max(0, account.balance);
-                          const percentage = balance / total;
+                          let displayValue;
+                          if (account.accountType === 'credit') {
+                            // For credit cards, show available credit
+                            displayValue = Math.max(0, (account.creditLimit || 0) - (account.balance || 0));
+                          } else {
+                            // For regular accounts, show positive balances
+                            displayValue = Math.max(0, account.balance);
+                          }
+                          const percentage = displayValue / total;
                           const angle = percentage * 360;
 
                           if (percentage < 0.01) return null;
@@ -3012,28 +3029,47 @@ function DashboardContent() {
                     </svg>
                   </div>
                   <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
-                    {accounts.filter(acc => acc.balance > 0).map((account, index) => (
-                      <div key={account.id} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '0.25rem',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '0.25rem',
-                        backgroundColor: '#f9fafb'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            backgroundColor: ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'][index % 6]
-                          }} />
-                          <span style={{ color: '#374151' }}>{account.name}</span>
+                    {accounts.filter(acc => {
+                      if (acc.accountType === 'credit') {
+                        // Show credit cards with available credit
+                        return (acc.creditLimit || 0) - (acc.balance || 0) > 0;
+                      } else {
+                        // Show regular accounts with positive balances
+                        return acc.balance > 0;
+                      }
+                    }).map((account, index) => {
+                      let displayValue, displayLabel;
+                      if (account.accountType === 'credit') {
+                        displayValue = (account.creditLimit || 0) - (account.balance || 0);
+                        displayLabel = `${account.name} (Available)`;
+                      } else {
+                        displayValue = account.balance;
+                        displayLabel = account.name;
+                      }
+
+                      return (
+                        <div key={account.id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '0.25rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          backgroundColor: '#f9fafb'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'][index % 6]
+                            }} />
+                            <span style={{ color: '#374151' }}>{displayLabel}</span>
+                          </div>
+                          <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(displayValue)}</span>
                         </div>
-                        <span style={{ fontWeight: '600', color: '#1f2937' }}>{fmt(account.balance)}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
