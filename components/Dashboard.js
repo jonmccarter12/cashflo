@@ -610,6 +610,7 @@ function DashboardContent() {
   const [tempCategoryName, setTempCategoryName] = React.useState('');
   const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
   const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
+  const [accountsView, setAccountsView] = React.useState('debit'); // 'debit' or 'credit'
 
   // Dialog states for various modals
   const [showAddAccount, setShowAddAccount] = React.useState(false);
@@ -1888,7 +1889,7 @@ function DashboardContent() {
   }
 
   // ACCOUNT FUNCTIONS
-  async function addAccount(name, type, balance = 0) {
+  async function addAccount(name, type, balance = 0, accountType = 'debit', apr = null, creditLimit = null) {
     try {
       if (!user?.id) {
         notify('Please log in to add accounts', 'error');
@@ -1902,16 +1903,30 @@ function DashboardContent() {
 
       const newAccountId = crypto.randomUUID();
       const balanceValue = Number(balance) || 0;
+      const aprValue = accountType === 'credit' ? (Number(apr) || 0) : null;
+      const creditLimitValue = accountType === 'credit' ? (Number(creditLimit) || 0) : null;
 
-      console.log('Adding account:', { name, type, balance: balanceValue }); // Debug log
+      console.log('Adding account:', { name, type, balance: balanceValue, accountType, apr: aprValue, creditLimit: creditLimitValue }); // Debug log
+
+      const accountData = {
+        name: name.trim(),
+        type,
+        initial_balance: balanceValue,
+        accountType
+      };
+
+      if (accountType === 'credit') {
+        accountData.apr = aprValue;
+        accountData.creditLimit = creditLimitValue;
+      }
 
       const transaction = await logTransaction(
         supabase,
         user.id,
         'account_created',
         newAccountId,
-        { name: name.trim(), type, initial_balance: balanceValue },
-        `Created account "${name}" with initial balance ${fmt(balanceValue)}`
+        accountData,
+        `Created ${accountType} account "${name}" with initial balance ${fmt(balanceValue)}`
       );
 
       if (transaction) {
@@ -2031,6 +2046,32 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error renaming account:', error);
       notify('Failed to rename account', 'error');
+    }
+  }
+
+  async function updateAccount(accountId, updates) {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    try {
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_updated',
+        accountId,
+        updates,
+        `Updated account "${account.name}"`
+      );
+
+      if (transaction) {
+        notify(`Account "${account.name}" updated successfully`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
+      }
+    } catch (error) {
+      console.error('Error updating account:', error);
+      notify('Failed to update account', 'error');
     }
   }
 
@@ -3355,6 +3396,11 @@ function DashboardContent() {
           updateAccountBalance={updateAccountBalance}
           currentLiquidWithGuaranteed={currentLiquidWithGuaranteed}
           renameAccount={renameAccount}
+          accountsView={accountsView}
+          setAccountsView={setAccountsView}
+          updateAccount={updateAccount}
+          supabase={supabase}
+          user={user}
         />
 
         {/* Income & Credits */}
@@ -4571,10 +4617,24 @@ function DashboardContent() {
               addAccount(
                 formData.get('name'),
                 formData.get('type'),
-                formData.get('balance')
+                formData.get('balance'),
+                formData.get('accountType'),
+                formData.get('apr'),
+                formData.get('creditLimit')
               );
             }}>
               <input name="name" placeholder="Account name (e.g., Checking Account)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="accountType" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+                const creditFields = document.getElementById('creditCardFields');
+                if (e.target.value === 'credit') {
+                  creditFields.style.display = 'block';
+                } else {
+                  creditFields.style.display = 'none';
+                }
+              }}>
+                <option value="debit">Debit Account</option>
+                <option value="credit">Credit Card</option>
+              </select>
               <select name="type" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 <option value="Bank">Bank Account</option>
                 <option value="Cash">Cash</option>
@@ -4582,7 +4642,11 @@ function DashboardContent() {
                 <option value="Investment">Investment</option>
                 <option value="Savings">Savings</option>
               </select>
-              <input name="balance" type="number" step="0.01" placeholder="Current balance (e.g., 1500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="balance" type="number" step="0.01" placeholder="Current balance (e.g., 1500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <div id="creditCardFields" style={{ display: 'none', marginBottom: '0.5rem' }}>
+                <input name="apr" type="number" step="0.01" placeholder="APR % (e.g., 18.99)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="creditLimit" type="number" step="0.01" placeholder="Credit Limit (e.g., 5000)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
                 <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
                   Add Account

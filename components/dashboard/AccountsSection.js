@@ -8,11 +8,25 @@ export default function AccountsSection({
   deleteAccount,
   updateAccountBalance,
   currentLiquidWithGuaranteed,
-  renameAccount
+  renameAccount,
+  accountsView,
+  setAccountsView,
+  updateAccount,
+  supabase,
+  user
 }) {
   const selectAllOnFocus = (e) => e.target.select();
   const [editingAccountName, setEditingAccountName] = React.useState(null);
   const [tempAccountName, setTempAccountName] = React.useState('');
+
+  // Filter accounts based on view
+  const filteredAccounts = accounts.filter(account => {
+    if (accountsView === 'debit') {
+      return account.accountType !== 'credit';
+    } else {
+      return account.accountType === 'credit';
+    }
+  });
 
   if (isMobile) {
     return (
@@ -42,8 +56,54 @@ export default function AccountsSection({
             + Account
           </button>
         </div>
+
+        {/* Toggle between Debit and Credit views */}
+        <div style={{
+          display: 'flex',
+          marginBottom: '0.75rem',
+          background: '#f1f5f9',
+          borderRadius: '0.5rem',
+          padding: '0.25rem'
+        }}>
+          <button
+            onClick={() => setAccountsView('debit')}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              background: accountsView === 'debit' ? 'white' : 'transparent',
+              color: accountsView === 'debit' ? '#1f2937' : '#64748b',
+              border: 'none',
+              borderRadius: '0.375rem',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: accountsView === 'debit' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
+            }}
+          >
+            Debit Accounts
+          </button>
+          <button
+            onClick={() => setAccountsView('credit')}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              background: accountsView === 'credit' ? 'white' : 'transparent',
+              color: accountsView === 'credit' ? '#1f2937' : '#64748b',
+              border: 'none',
+              borderRadius: '0.375rem',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: accountsView === 'credit' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
+            }}
+          >
+            Credit Cards
+          </button>
+        </div>
         
-        {accounts.map(account => (
+        {filteredAccounts.map(account => (
           <div key={account.id} style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -116,6 +176,16 @@ export default function AccountsSection({
                 </div>
               )}
               <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem', fontWeight: '500', marginLeft: '0.5rem' }}>{account.type}</div>
+              {account.accountType === 'credit' && (
+                <div style={{ fontSize: '0.65rem', color: '#ef4444', marginTop: '0.125rem', fontWeight: '500', marginLeft: '0.5rem' }}>
+                  APR: {account.apr || 0}% | Limit: ${account.creditLimit || 0}
+                  {account.balance > 0 && account.apr > 0 && (
+                    <div style={{ fontSize: '0.6rem', color: '#dc2626', marginTop: '0.125rem' }}>
+                      Min payment (~2%): ${(account.balance * 0.02).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'white', padding: '0.375rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }}>
@@ -195,8 +265,54 @@ export default function AccountsSection({
         </button>
       </div>
 
+      {/* Toggle between Debit and Credit views */}
+      <div style={{
+        display: 'flex',
+        marginBottom: '1rem',
+        background: '#f1f5f9',
+        borderRadius: '0.5rem',
+        padding: '0.25rem'
+      }}>
+        <button
+          onClick={() => setAccountsView('debit')}
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            background: accountsView === 'debit' ? 'white' : 'transparent',
+            color: accountsView === 'debit' ? '#1f2937' : '#64748b',
+            border: 'none',
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: accountsView === 'debit' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
+          }}
+        >
+          Debit Accounts
+        </button>
+        <button
+          onClick={() => setAccountsView('credit')}
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            background: accountsView === 'credit' ? 'white' : 'transparent',
+            color: accountsView === 'credit' ? '#1f2937' : '#64748b',
+            border: 'none',
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: accountsView === 'credit' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
+          }}
+        >
+          Credit Cards
+        </button>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {accounts.map(account => (
+        {filteredAccounts.map(account => (
           <div key={account.id} style={{
             background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
             padding: '0.75rem',
@@ -268,6 +384,17 @@ export default function AccountsSection({
                   </div>
                 )}
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.375rem', fontWeight: '500', marginLeft: '0.75rem' }}>{account.type}</div>
+                {account.accountType === 'credit' && (
+                  <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', fontWeight: '500', marginLeft: '0.75rem' }}>
+                    APR: {account.apr || 0}% | Credit Limit: ${account.creditLimit || 0}
+                    {account.balance > 0 && account.apr > 0 && (
+                      <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: '0.25rem' }}>
+                        Min payment (~2%): ${(account.balance * 0.02).toFixed(2)} |
+                        Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.02)) / Math.log(1 + (account.apr / 100 / 12)))} months
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => deleteAccount(account.id)}
