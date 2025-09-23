@@ -186,7 +186,7 @@ export default function AccountsSection({
                         {account.name}
                       </div>
                     )}
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem', marginLeft: '0.5rem', fontWeight: '500' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem', fontWeight: '500' }}>
                       {account.type}
                     </div>
                   </div>
@@ -621,7 +621,7 @@ export default function AccountsSection({
                         {account.name}
                       </div>
                     )}
-                    <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.5rem', marginLeft: '0.75rem', fontWeight: '500' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.25rem', fontWeight: '500' }}>
                       {account.type}
                     </div>
                   </div>
