@@ -21,6 +21,10 @@ export default function OneTimeCostsSection({
   setOtcAccountId,
   otcNotes,
   setOtcNotes,
+  otcMarkAsPaid,
+  setOtcMarkAsPaid,
+  otcAutoDeduct,
+  setOtcAutoDeduct,
   selectedCats,
   showIgnored,
   editingOTC,
@@ -56,10 +60,36 @@ export default function OneTimeCostsSection({
       );
 
       if (transaction) {
+        // If mark as paid is checked, immediately mark it as paid
+        if (otcMarkAsPaid) {
+          await logTransaction(
+            supabase,
+            user.id,
+            'one_time_cost_payment',
+            newOtcId,
+            { paid: true },
+            `Marked one-time cost "${otcName}" as paid`
+          );
+        }
+
+        // If auto deduct is checked, deduct from account balance
+        if (otcAutoDeduct) {
+          await logTransaction(
+            supabase,
+            user.id,
+            'account_balance_updated',
+            otcAccountId,
+            { adjustment: -Number(otcAmount), reason: `Auto deduct for "${otcName}"` },
+            `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
+          );
+        }
+
         setOtcName("");
         setOtcAmount(0);
         setOtcNotes("");
-        notify('One-time cost added');
+        setOtcMarkAsPaid(false);
+        setOtcAutoDeduct(false);
+        notify('One-time cost added' + (otcMarkAsPaid ? ' and marked as paid' : '') + (otcAutoDeduct ? ' and deducted from account' : ''));
       }
     } catch (error) {
       console.error('Error adding one-time cost:', error);
@@ -280,12 +310,32 @@ export default function OneTimeCostsSection({
                 onChange={(e) => setOtcNotes(e.target.value)}
                 style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }}
               />
-              <button
-                onClick={addOneTimeCost}
-                style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', alignSelf: 'flex-start' }}
-              >
-                Add Cost
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignSelf: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#000' }}>
+                    <input
+                      type="checkbox"
+                      checked={otcMarkAsPaid}
+                      onChange={(e) => setOtcMarkAsPaid(e.target.checked)}
+                    />
+                    Mark as paid
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#000' }}>
+                    <input
+                      type="checkbox"
+                      checked={otcAutoDeduct}
+                      onChange={(e) => setOtcAutoDeduct(e.target.checked)}
+                    />
+                    Auto deduct from account
+                  </label>
+                </div>
+                <button
+                  onClick={addOneTimeCost}
+                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                >
+                  Add Cost
+                </button>
+              </div>
             </div>
           </div>
 

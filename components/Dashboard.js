@@ -635,6 +635,8 @@ function DashboardContent() {
   const [otcDueDate, setOtcDueDate] = React.useState(new Date().toISOString().slice(0,10));
   const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || '550e8400-e29b-41d4-a716-446655440001');
   const [otcNotes, setOtcNotes] = React.useState("");
+  const [otcMarkAsPaid, setOtcMarkAsPaid] = React.useState(false);
+  const [otcAutoDeduct, setOtcAutoDeduct] = React.useState(false);
 
   // Enhanced sync status tracking
   const isSyncing = transactionsSyncing || nwHistorySyncing;
@@ -3607,6 +3609,10 @@ function DashboardContent() {
               setOtcAccountId={setOtcAccountId}
               otcNotes={otcNotes}
               setOtcNotes={setOtcNotes}
+              otcMarkAsPaid={otcMarkAsPaid}
+              setOtcMarkAsPaid={setOtcMarkAsPaid}
+              otcAutoDeduct={otcAutoDeduct}
+              setOtcAutoDeduct={setOtcAutoDeduct}
               selectedCats={selectedCats}
               showIgnored={showIgnored}
               editingOTC={editingOTC}
@@ -4083,7 +4089,7 @@ function DashboardContent() {
       {currentView === 'history' && featuresLoaded.advanced && (
         <div style={{ background: 'white', padding: '0.75rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Transaction History</h3>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>Transaction History</h3>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <button
                 onClick={handleExport}
