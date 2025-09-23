@@ -1,11 +1,8 @@
 import '../styles/globals.css';
-import '../styles/theme.css';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import React from 'react';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
-import { ThemeProvider } from '../contexts/ThemeContext';
-
 export default function MyApp({ Component, pageProps }: AppProps) {
   React.useEffect(() => {
     // Register service worker
@@ -78,11 +75,9 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <meta name="web_accessible_resources" content="share-target" />
       </Head>
 
-      {/* Theme Provider with PWA and Main App */}
-      <ThemeProvider>
-        <PWAInstallPrompt />
-        <Component {...pageProps} />
-      </ThemeProvider>
+      {/* PWA and Main App */}
+      <PWAInstallPrompt />
+      <Component {...pageProps} />
     </>
   );
 }

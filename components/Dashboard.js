@@ -18,7 +18,6 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
-import ThemeToggle from './ThemeToggle';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -632,11 +631,58 @@ function DashboardContent() {
   const [otcName, setOtcName] = React.useState("");
   const [otcCategory, setOtcCategory] = React.useState(activeCats[0] || 'Personal');
   const [otcAmount, setOtcAmount] = React.useState(0);
-  const [otcDueDate, setOtcDueDate] = React.useState(new Date().toISOString().slice(0,10));
+  const [otcDueDate, setOtcDueDate] = React.useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().slice(0,10);
+  });
   const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || '550e8400-e29b-41d4-a716-446655440001');
   const [otcNotes, setOtcNotes] = React.useState("");
   const [otcMarkAsPaid, setOtcMarkAsPaid] = React.useState(false);
   const [otcAutoDeduct, setOtcAutoDeduct] = React.useState(false);
+
+  // Autopay processing function
+  async function processAutopayBills() {
+    if (!user?.id || !supabase) return;
+
+    const currentMonth = yyyyMm();
+    const today = new Date();
+
+    for (const bill of bills) {
+      if (!bill.autopay) continue;
+
+      // Check if bill is already paid this month
+      if (bill.paidMonths.includes(currentMonth)) continue;
+
+      // Check if bill is due this month
+      const nextDue = getNextOccurrence(bill);
+      const billMonth = nextDue.toISOString().slice(0, 7);
+
+      // If the bill is due this month and we're at or past the due date
+      if (billMonth === currentMonth && today >= nextDue) {
+        try {
+          await logTransaction(
+            supabase,
+            user.id,
+            'bill_payment',
+            bill.id,
+            { paid: true, autopay: true },
+            `Autopay: Marked "${bill.name}" as paid for ${currentMonth}`
+          );
+          console.log(`Autopay processed: ${bill.name}`);
+        } catch (error) {
+          console.error(`Autopay failed for ${bill.name}:`, error);
+        }
+      }
+    }
+  }
+
+  // Run autopay processing when bills or month changes
+  React.useEffect(() => {
+    if (bills.length > 0) {
+      processAutopayBills();
+    }
+  }, [bills, user?.id, supabase]);
 
   // Enhanced sync status tracking
   const isSyncing = transactionsSyncing || nwHistorySyncing;
@@ -1537,7 +1583,8 @@ function DashboardContent() {
         amount: Number(amount),
         frequency,
         accountId,
-        notes: formData.get('notes') || ''
+        notes: formData.get('notes') || '',
+        autopay: formData.get('autopay') === 'on'
       };
 
       // Add frequency-specific fields
@@ -1604,7 +1651,8 @@ function DashboardContent() {
         amount: Number(formData.get('amount')),
         frequency,
         accountId: formData.get('accountId'),
-        notes: formData.get('notes') || ''
+        notes: formData.get('notes') || '',
+        autopay: formData.get('autopay') === 'on'
       };
 
       // Add frequency-specific fields
@@ -2595,10 +2643,6 @@ function DashboardContent() {
             paddingTop: '0.5rem',
             paddingBottom: '0.5rem'
           }}>
-            {/* Theme Toggle - Right on desktop */}
-            <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
-              <ThemeToggle size="medium" />
-            </div>
 
             {/* Login/Logout Button - Left on desktop */}
             <div style={{ position: 'absolute', left: 0 }}>

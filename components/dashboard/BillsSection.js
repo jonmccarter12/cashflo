@@ -84,6 +84,7 @@ export default function BillsSection({
 
                   <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
                     {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name} • Next: {nextDate.toLocaleDateString()}
+                    {bill.autopay && <span style={{ color: '#16a34a', fontWeight: '600' }}> • 🔄 AUTOPAY</span>}
                     {bill.notes && <div style={{ marginTop: '0.0625rem', fontStyle: 'italic' }}>{bill.notes}</div>}
                   </div>
 
@@ -169,6 +170,7 @@ export default function BillsSection({
                         <div style={{ fontWeight: '500', fontSize: '1rem', color: '#000' }}>{bill.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
+                          {bill.autopay && <span style={{ color: '#16a34a', fontWeight: '600' }}> • 🔄 AUTOPAY</span>}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           Next: {nextDate.toLocaleDateString()}
@@ -349,7 +351,17 @@ export default function BillsSection({
               <select name="accountId" defaultValue={editingBill?.accountId || accounts[0]?.id} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill?.notes || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill?.notes || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#000' }}>
+                  <input
+                    name="autopay"
+                    type="checkbox"
+                    defaultChecked={editingBill?.autopay || false}
+                  />
+                  Enable autopay (automatically mark as paid each month)
+                </label>
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
                 <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
                   {editingBill ? 'Update Bill' : 'Add Bill'}

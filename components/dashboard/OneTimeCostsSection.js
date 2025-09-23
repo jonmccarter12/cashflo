@@ -198,6 +198,24 @@ export default function OneTimeCostsSection({
               onChange={(e) => setOtcNotes(e.target.value)}
               style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem', resize: 'vertical', minHeight: '60px' }}
             />
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#000' }}>
+                <input
+                  type="checkbox"
+                  checked={otcMarkAsPaid}
+                  onChange={(e) => setOtcMarkAsPaid(e.target.checked)}
+                />
+                Mark as paid
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#000' }}>
+                <input
+                  type="checkbox"
+                  checked={otcAutoDeduct}
+                  onChange={(e) => setOtcAutoDeduct(e.target.checked)}
+                />
+                Auto deduct
+              </label>
+            </div>
             <button
               onClick={addOneTimeCost}
               style={{ width: '100%', padding: '0.375rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
