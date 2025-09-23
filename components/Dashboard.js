@@ -19,6 +19,8 @@ import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import TaxSection from './dashboard/TaxSection';
+import CreditSection from './dashboard/CreditSection';
+import TransactionImport from './TransactionImport';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -667,6 +669,7 @@ function DashboardContent() {
   const [editingOTC, setEditingOTC] = React.useState(null);
   const [editingTransaction, setEditingTransaction] = React.useState(null);
   const [showTransactionEdit, setShowTransactionEdit] = React.useState(false);
+  const [showTransactionImport, setShowTransactionImport] = React.useState(false);
   const [categoryFilterSticky, setCategoryFilterSticky] = React.useState(false);
   const categoryFilterRef = React.useRef(null);
   const billsSectionRef = React.useRef(null);
@@ -3076,6 +3079,22 @@ function DashboardContent() {
           >
             💰 Tax Estimator
           </button>
+          <button
+            onClick={() => setCurrentView('credit')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'credit' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'credit' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💳 Credit Accounts
+          </button>
         </div>
       </div>
 
@@ -4461,6 +4480,19 @@ function DashboardContent() {
             <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>Transaction History</h3>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <button
+                onClick={() => setShowTransactionImport(true)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer'
+                }}
+              >
+                📊 Import
+              </button>
+              <button
                 onClick={handleExport}
                 style={{
                   padding: '0.5rem 1rem',
@@ -4802,6 +4834,15 @@ function DashboardContent() {
           transactions={transactions}
           bills={bills}
           oneTimeCosts={oneTimeCosts}
+        />
+      )}
+
+      {/* Credit Accounts Tab */}
+      {currentView === 'credit' && (
+        <CreditSection
+          isMobile={isMobile}
+          accounts={accounts}
+          transactions={transactions}
         />
       )}
 
@@ -5534,6 +5575,16 @@ function DashboardContent() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Transaction Import Dialog */}
+      {showTransactionImport && (
+        <TransactionImport
+          onClose={() => setShowTransactionImport(false)}
+          user={user}
+          supabase={supabase}
+          accounts={accounts}
+        />
       )}
 
     </div>

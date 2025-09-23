@@ -131,6 +131,53 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   const [mortgageInterest, setMortgageInterest] = React.useState('');
   const [charitableDonations, setCharitableDonations] = React.useState('');
 
+  // Calculate income from transaction data
+  const calculateIncomeFromTransactions = () => {
+    const currentYear = new Date().getFullYear();
+    const incomeTransactions = transactions.filter(tx => {
+      const txDate = new Date(tx.timestamp);
+      const isCurrentYear = txDate.getFullYear() === currentYear;
+
+      // Look for income-related transaction types and positive amounts
+      const isIncome = (
+        tx.action_type?.includes('income') ||
+        tx.action_type?.includes('credit_received') ||
+        tx.action_type?.includes('payment_received') ||
+        (tx.description && (
+          tx.description.toLowerCase().includes('salary') ||
+          tx.description.toLowerCase().includes('paycheck') ||
+          tx.description.toLowerCase().includes('wage') ||
+          tx.description.toLowerCase().includes('freelance') ||
+          tx.description.toLowerCase().includes('contract') ||
+          tx.description.toLowerCase().includes('bonus') ||
+          tx.description.toLowerCase().includes('commission')
+        ))
+      ) && (tx.details?.amount > 0 || tx.amount > 0);
+
+      return isCurrentYear && isIncome;
+    });
+
+    const totalIncome = incomeTransactions.reduce((sum, tx) => {
+      return sum + (tx.details?.amount || tx.amount || 0);
+    }, 0);
+
+    const selfEmploymentIncome = incomeTransactions
+      .filter(tx =>
+        tx.description?.toLowerCase().includes('freelance') ||
+        tx.description?.toLowerCase().includes('contract') ||
+        tx.description?.toLowerCase().includes('1099') ||
+        tx.action_type?.includes('business')
+      )
+      .reduce((sum, tx) => sum + (tx.details?.amount || tx.amount || 0), 0);
+
+    return {
+      totalIncome,
+      w2Income: totalIncome - selfEmploymentIncome,
+      selfEmploymentIncome,
+      incomeTransactions
+    };
+  };
+
   // Calculate deductible expenses from tracked bills and one-time costs
   const calculateTrackedExpenses = () => {
     let total = 0;
@@ -282,8 +329,11 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
 
   // Main tax calculation
   const calculateTax = () => {
-    const income = Number(annualIncome) || 0;
-    const seIncome = Number(selfEmploymentIncome) || 0;
+    const transactionIncome = calculateIncomeFromTransactions();
+
+    // Use transaction data if available, otherwise fall back to manual entry
+    const income = transactionIncome.totalIncome > 0 ? transactionIncome.w2Income : (Number(annualIncome) || 0);
+    const seIncome = transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : (Number(selfEmploymentIncome) || 0);
     const trackedExpenses = calculateTrackedExpenses();
 
     // Calculate AGI
@@ -348,6 +398,7 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   };
 
   const taxCalc = calculateTax();
+  const transactionIncome = calculateIncomeFromTransactions();
   const selectAllOnFocus = (e) => e.target.select();
 
   return (
@@ -383,30 +434,70 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
               Annual W-2/1099 Income:
+              {transactionIncome.w2Income > 0 && (
+                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '400', marginLeft: '0.5rem' }}>
+                  (Auto-calculated from transactions: {fmt(transactionIncome.w2Income)})
+                </span>
+              )}
             </label>
             <input
               type="number"
-              value={annualIncome}
+              value={transactionIncome.w2Income > 0 ? transactionIncome.w2Income : annualIncome}
               onChange={(e) => setAnnualIncome(e.target.value)}
               onFocus={selectAllOnFocus}
-              placeholder="Enter annual income"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              placeholder={transactionIncome.w2Income > 0 ? "Auto-calculated from transactions" : "Enter annual income"}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: `1px solid ${transactionIncome.w2Income > 0 ? '#059669' : '#d1d5db'}`,
+                borderRadius: '0.375rem',
+                background: transactionIncome.w2Income > 0 ? '#f0fdf4' : 'white'
+              }}
+              disabled={transactionIncome.w2Income > 0}
             />
           </div>
 
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
               Self-Employment Income:
+              {transactionIncome.selfEmploymentIncome > 0 && (
+                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '400', marginLeft: '0.5rem' }}>
+                  (Auto-calculated: {fmt(transactionIncome.selfEmploymentIncome)})
+                </span>
+              )}
             </label>
             <input
               type="number"
-              value={selfEmploymentIncome}
+              value={transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : selfEmploymentIncome}
               onChange={(e) => setSelfEmploymentIncome(e.target.value)}
               onFocus={selectAllOnFocus}
-              placeholder="1099 income, business profits"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              placeholder={transactionIncome.selfEmploymentIncome > 0 ? "Auto-calculated from transactions" : "1099 income, business profits"}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: `1px solid ${transactionIncome.selfEmploymentIncome > 0 ? '#059669' : '#d1d5db'}`,
+                borderRadius: '0.375rem',
+                background: transactionIncome.selfEmploymentIncome > 0 ? '#f0fdf4' : 'white'
+              }}
+              disabled={transactionIncome.selfEmploymentIncome > 0}
             />
           </div>
+
+          {(transactionIncome.totalIncome > 0) && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #d1fae5', borderRadius: '0.375rem', padding: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#059669', marginBottom: '0.25rem' }}>
+                📊 Income Auto-Detected from Transactions
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#065f46' }}>
+                Found {transactionIncome.incomeTransactions.length} income transactions for {new Date().getFullYear()}
+                <br />
+                Total Income: {fmt(transactionIncome.totalIncome)}
+                {transactionIncome.selfEmploymentIncome > 0 && (
+                  <span> (W-2: {fmt(transactionIncome.w2Income)}, Self-Employment: {fmt(transactionIncome.selfEmploymentIncome)})</span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <div>
