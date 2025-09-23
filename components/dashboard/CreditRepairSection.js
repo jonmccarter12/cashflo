@@ -434,10 +434,33 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     timeframe: '',
     primaryGoal: ''
   });
+  const [userProfile, setUserProfile] = React.useState({
+    fullName: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
+    email: '',
+    ssn: '', // Last 4 digits only for security
+    dateOfBirth: ''
+  });
   const [creditReportData, setCreditReportData] = React.useState(null);
   const [aiAnalysis, setAiAnalysis] = React.useState(null);
   const [autoDisputes, setAutoDisputes] = React.useState([]);
   const [creditPlan, setCreditPlan] = React.useState(null);
+
+  // Load saved profile data
+  React.useEffect(() => {
+    const savedProfile = localStorage.getItem('creditRepairProfile');
+    if (savedProfile) {
+      try {
+        setUserProfile(JSON.parse(savedProfile));
+      } catch (error) {
+        console.error('Error loading saved profile:', error);
+      }
+    }
+  }, []);
 
   // AI-powered analysis and recommendations
   React.useEffect(() => {
@@ -518,6 +541,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     let template = DISPUTE_TEMPLATES[selectedDispute].template;
 
     // Replace placeholders with actual data
+    const fullAddress = `${userProfile.address}\n${userProfile.city}, ${userProfile.state} ${userProfile.zipCode}`;
     const replacements = {
       '[BUREAU_NAME]': disputeForm.bureaus.join(', '),
       '[CREDITOR_NAME]': disputeForm.creditorName,
@@ -525,16 +549,22 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
       '[DISPUTE_REASON]': disputeForm.disputeReason,
       '[SPECIFIC_REASON]': disputeForm.specificReason,
       '[DOCUMENT_LIST]': disputeForm.documentList,
-      '[FULL_NAME]': disputeForm.fullName,
-      '[ADDRESS]': disputeForm.address,
-      '[PHONE]': disputeForm.phone,
+      '[FULL_NAME]': userProfile.fullName || disputeForm.fullName,
+      '[ADDRESS]': fullAddress || disputeForm.address,
+      '[PHONE]': userProfile.phone || disputeForm.phone,
+      '[EMAIL]': userProfile.email,
       '[DATE]': new Date().toLocaleDateString(),
       '[COLLECTOR_NAME]': disputeForm.creditorName,
+      '[DEBT_COLLECTOR_NAME]': disputeForm.creditorName,
+      '[COLLECTOR_ADDRESS]': '', // To be filled manually
       '[RELATIONSHIP_LENGTH]': disputeForm.relationshipLength,
       '[REASON]': disputeForm.reason,
       '[ADDITIONAL_POSITIVE_ACTIONS]': disputeForm.additionalActions,
       '[POLICE_REPORT_NUMBER]': disputeForm.policeReportNumber,
-      '[DISPUTE_DATE]': new Date().toLocaleDateString()
+      '[DISPUTE_DATE]': new Date().toLocaleDateString(),
+      '[STATE]': userProfile.state,
+      '[SSN_LAST_4]': userProfile.ssn,
+      '[DATE_OF_BIRTH]': userProfile.dateOfBirth
     };
 
     Object.entries(replacements).forEach(([placeholder, value]) => {
@@ -642,6 +672,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
       <div style={{ display: 'flex', marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
         {[
           { id: 'overview', label: '📊 Overview', icon: '📊' },
+          { id: 'profile', label: '👤 Profile Setup', icon: '👤' },
           { id: 'disputes', label: '⚖️ Dispute Center', icon: '⚖️' },
           { id: 'monitoring', label: '📈 Monitoring', icon: '📈' },
           { id: 'builder', label: '🏗️ Credit Builder', icon: '🏗️' }
@@ -835,6 +866,210 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                   </button>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Profile Setup Tab */}
+      {activeTab === 'profile' && (
+        <div>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>
+            👤 Personal Information Setup
+          </h4>
+
+          <div style={{ background: '#e0f2fe', border: '1px solid #0ea5e9', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.875rem', color: '#0c4a6e', fontWeight: '600' }}>
+              🔒 Secure Information Entry
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#0c4a6e' }}>
+              Your personal information is only stored locally and used to auto-populate dispute letters. We never store sensitive data on servers.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.5rem' }}>
+            {/* Basic Information */}
+            <div style={{ background: '#f9fafb', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #e5e7eb' }}>
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#374151' }}>
+                📝 Basic Information
+              </h5>
+
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Full Legal Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={userProfile.fullName}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="John Smith"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    value={userProfile.phone}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(555) 123-4567"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={userProfile.email}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="john@example.com"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={userProfile.dateOfBirth}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Last 4 Digits of SSN (for verification)
+                  </label>
+                  <input
+                    type="text"
+                    value={userProfile.ssn}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, ssn: e.target.value.slice(0, 4) }))}
+                    placeholder="1234"
+                    maxLength="4"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div style={{ background: '#f9fafb', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #e5e7eb' }}>
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#374151' }}>
+                🏠 Address Information
+              </h5>
+
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    Street Address *
+                  </label>
+                  <input
+                    type="text"
+                    value={userProfile.address}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="123 Main Street"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    value={userProfile.city}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="Anytown"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                      State *
+                    </label>
+                    <input
+                      type="text"
+                      value={userProfile.state}
+                      onChange={(e) => setUserProfile(prev => ({ ...prev, state: e.target.value.toUpperCase().slice(0, 2) }))}
+                      placeholder="NY"
+                      maxLength="2"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                      ZIP Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={userProfile.zipCode}
+                      onChange={(e) => setUserProfile(prev => ({ ...prev, zipCode: e.target.value.slice(0, 5) }))}
+                      placeholder="12345"
+                      maxLength="5"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Profile Button */}
+              <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('creditRepairProfile', JSON.stringify(userProfile));
+                    notify('Profile saved successfully! Your information will now auto-populate in dispute letters.', 'success');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💾 Save Profile Information
+                </button>
+
+                <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fef3c7', borderRadius: '0.375rem', border: '1px solid #f59e0b' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#92400e' }}>
+                    💡 <strong>Tip:</strong> This information will automatically fill in your dispute letters, saving you time and ensuring consistency across all correspondence.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Preview */}
+          {userProfile.fullName && (
+            <div style={{ marginTop: '1.5rem', background: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '0.75rem', padding: '1.5rem' }}>
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#0c4a6e' }}>
+                👁️ Profile Preview
+              </h5>
+              <div style={{ fontSize: '0.875rem', color: '#0c4a6e', whiteSpace: 'pre-line' }}>
+                <strong>{userProfile.fullName}</strong><br/>
+                {userProfile.address}<br/>
+                {userProfile.city}, {userProfile.state} {userProfile.zipCode}<br/>
+                {userProfile.phone && `Phone: ${userProfile.phone}`}<br/>
+                {userProfile.email && `Email: ${userProfile.email}`}
+              </div>
             </div>
           )}
         </div>
