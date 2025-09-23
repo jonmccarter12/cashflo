@@ -1,5 +1,80 @@
 import React from 'react';
 import { fmt } from '../../lib/utils';
+import { notify } from '../Notify';
+
+// Advanced Tax Planning Engine
+const TAX_OPTIMIZER = {
+  analyzeDeductions: (expenses, filingStatus, income) => {
+    const standardDeduction = STANDARD_DEDUCTIONS_2024[filingStatus] || 14600;
+    const itemizedTotal = expenses.reduce((sum, expense) => {
+      if (expense.taxCategory && expense.taxCategory !== 'None/Personal') {
+        return sum + (expense.amount || 0);
+      }
+      return sum;
+    }, 0);
+
+    return {
+      standard: standardDeduction,
+      itemized: itemizedTotal,
+      recommended: itemizedTotal > standardDeduction ? 'itemized' : 'standard',
+      savings: Math.max(0, itemizedTotal - standardDeduction)
+    };
+  },
+
+  getOptimizationTips: (income, deductions, filingStatus) => {
+    const tips = [];
+
+    if (deductions.itemized < deductions.standard) {
+      tips.push({
+        category: 'Deduction Strategy',
+        tip: 'Consider bundling charitable donations in alternating years to exceed standard deduction',
+        impact: 'High',
+        action: 'Bundle donations'
+      });
+    }
+
+    if (income > 100000) {
+      tips.push({
+        category: 'Tax Planning',
+        tip: 'Max out 401(k) contributions to reduce taxable income',
+        impact: 'High',
+        action: 'Increase retirement contributions'
+      });
+    }
+
+    tips.push({
+      category: 'Quarterly Planning',
+      tip: 'Make estimated tax payments to avoid penalties',
+      impact: 'Medium',
+      action: 'Set up quarterly payments'
+    });
+
+    return tips;
+  },
+
+  calculateQuarterlyPayments: (income, federalTax, stateTax) => {
+    const totalTax = federalTax + stateTax;
+    const quarterly = totalTax / 4;
+    const safeharbor = income > 150000 ? totalTax * 1.1 : totalTax;
+
+    return {
+      quarterly: quarterly,
+      safeharbor: safeharbor / 4,
+      dueQ1: '2024-04-15',
+      dueQ2: '2024-06-17',
+      dueQ3: '2024-09-16',
+      dueQ4: '2025-01-15'
+    };
+  }
+};
+
+// Advanced tax scenarios
+const TAX_SCENARIOS = {
+  optimistic: { factor: 0.9, label: 'Optimistic (10% less income)' },
+  realistic: { factor: 1.0, label: 'Current Income' },
+  growth: { factor: 1.2, label: 'Growth (20% income increase)' },
+  conservative: { factor: 1.1, label: 'Conservative (10% increase)' }
+};
 
 // IRS categories for expenses
 export const IRS_TAX_CATEGORIES = [
@@ -100,36 +175,55 @@ const EITC_AMOUNTS_2024 = {
 };
 
 export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts }) {
-  // Basic Info
-  const [annualIncome, setAnnualIncome] = React.useState('');
-  const [selfEmploymentIncome, setSelfEmploymentIncome] = React.useState('');
-  const [filingStatus, setFilingStatus] = React.useState('single');
-  const [totalWithholdings, setTotalWithholdings] = React.useState('');
-  const [estimatedQuarterlyPaid, setEstimatedQuarterlyPaid] = React.useState('');
+  // Enhanced state management
+  const [activeTab, setActiveTab] = React.useState('calculator');
+  const [taxScenario, setTaxScenario] = React.useState('realistic');
+  const [taxProfile, setTaxProfile] = React.useState({
+    // Basic Info
+    annualIncome: '',
+    selfEmploymentIncome: '',
+    filingStatus: 'single',
+    totalWithholdings: '',
+    estimatedQuarterlyPaid: '',
 
-  // Dependents & Family
-  const [numChildren, setNumChildren] = React.useState(0);
-  const [numChildrenUnder6, setNumChildrenUnder6] = React.useState(0);
-  const [numOtherDependents, setNumOtherDependents] = React.useState(0);
-  const [dependentCareExpenses, setDependentCareExpenses] = React.useState('');
+    // Dependents & Family
+    numChildren: 0,
+    numChildrenUnder6: 0,
+    numOtherDependents: 0,
+    dependentCareExpenses: '',
 
-  // Education
-  const [educationExpenses, setEducationExpenses] = React.useState('');
-  const [studentLoanInterest, setStudentLoanInterest] = React.useState('');
+    // Education
+    educationExpenses: '',
+    studentLoanInterest: '',
 
-  // Retirement & Savings
-  const [traditional401k, setTraditional401k] = React.useState('');
-  const [traditionalIRA, setTraditionalIRA] = React.useState('');
-  const [hsaContributions, setHSAContributions] = React.useState('');
+    // Retirement & Savings
+    traditional401k: '',
+    traditionalIRA: '',
+    hsaContributions: '',
 
-  // Health & Medical
-  const [healthInsurancePremiums, setHealthInsurancePremiums] = React.useState('');
-  const [medicalExpenses, setMedicalExpenses] = React.useState('');
+    // Health & Medical
+    healthInsurancePremiums: '',
+    medicalExpenses: '',
 
-  // Other Deductions
-  const [stateLocalTaxes, setStateLocalTaxes] = React.useState('');
-  const [mortgageInterest, setMortgageInterest] = React.useState('');
-  const [charitableDonations, setCharitableDonations] = React.useState('');
+    // Other Deductions
+    stateLocalTaxes: '',
+    mortgageInterest: '',
+    charitableDonations: '',
+
+    // Business deductions (for self-employed)
+    businessExpenses: '',
+    homeOfficeExpenses: '',
+    businessMileage: '',
+
+    // Advanced planning
+    estimatedTaxPenalty: '',
+    priorYearTax: '',
+    priorYearAGI: ''
+  });
+
+  const [taxAnalysis, setTaxAnalysis] = React.useState(null);
+  const [optimizationTips, setOptimizationTips] = React.useState([]);
+  const [quarterlyPayments, setQuarterlyPayments] = React.useState(null);
 
   // Calculate income from transaction data
   const calculateIncomeFromTransactions = () => {
@@ -401,11 +495,100 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   const transactionIncome = calculateIncomeFromTransactions();
   const selectAllOnFocus = (e) => e.target.select();
 
+  // Advanced tax analysis
+  React.useEffect(() => {
+    if (taxProfile.annualIncome || transactionIncome.totalIncome > 0) {
+      const income = Number(taxProfile.annualIncome) || transactionIncome.totalIncome;
+      const adjustedIncome = income * TAX_SCENARIOS[taxScenario].factor;
+
+      const analysis = performComprehensiveTaxAnalysis(adjustedIncome);
+      setTaxAnalysis(analysis);
+
+      const tips = TAX_OPTIMIZER.getOptimizationTips(adjustedIncome, analysis.deductions, taxProfile.filingStatus);
+      setOptimizationTips(tips);
+
+      const quarterly = TAX_OPTIMIZER.calculateQuarterlyPayments(adjustedIncome, analysis.federalTax, analysis.stateTax);
+      setQuarterlyPayments(quarterly);
+    }
+  }, [taxProfile, taxScenario, transactionIncome, bills, oneTimeCosts]);
+
+  const performComprehensiveTaxAnalysis = (income) => {
+    const expenses = [...bills, ...oneTimeCosts];
+    const deductionAnalysis = TAX_OPTIMIZER.analyzeDeductions(expenses, taxProfile.filingStatus, income);
+
+    const standardDeduction = STANDARD_DEDUCTIONS_2024[taxProfile.filingStatus] || 14600;
+    const deduction = deductionAnalysis.recommended === 'itemized' ? deductionAnalysis.itemized : standardDeduction;
+
+    const taxableIncome = Math.max(0, income - deduction);
+    const federalTax = calculateIncomeTax(taxableIncome, taxProfile.filingStatus);
+    const selfEmploymentTax = calculateSelfEmploymentTax(Number(taxProfile.selfEmploymentIncome) || 0);
+    const childTaxCredit = calculateChildTaxCredit(income, taxProfile.numChildren, taxProfile.filingStatus);
+
+    const totalTax = federalTax + selfEmploymentTax - childTaxCredit;
+    const effectiveRate = income > 0 ? (totalTax / income) * 100 : 0;
+    const marginalRate = getMarginalRate(taxableIncome, taxProfile.filingStatus);
+
+    return {
+      income,
+      taxableIncome,
+      standardDeduction,
+      federalTax,
+      selfEmploymentTax,
+      childTaxCredit,
+      totalTax,
+      effectiveRate,
+      marginalRate,
+      stateTax: totalTax * 0.06, // Estimated 6% state tax
+      deductions: deductionAnalysis,
+      refund: (Number(taxProfile.totalWithholdings) || 0) - totalTax
+    };
+  };
+
+  const getMarginalRate = (taxableIncome, status) => {
+    const brackets = TAX_BRACKETS_2024[status];
+    for (const bracket of brackets) {
+      if (taxableIncome > bracket.min && taxableIncome <= bracket.max) {
+        return bracket.rate * 100;
+      }
+    }
+    return 37; // Top rate
+  };
+
   return (
     <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
       <h3 style={{ fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: '600', color: '#000', marginBottom: '1rem' }}>
-        📊 Comprehensive Tax Calculator
+        🏆 Professional Tax Planning Center
       </h3>
+
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', overflowX: 'auto' }}>
+        {[
+          { id: 'calculator', label: '📊 Tax Calculator', icon: '📊' },
+          { id: 'planning', label: '📈 Tax Planning', icon: '📈' },
+          { id: 'quarterly', label: '📅 Quarterly Payments', icon: '📅' },
+          { id: 'optimization', label: '🎯 Optimization', icon: '🎯' },
+          { id: 'scenarios', label: '🔮 Scenarios', icon: '🔮' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '0.75rem 1rem',
+              background: activeTab === tab.id ? '#8b5cf6' : 'transparent',
+              color: activeTab === tab.id ? 'white' : '#6b7280',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '2px solid #8b5cf6' : '2px solid transparent',
+              fontWeight: activeTab === tab.id ? '600' : '500',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              marginRight: '0.5rem'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
         {/* Input Section */}

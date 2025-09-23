@@ -1,6 +1,15 @@
 import React from 'react';
 import { fmt } from '../../lib/utils';
 import { notify } from '../Notify';
+import {
+  MOCK_CREDIT_DATA,
+  analyzeCreditReport,
+  connectToCreditBureau,
+  fetchLiveCreditScore,
+  setupCreditMonitoring,
+  simulateCreditImprovement,
+  CREDIT_BUREAU_APIS
+} from '../../lib/creditApis';
 
 // AI-powered credit analysis engine
 const AI_CREDIT_ANALYZER = {
@@ -446,9 +455,17 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     dateOfBirth: ''
   });
   const [creditReportData, setCreditReportData] = React.useState(null);
+  const [realCreditData, setRealCreditData] = React.useState(null);
   const [aiAnalysis, setAiAnalysis] = React.useState(null);
   const [autoDisputes, setAutoDisputes] = React.useState([]);
   const [creditPlan, setCreditPlan] = React.useState(null);
+  const [creditConnection, setCreditConnection] = React.useState({
+    experian: { connected: false, loading: false },
+    equifax: { connected: false, loading: false },
+    transunion: { connected: false, loading: false }
+  });
+  const [liveScores, setLiveScores] = React.useState({});
+  const [creditMonitoring, setCreditMonitoring] = React.useState(false);
 
   // Load saved profile data
   React.useEffect(() => {
@@ -460,7 +477,77 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
         console.error('Error loading saved profile:', error);
       }
     }
+
+    // Load real credit data (for demo, we'll use mock data)
+    // In production, this would check for saved API credentials and fetch real data
+    const loadCreditData = async () => {
+      try {
+        setRealCreditData(MOCK_CREDIT_DATA);
+        const analysis = analyzeCreditReport(MOCK_CREDIT_DATA);
+        setAiAnalysis(analysis);
+      } catch (error) {
+        console.error('Error loading credit data:', error);
+      }
+    };
+
+    loadCreditData();
   }, []);
+
+  // Real credit bureau connection function
+  const connectToBureau = async (bureau) => {
+    setCreditConnection(prev => ({
+      ...prev,
+      [bureau]: { ...prev[bureau], loading: true }
+    }));
+
+    try {
+      const result = await connectToCreditBureau(bureau, {
+        // These would be real credentials in production
+        apiKey: 'demo_key',
+        clientId: 'demo_client'
+      });
+
+      if (result.success) {
+        setCreditConnection(prev => ({
+          ...prev,
+          [bureau]: { connected: true, loading: false }
+        }));
+
+        // Fetch live score
+        const scoreData = await fetchLiveCreditScore(bureau);
+        setLiveScores(prev => ({
+          ...prev,
+          [bureau]: scoreData
+        }));
+
+        notify(`Successfully connected to ${bureau}! Live credit data loaded.`, 'success');
+      }
+    } catch (error) {
+      setCreditConnection(prev => ({
+        ...prev,
+        [bureau]: { connected: false, loading: false }
+      }));
+      notify(`Failed to connect to ${bureau}. Please check your credentials.`, 'error');
+    }
+  };
+
+  // Setup credit monitoring
+  const enableCreditMonitoring = async () => {
+    try {
+      const result = await setupCreditMonitoring({
+        frequency: 'daily',
+        alertTypes: ['score_changes', 'new_accounts', 'inquiries', 'new_collections'],
+        bureaus: ['experian', 'equifax', 'transunion']
+      });
+
+      if (result.success) {
+        setCreditMonitoring(true);
+        notify('Credit monitoring activated! You\'ll receive alerts for any changes.', 'success');
+      }
+    } catch (error) {
+      notify('Failed to setup credit monitoring. Please try again.', 'error');
+    }
+  };
 
   // AI-powered analysis and recommendations
   React.useEffect(() => {
@@ -660,7 +747,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     );
   };
 
-  const creditData = creditReportData || sampleCreditData;
+  const creditData = realCreditData || creditReportData || sampleCreditData;
 
   return (
     <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
@@ -1272,8 +1359,142 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
       {activeTab === 'monitoring' && (
         <div>
           <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>
-            Credit Report Analysis
+            📈 Live Credit Monitoring & Bureau Integration
           </h4>
+
+          {/* Credit Bureau Connections */}
+          <div style={{ background: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#0c4a6e' }}>
+              🔗 Connect to Credit Bureaus
+            </h5>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+              {Object.entries(CREDIT_BUREAU_APIS).map(([bureau, config]) => (
+                <div key={bureau} style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e0f2fe' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>{config.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        {creditConnection[bureau].connected ? '✅ Connected' : '📡 Connect for live data'}
+                      </div>
+                    </div>
+                    {liveScores[bureau] && (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#059669' }}>
+                          {liveScores[bureau].score}
+                        </div>
+                        <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>Live Score</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => connectToBureau(bureau)}
+                    disabled={creditConnection[bureau].loading || creditConnection[bureau].connected}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      background: creditConnection[bureau].connected ? '#10b981' : '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: creditConnection[bureau].loading ? 'wait' : 'pointer',
+                      opacity: creditConnection[bureau].loading ? 0.7 : 1
+                    }}
+                  >
+                    {creditConnection[bureau].loading ? '🔄 Connecting...' :
+                     creditConnection[bureau].connected ? '✅ Connected' :
+                     `🔗 Connect to ${config.name}`}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Credit Monitoring Toggle */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e0f2fe' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
+                    🔔 24/7 Credit Monitoring
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                    Get instant alerts for score changes, new accounts, and inquiries
+                  </div>
+                </div>
+                <button
+                  onClick={enableCreditMonitoring}
+                  disabled={creditMonitoring}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: creditMonitoring ? '#10b981' : '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    cursor: creditMonitoring ? 'default' : 'pointer'
+                  }}
+                >
+                  {creditMonitoring ? '✅ Active' : '🔔 Enable Monitoring'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Real Credit Data Analysis */}
+          {realCreditData && (
+            <div style={{ background: '#fefdf8', border: '1px solid #f59e0b', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.5rem' }}>
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', color: '#92400e' }}>
+                🎯 AI Credit Analysis Results
+              </h5>
+
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>
+                    {realCreditData.creditScores.experian.score}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Experian Score</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6' }}>
+                    {realCreditData.accounts.length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Total Accounts</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>
+                    {realCreditData.accounts.filter(acc => acc.issues && acc.issues.length > 0).length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Accounts with Issues</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f59e0b' }}>
+                    {realCreditData.inquiries.filter(inq => inq.type === 'Hard').length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Hard Inquiries</div>
+                </div>
+              </div>
+
+              {aiAnalysis && (
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem' }}>
+                  <h6 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+                    🔍 Issue Analysis
+                  </h6>
+                  <div style={{ display: 'grid', gap: '0.5rem' }}>
+                    {aiAnalysis.issues.slice(0, 3).map((issue, index) => (
+                      <div key={index} style={{ padding: '0.5rem', background: '#fef2f2', borderRadius: '0.25rem', border: '1px solid #fecaca' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#dc2626' }}>
+                          {issue.type.replace('_', ' ').toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{issue.message}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Account Review */}
           <div style={{ marginBottom: '1.5rem' }}>
