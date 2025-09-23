@@ -26,7 +26,7 @@ export default function IncomeSection({
         {/* Recurring Income Section */}
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>{showIncomeHistory ? 'Income History' : 'Recurring Income'}</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#000' }}>{showIncomeHistory ? 'Income History' : 'Recurring Income'}</h3>
             <div style={{ display: 'flex', gap: '0.25rem' }}>
               <button
                 onClick={() => setShowIncomeHistory(!showIncomeHistory)}
@@ -60,7 +60,7 @@ export default function IncomeSection({
                       marginBottom: '0.375rem'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{entry.source}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#000' }}>{entry.source}</span>
                         <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
                           +{fmt(entry.amount)}
                         </span>
@@ -97,7 +97,7 @@ export default function IncomeSection({
                       marginBottom: '0.375rem'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>{income.name}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#000' }}>{income.name}</span>
                         <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
                           +{fmt(income.amount)}
                         </span>
@@ -139,7 +139,7 @@ export default function IncomeSection({
         {/* Upcoming Credits Section */}
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Upcoming Credits</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#000' }}>Upcoming Credits</h3>
             <button
               onClick={() => setShowAddCredit(true)}
               style={{ padding: '0.25rem 0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
@@ -170,7 +170,7 @@ export default function IncomeSection({
                   <div style={{ marginBottom: '0.5rem' }}>
                     {/* Name and Amount Row */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{credit.name}</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#000' }}>{credit.name}</div>
                       <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#16a34a' }}>
                         +{fmt(credit.amount)}
                       </div>
@@ -245,7 +245,7 @@ export default function IncomeSection({
   return (
     <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>{showIncomeHistory ? 'Income History' : 'Income Sources'}</h3>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>{showIncomeHistory ? 'Income History' : 'Income Sources'}</h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             onClick={() => setShowIncomeHistory(!showIncomeHistory)}

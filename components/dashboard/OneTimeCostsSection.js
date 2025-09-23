@@ -122,7 +122,7 @@ export default function OneTimeCostsSection({
       {/* Mobile One-Time Costs Section */}
       {isMobile && (
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>One-Time Costs</h3>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#000' }}>One-Time Costs</h3>
 
           <div style={{ marginBottom: '0.75rem' }}>
             <input
@@ -193,8 +193,8 @@ export default function OneTimeCostsSection({
                   opacity: otc.ignored ? 0.5 : 1
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{otc.name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(otc.amount)}</span>
+                    <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#000' }}>{otc.name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#000' }}>{fmt(otc.amount)}</span>
                   </div>
 
                   <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
@@ -234,7 +234,7 @@ export default function OneTimeCostsSection({
       {/* Desktop One-Time Costs Section */}
       {!isMobile && (
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>One-Time Costs</h3>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#000' }}>One-Time Costs</h3>
 
           {/* Add One-Time Cost Form */}
           <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>

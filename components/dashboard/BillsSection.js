@@ -53,7 +53,7 @@ export default function BillsSection({
       {isMobile && (
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Recurring Bills</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#000' }}>Recurring Bills</h3>
             <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
           </div>
           
@@ -78,8 +78,8 @@ export default function BillsSection({
                   marginBottom: '0.375rem'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{bill.name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(bill.amount)}</span>
+                    <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#000' }}>{bill.name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#000' }}>{fmt(bill.amount)}</span>
                   </div>
 
                   <div style={{ fontSize: '0.625rem', color: '#6b7280', marginBottom: '0.375rem' }}>
@@ -131,7 +131,7 @@ export default function BillsSection({
       {!isMobile && (
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Recurring Bills</h3>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>Recurring Bills</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span style={{ fontSize: '1.125rem', fontWeight: '600', color: '#8b5cf6' }}>Total: {fmt(totalBillsForSelectedCategory)}</span>
               <button
@@ -166,7 +166,7 @@ export default function BillsSection({
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{bill.name}</div>
+                        <div style={{ fontWeight: '500', fontSize: '1rem', color: '#000' }}>{bill.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
                         </div>
@@ -176,7 +176,7 @@ export default function BillsSection({
                         {bill.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{bill.notes}</div>}
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>{fmt(bill.amount)}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#000' }}>{fmt(bill.amount)}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{bill.category}</div>
                       </div>
                     </div>
