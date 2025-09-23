@@ -309,7 +309,7 @@ export default function AccountsSection({
                   </div>
                   <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                     <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Available</div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#34d399' }}>${fmt(availableCredit)}</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#34d399' }}>{fmt(availableCredit)}</div>
                   </div>
                 </div>
 
@@ -738,7 +738,7 @@ export default function AccountsSection({
                         }} />
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                        Available: <span style={{ color: '#34d399', fontWeight: '600' }}>${fmt(availableCredit)}</span>
+                        Available: <span style={{ color: '#34d399', fontWeight: '600' }}>{fmt(availableCredit)}</span>
                       </div>
                     </div>
                   )}
@@ -752,7 +752,7 @@ export default function AccountsSection({
                       </div>
                       <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '500' }}>Credit Limit</div>
-                        <div style={{ fontSize: '1rem', fontWeight: '700', color: '#34d399' }}>${fmt(account.creditLimit || 0)}</div>
+                        <div style={{ fontSize: '1rem', fontWeight: '700', color: '#34d399' }}>{fmt(account.creditLimit || 0)}</div>
                       </div>
                     </div>
 
