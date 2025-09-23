@@ -318,10 +318,10 @@ export default function AccountsSection({
                   <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.5rem', padding: '0.5rem' }}>
                     <div style={{ fontSize: '0.625rem', color: '#fca5a5', marginBottom: '0.25rem', fontWeight: '500' }}>Payment Info</div>
                     <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600' }}>
-                      Min payment (~2%): ${(account.balance * 0.02).toFixed(2)}
+                      Min payment (~4%): ${(account.balance * 0.04).toFixed(2)}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#f87171', marginTop: '0.125rem' }}>
-                      Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.02)) / Math.log(1 + (account.apr / 100 / 12)))} months
+                      Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
                     </div>
                   </div>
                 )}
@@ -761,10 +761,10 @@ export default function AccountsSection({
                       <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.5rem', padding: '0.75rem' }}>
                         <div style={{ fontSize: '0.75rem', color: '#fca5a5', marginBottom: '0.5rem', fontWeight: '500' }}>Payment Analysis</div>
                         <div style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '600', marginBottom: '0.25rem' }}>
-                          Min payment (~2%): ${(account.balance * 0.02).toFixed(2)}
+                          Min payment (~4%): ${(account.balance * 0.04).toFixed(2)}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#f87171' }}>
-                          Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.02)) / Math.log(1 + (account.apr / 100 / 12)))} months
+                          Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
                         </div>
                       </div>
                     )}
