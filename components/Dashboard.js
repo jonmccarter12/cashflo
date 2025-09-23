@@ -1258,14 +1258,14 @@ function DashboardContent() {
   };
 
   // RECURRING INCOME FUNCTIONS
-  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes) {
+  async function addRecurringIncome(name, amount, frequency, payDay, accountId, notes, source) {
     try {
       if (!user?.id) {
         notify('Please log in to add income', 'error');
         return;
       }
 
-      if (!name || !amount || !payDay || !accountId) {
+      if (!name || !amount || !payDay || !accountId || !source) {
         notify('Please fill in all required fields', 'error');
         return;
       }
@@ -1276,7 +1276,8 @@ function DashboardContent() {
         frequency,
         payDay: Number(payDay),
         accountId,
-        notes: notes || ''
+        notes: notes || '',
+        source: source.trim()
       };
 
       const transaction = await logTransaction(
@@ -1312,9 +1313,10 @@ function DashboardContent() {
           is_received: !isReceived,
           accountId: income.accountId,
           amount: income.amount,
-          name: income.name
+          name: income.name,
+          source: income.source || income.name // Use source if available, fallback to name for backward compatibility
         },
-        `Income "${income.name}" marked as ${!isReceived ? 'received' : 'not received'} for ${currentMonth}`
+        `Income "${income.name}" from ${income.source || income.name} marked as ${!isReceived ? 'received' : 'not received'} for ${currentMonth}`
       );
 
       if (transaction) {
@@ -1362,7 +1364,8 @@ function DashboardContent() {
         {
           accountId: credit.accountId,
           amount: credit.amount,
-          name: credit.name
+          name: credit.name,
+          source: credit.name // Use credit name as source for backward compatibility
         },
         `Credit "${credit.name}" received for ${fmt(credit.amount)}`
       );
@@ -4782,11 +4785,82 @@ function DashboardContent() {
                 formData.get('frequency'),
                 formData.get('payDay'),
                 formData.get('accountId'),
-                formData.get('notes')
+                formData.get('notes'),
+                formData.get('source')
               );
               setShowAddIncome(false);
             }}>
               <input name="name" placeholder="Income name (e.g., Salary)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              {(() => {
+                // Extract unique sources from income history for autocomplete
+                const previousSources = [...new Set(incomeHistory.map(entry => entry.source).filter(Boolean))];
+                const [sourceInput, setSourceInput] = React.useState('');
+                const [showSuggestions, setShowSuggestions] = React.useState(false);
+                const filteredSuggestions = previousSources.filter(source =>
+                  source.toLowerCase().includes(sourceInput.toLowerCase())
+                );
+
+                return (
+                  <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                    <input
+                      name="source"
+                      placeholder="Income source (e.g., ABC Company, Freelance)"
+                      required
+                      value={sourceInput}
+                      onChange={(e) => setSourceInput(e.target.value)}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem',
+                        backgroundColor: previousSources.length > 0 ? '#f8fafc' : 'white'
+                      }}
+                    />
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'white',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        zIndex: 10,
+                        maxHeight: '150px',
+                        overflowY: 'auto'
+                      }}>
+                        {filteredSuggestions.map((source, index) => (
+                          <div
+                            key={index}
+                            onClick={() => {
+                              setSourceInput(source);
+                              setShowSuggestions(false);
+                            }}
+                            style={{
+                              padding: '0.5rem',
+                              cursor: 'pointer',
+                              borderBottom: index < filteredSuggestions.length - 1 ? '1px solid #e5e7eb' : 'none',
+                              fontSize: '0.875rem'
+                            }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                          >
+                            💼 {source}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {previousSources.length > 0 && (
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                        💡 Start typing to see previous sources
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 3500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 <option value="monthly">Monthly</option>
