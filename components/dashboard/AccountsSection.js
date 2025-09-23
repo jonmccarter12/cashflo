@@ -118,15 +118,15 @@ export default function AccountsSection({
               <div key={account.id} style={{
                 background: 'linear-gradient(135deg, #1e293b 0%, #374151 100%)',
                 border: '1px solid #475569',
-                borderRadius: '1rem',
-                padding: '1rem',
-                marginBottom: '0.75rem',
-                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+                borderRadius: '0.75rem',
+                padding: '0.75rem',
+                marginBottom: '0.5rem',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
                 {/* Card header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div style={{ flex: 1 }}>
                     {editingAccountName === account.id ? (
                       <input
@@ -240,8 +240,8 @@ export default function AccountsSection({
                 </div>
 
                 {/* Balance section */}
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '500' }}>Current Balance</div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Current Balance</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '1rem', fontWeight: '700', color: 'white' }}>$</span>
                     <input
@@ -276,16 +276,16 @@ export default function AccountsSection({
 
                 {/* Credit utilization bar */}
                 {account.creditLimit > 0 && (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>Utilization</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: utilizationColor }}>
-                        {utilization.toFixed(1)} %
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500' }}>Utilization</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: '700', color: utilizationColor }}>
+                        {utilization.toFixed(1)}%
                       </span>
                     </div>
                     <div style={{
                       width: '100%',
-                      height: '0.5rem',
+                      height: '0.375rem',
                       backgroundColor: 'rgba(255, 255, 255, 0.1)',
                       borderRadius: '0.25rem',
                       overflow: 'hidden'
@@ -302,26 +302,26 @@ export default function AccountsSection({
                 )}
 
                 {/* Credit info grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                    <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>APR</div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#fbbf24' }}>{account.apr || 0}%</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', marginBottom: '0.5rem' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.375rem', borderRadius: '0.375rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>APR</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24' }}>{account.apr || 0}%</div>
                   </div>
-                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                    <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Available</div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#34d399' }}>{fmt(availableCredit)}</div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.375rem', borderRadius: '0.375rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Available</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#34d399' }}>{fmt(availableCredit)}</div>
                   </div>
                 </div>
 
                 {/* Payment calculations */}
                 {account.balance > 0 && account.apr > 0 && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.5rem', padding: '0.5rem' }}>
-                    <div style={{ fontSize: '0.625rem', color: '#fca5a5', marginBottom: '0.25rem', fontWeight: '500' }}>Payment Info</div>
-                    <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600' }}>
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.375rem', padding: '0.375rem' }}>
+                    <div style={{ fontSize: '0.6rem', color: '#fca5a5', marginBottom: '0.125rem', fontWeight: '500' }}>Payment Info</div>
+                    <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '600' }}>
                       Min payment (~4%): ${(account.balance * 0.04).toFixed(2)}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: '#f87171', marginTop: '0.125rem' }}>
-                      Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
+                    <div style={{ fontSize: '0.6rem', color: '#f87171', marginTop: '0.125rem' }}>
+                      Payoff: ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
                     </div>
                   </div>
                 )}
@@ -554,14 +554,14 @@ export default function AccountsSection({
               <div key={account.id} style={{
                 background: 'linear-gradient(135deg, #1e293b 0%, #374151 100%)',
                 border: '1px solid #475569',
-                borderRadius: '1rem',
-                padding: '1.5rem',
-                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
                 {/* Card header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div style={{ flex: 1 }}>
                     {editingAccountName === account.id ? (
                       <input
@@ -675,7 +675,7 @@ export default function AccountsSection({
                 </div>
 
                 {/* Main content grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
 
                   {/* Balance section */}
                   <div>
@@ -718,7 +718,7 @@ export default function AccountsSection({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <span style={{ fontSize: '0.875rem', color: '#94a3b8', fontWeight: '500' }}>Utilization</span>
                         <span style={{ fontSize: '0.875rem', fontWeight: '700', color: utilizationColor }}>
-                          {utilization.toFixed(1)} %
+                          {utilization.toFixed(1)}%
                         </span>
                       </div>
                       <div style={{
@@ -745,26 +745,26 @@ export default function AccountsSection({
 
                   {/* Credit info and payment calculations */}
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '500' }}>APR</div>
-                        <div style={{ fontSize: '1rem', fontWeight: '700', color: '#fbbf24' }}>{account.apr || 0}%</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>APR</div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#fbbf24' }}>{account.apr || 0}%</div>
                       </div>
-                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '500' }}>Credit Limit</div>
-                        <div style={{ fontSize: '1rem', fontWeight: '700', color: '#34d399' }}>{fmt(account.creditLimit || 0)}</div>
+                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Credit Limit</div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#34d399' }}>{fmt(account.creditLimit || 0)}</div>
                       </div>
                     </div>
 
                     {/* Payment calculations */}
                     {account.balance > 0 && account.apr > 0 && (
-                      <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#fca5a5', marginBottom: '0.5rem', fontWeight: '500' }}>Payment Analysis</div>
-                        <div style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '600', marginBottom: '0.25rem' }}>
+                      <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '0.375rem', padding: '0.5rem' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#fca5a5', marginBottom: '0.25rem', fontWeight: '500' }}>Payment Analysis</div>
+                        <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600', marginBottom: '0.125rem' }}>
                           Min payment (~4%): ${(account.balance * 0.04).toFixed(2)}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#f87171' }}>
-                          Payoff time (min payments): ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
+                        <div style={{ fontSize: '0.7rem', color: '#f87171' }}>
+                          Payoff: ~{Math.ceil(Math.log(1 + (account.balance * (account.apr / 100 / 12)) / (account.balance * 0.04)) / Math.log(1 + (account.apr / 100 / 12)))} months
                         </div>
                       </div>
                     )}
