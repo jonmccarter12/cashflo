@@ -614,6 +614,7 @@ function DashboardContent() {
 
   // Dialog states for various modals
   const [showAddAccount, setShowAddAccount] = React.useState(false);
+  const [editingAccount, setEditingAccount] = React.useState(null);
   const [showAddCredit, setShowAddCredit] = React.useState(false);
   const [showAddIncome, setShowAddIncome] = React.useState(false);
   const [showAddCategory, setShowAddCategory] = React.useState(false);
@@ -3399,6 +3400,7 @@ function DashboardContent() {
           accountsView={accountsView}
           setAccountsView={setAccountsView}
           updateAccount={updateAccount}
+          setEditingAccount={setEditingAccount}
           supabase={supabase}
           user={user}
         />
@@ -3563,7 +3565,7 @@ function DashboardContent() {
           border: '1px solid #e5e7eb'
         }}>
           <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#000' }}>Due This Week</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: isMobile ? '400px' : '500px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;
@@ -3934,7 +3936,7 @@ function DashboardContent() {
                               fontWeight: '600',
                               fontSize: '1rem',
                               background: 'white',
-                              border: '2px solid #8b5cf6',
+                              border: '2px solid #2563eb',
                               borderRadius: '0.375rem',
                               padding: '0.25rem 0.5rem',
                               width: '100%',
@@ -4626,19 +4628,33 @@ function DashboardContent() {
               <input name="name" placeholder="Account name (e.g., Checking Account)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="accountType" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
                 const creditFields = document.getElementById('creditCardFields');
+                const typeSelect = document.querySelector('select[name="type"]');
+
                 if (e.target.value === 'credit') {
                   creditFields.style.display = 'block';
+                  typeSelect.innerHTML = `
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Store Card">Store Credit Card</option>
+                    <option value="Business Credit">Business Credit Card</option>
+                  `;
+                  typeSelect.value = 'Credit Card'; // Set default value
                 } else {
                   creditFields.style.display = 'none';
+                  typeSelect.innerHTML = `
+                    <option value="Bank">Bank Account</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Savings">Savings</option>
+                  `;
+                  typeSelect.value = 'Bank'; // Set default value
                 }
               }}>
                 <option value="debit">Debit Account</option>
                 <option value="credit">Credit Card</option>
               </select>
-              <select name="type" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <select name="type" required defaultValue="Bank" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 <option value="Bank">Bank Account</option>
                 <option value="Cash">Cash</option>
-                <option value="Credit Card">Credit Card</option>
                 <option value="Investment">Investment</option>
                 <option value="Savings">Savings</option>
               </select>
@@ -4652,6 +4668,86 @@ function DashboardContent() {
                   Add Account
                 </button>
                 <button type="button" onClick={() => setShowAddAccount(false)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Account Dialog */}
+      {editingAccount && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
+              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>Edit Account</h2>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const updates = {
+                name: formData.get('name'),
+                type: formData.get('type'),
+                accountType: formData.get('accountType')
+              };
+
+              if (editingAccount.accountType === 'credit') {
+                updates.apr = Number(formData.get('apr')) || 0;
+                updates.creditLimit = Number(formData.get('creditLimit')) || 0;
+              }
+
+              updateAccount(editingAccount.id, updates);
+              setEditingAccount(null);
+            }}>
+              <input name="name" placeholder="Account name" defaultValue={editingAccount.name} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="accountType" defaultValue={editingAccount.accountType || 'debit'} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+                const creditFields = document.getElementById('editCreditCardFields');
+                const typeSelect = e.target.closest('form').querySelector('select[name="type"]');
+
+                if (e.target.value === 'credit') {
+                  creditFields.style.display = 'block';
+                  typeSelect.innerHTML = `
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Store Card">Store Credit Card</option>
+                    <option value="Business Credit">Business Credit Card</option>
+                  `;
+                } else {
+                  creditFields.style.display = 'none';
+                  typeSelect.innerHTML = `
+                    <option value="Bank">Bank Account</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Savings">Savings</option>
+                  `;
+                }
+              }}>
+                <option value="debit">Debit Account</option>
+                <option value="credit">Credit Card</option>
+              </select>
+              <select name="type" defaultValue={editingAccount.type} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                {editingAccount.accountType === 'credit' ? (
+                  <>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Store Card">Store Credit Card</option>
+                    <option value="Business Credit">Business Credit Card</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Bank">Bank Account</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Savings">Savings</option>
+                  </>
+                )}
+              </select>
+              <div id="editCreditCardFields" style={{ display: editingAccount.accountType === 'credit' ? 'block' : 'none', marginBottom: '0.5rem' }}>
+                <input name="apr" type="number" step="0.01" placeholder="APR %" defaultValue={editingAccount.apr || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="creditLimit" type="number" step="0.01" placeholder="Credit Limit" defaultValue={editingAccount.creditLimit || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
+                  Update Account
+                </button>
+                <button type="button" onClick={() => setEditingAccount(null)} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
               </div>
             </form>
           </div>

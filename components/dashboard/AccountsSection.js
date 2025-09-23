@@ -12,6 +12,7 @@ export default function AccountsSection({
   accountsView,
   setAccountsView,
   updateAccount,
+  setEditingAccount,
   supabase,
   user
 }) {
@@ -22,8 +23,10 @@ export default function AccountsSection({
   // Filter accounts based on view
   const filteredAccounts = accounts.filter(account => {
     if (accountsView === 'debit') {
-      return account.accountType !== 'credit';
+      // Show debit accounts (anything that's not explicitly 'credit')
+      return !account.accountType || account.accountType !== 'credit';
     } else {
+      // Show only credit accounts
       return account.accountType === 'credit';
     }
   });
@@ -218,33 +221,32 @@ export default function AccountsSection({
                 />
               </div>
               <button
-                onClick={() => deleteAccount(account.id)}
+                onClick={() => setEditingAccount(account)}
                 style={{
-                  padding: '0.375rem',
-                  background: '#ef4444',
+                  padding: '0.25rem 0.5rem',
+                  background: '#2563eb',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '0.375rem',
-                  fontSize: '0.875rem',
-                  minWidth: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  borderRadius: '0.25rem',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(239, 68, 68, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#dc2626';
-                  e.target.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#ef4444';
-                  e.target.style.transform = 'translateY(0)';
+                  fontSize: '0.75rem'
                 }}
               >
-                ×
+                Edit
+              </button>
+              <button
+                onClick={() => deleteAccount(account.id)}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem'
+                }}
+              >
+                Delete
               </button>
             </div>
           </div>
@@ -396,32 +398,36 @@ export default function AccountsSection({
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => deleteAccount(account.id)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  flexShrink: 0,
-                  marginLeft: '1rem',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#dc2626';
-                  e.target.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#ef4444';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                ×
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
+                <button
+                  onClick={() => setEditingAccount(account)}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    background: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteAccount(account.id)}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginLeft: '0.75rem' }}>
