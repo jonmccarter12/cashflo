@@ -144,11 +144,14 @@ function DashboardContent() {
     for (const tx of transactions) {
       switch (tx.type) {
         case 'account_created':
-          accounts.set(tx.item_id, { 
-            id: tx.item_id, 
-            name: tx.payload.name, 
-            type: tx.payload.type, 
+          accounts.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            type: tx.payload.type,
             balance: tx.payload.initial_balance || 0,
+            accountType: tx.payload.accountType || 'debit',
+            apr: tx.payload.apr || null,
+            creditLimit: tx.payload.creditLimit || null,
             updatedAt: tx.timestamp // Track for potential individual item merge if needed, though collection is primary
           });
           break;
@@ -180,6 +183,16 @@ function DashboardContent() {
             recurringIncome.forEach((inc, id) => { if (inc.accountId === tx.item_id) recurringIncome.delete(id); });
             upcomingCredits.forEach((cred, id) => { if (cred.accountId === tx.item_id) upcomingCredits.delete(id); });
             break;
+        case 'account_updated':
+          if (accounts.has(tx.item_id)) {
+            const currentAccount = accounts.get(tx.item_id);
+            accounts.set(tx.item_id, {
+              ...currentAccount,
+              ...tx.payload,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
         case 'bill_created':
           bills.set(tx.item_id, {
             id: tx.item_id,
@@ -765,9 +778,9 @@ function DashboardContent() {
   // Calculate liquid including guaranteed credits (excluding savings accounts)
   const currentLiquidWithGuaranteed = React.useMemo(() => {
     try {
-      // Exclude savings accounts from liquid calculations for "Need This Week"
+      // Exclude savings accounts and credit accounts from liquid calculations for "Need This Week"
       const baseBalance = accounts
-        .filter(a => a.type !== 'Savings')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
       const guaranteedCredits = upcomingCredits
         .filter(c => c.guaranteed && !c.ignored)
@@ -776,7 +789,7 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error calculating liquid with guaranteed:', error);
       return accounts
-        .filter(a => a.type !== 'Savings')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     }
   }, [accounts, upcomingCredits]);
@@ -786,12 +799,12 @@ function DashboardContent() {
     return currentLiquidWithGuaranteed + monthlyRecurringIncomeTotal;
   }, [currentLiquidWithGuaranteed, monthlyRecurringIncomeTotal]);
 
-  // Derived calculations with error handling (excluding savings accounts)
+  // Derived calculations with error handling (excluding savings and credit accounts)
   const currentLiquid = React.useMemo(()=> {
     try {
-      // Exclude savings accounts from liquid calculations
+      // Exclude savings accounts and credit accounts from liquid calculations
       return accounts
-        .filter(a => a.type !== 'Savings')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     } catch (error) {
       console.error('Error calculating current liquid:', error);
@@ -800,9 +813,19 @@ function DashboardContent() {
   }, [accounts]);
 
   // Total net worth including savings accounts (for display purposes)
+  // Credit accounts (debt) are subtracted from net worth
   const totalNetWorth = React.useMemo(() => {
     try {
-      return accounts.reduce((s,a)=> s+(Number(a.balance) || 0), 0);
+      return accounts.reduce((total, account) => {
+        const balance = Number(account.balance) || 0;
+        if (account.accountType === 'credit') {
+          // Credit cards represent debt - subtract from net worth
+          return total - balance;
+        } else {
+          // Regular accounts (assets) - add to net worth
+          return total + balance;
+        }
+      }, 0);
     } catch (error) {
       console.error('Error calculating total net worth:', error);
       return 0;
@@ -2857,16 +2880,16 @@ function DashboardContent() {
             <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due This Week</div>
           </div>
           <div style={{
-            background: '#f8fafc',
+            background: '#fffbeb',
             padding: '0.75rem',
             borderRadius: '0.5rem',
-            border: '1px solid #cbd5e1',
+            border: '1px solid #fbbf24',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#475569' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#d97706' }}>
               {fmt(netWorthValue)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Net Worth</div>
+            <div style={{ fontSize: '0.75rem', color: '#92400e' }}>Net Worth</div>
           </div>
         </div>
       </div>
@@ -4656,7 +4679,7 @@ function DashboardContent() {
               );
             }}>
               <input name="name" placeholder="Account name (e.g., Checking Account)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <select name="accountType" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+              <select name="accountType" defaultValue={accountsView} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
                 const creditFields = document.getElementById('creditCardFields');
                 const typeSelect = document.querySelector('select[name="type"]');
 
@@ -4686,14 +4709,28 @@ function DashboardContent() {
                 <option value="debit">Debit Account</option>
                 <option value="credit">Credit Card</option>
               </select>
-              <select name="type" required defaultValue="Bank" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
-                <option value="Bank">Bank Account</option>
-                <option value="Cash">Cash</option>
-                <option value="Investment">Investment</option>
-                <option value="Savings">Savings</option>
+              <select name="type" required defaultValue={accountsView === 'credit' ? 'Credit Card' : 'Bank'} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                {accountsView === 'credit' ? (
+                  <>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Store Card">Store Credit Card</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Auto Loan">Auto Loan</option>
+                    <option value="Student Loan">Student Loan</option>
+                    <option value="Line of Credit">Line of Credit</option>
+                    <option value="Business Credit">Business Credit Card</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Bank">Bank Account</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Savings">Savings</option>
+                  </>
+                )}
               </select>
               <input name="balance" type="number" step="0.01" placeholder="Current balance (e.g., 1500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <div id="creditCardFields" style={{ display: 'none', marginBottom: '0.5rem' }}>
+              <div id="creditCardFields" style={{ display: accountsView === 'credit' ? 'block' : 'none', marginBottom: '0.5rem' }}>
                 <input name="apr" type="number" step="0.01" placeholder="APR % (e.g., 18.99)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
                 <input name="creditLimit" type="number" step="0.01" placeholder="Credit Limit (e.g., 5000)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               </div>
