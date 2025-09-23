@@ -18,6 +18,7 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
+import TaxSection from './dashboard/TaxSection';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -683,6 +684,7 @@ function DashboardContent() {
   });
   const [otcAccountId, setOtcAccountId] = React.useState(accounts[0]?.id || '550e8400-e29b-41d4-a716-446655440001');
   const [otcNotes, setOtcNotes] = React.useState("");
+  const [otcTaxCategory, setOtcTaxCategory] = React.useState('None/Personal');
   const [otcMarkAsPaid, setOtcMarkAsPaid] = React.useState(false);
   const [otcAutoDeduct, setOtcAutoDeduct] = React.useState(false);
 
@@ -1288,7 +1290,7 @@ function DashboardContent() {
 
       // Calculate tax withholdings and net amount
       let netAmount = grossAmount;
-      const taxDetails = {};
+      let taxDetails = {};
 
       if (federalTaxRate || stateTaxRate || socialSecurityRate || medicareRate || otherDeductions) {
         const federalTax = grossAmount * (Number(federalTaxRate) || 0) / 100;
@@ -3058,6 +3060,22 @@ function DashboardContent() {
           >
             📋 Transaction History
           </button>
+          <button
+            onClick={() => setCurrentView('tax')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'tax' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'tax' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💰 Tax Estimator
+          </button>
         </div>
       </div>
 
@@ -3913,6 +3931,8 @@ function DashboardContent() {
               setOtcAccountId={setOtcAccountId}
               otcNotes={otcNotes}
               setOtcNotes={setOtcNotes}
+              otcTaxCategory={otcTaxCategory}
+              setOtcTaxCategory={setOtcTaxCategory}
               otcMarkAsPaid={otcMarkAsPaid}
               setOtcMarkAsPaid={setOtcMarkAsPaid}
               otcAutoDeduct={otcAutoDeduct}
@@ -4773,6 +4793,16 @@ function DashboardContent() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Tax Estimator Tab */}
+      {currentView === 'tax' && (
+        <TaxSection
+          isMobile={isMobile}
+          transactions={transactions}
+          bills={bills}
+          oneTimeCosts={oneTimeCosts}
+        />
       )}
 
       {/* Add Credit Dialog */}

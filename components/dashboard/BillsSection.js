@@ -1,6 +1,7 @@
 import React from 'react';
 import { fmt, yyyyMm, getNextOccurrence } from '../../lib/utils';
 import { notify } from '../Notify';
+import { IRS_TAX_CATEGORIES } from './TaxSection';
 // import RetroactiveBillHistory from '../RetroactiveBillHistory';
 
 export default function BillsSection({
@@ -38,6 +39,7 @@ export default function BillsSection({
       name: formData.get('name'),
       category: formData.get('category'),
       amount: Number(formData.get('amount')),
+      taxCategory: formData.get('taxCategory'),
       frequency: formData.get('frequency'),
       dueDay: Number(formData.get('dueDay')),
       accountId: formData.get('accountId'),
@@ -254,6 +256,9 @@ export default function BillsSection({
                 {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" defaultValue={editingBill?.amount || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <select name="taxCategory" defaultValue={editingBill?.taxCategory || 'None/Personal'} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+                {IRS_TAX_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
               <select
                 name="frequency"
                 value={selectedFrequency}

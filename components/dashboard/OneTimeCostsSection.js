@@ -1,6 +1,7 @@
 import React from 'react';
 import { fmt, logTransaction } from '../../lib/utils';
 import { notify } from '../Notify';
+import { IRS_TAX_CATEGORIES } from './TaxSection';
 
 export default function OneTimeCostsSection({
   isMobile,
@@ -21,6 +22,8 @@ export default function OneTimeCostsSection({
   setOtcAccountId,
   otcNotes,
   setOtcNotes,
+  otcTaxCategory,
+  setOtcTaxCategory,
   otcMarkAsPaid,
   setOtcMarkAsPaid,
   otcAutoDeduct,
@@ -50,7 +53,8 @@ export default function OneTimeCostsSection({
         amount: Number(otcAmount),
         dueDate: otcDueDate,
         accountId: otcAccountId,
-        notes: otcNotes
+        notes: otcNotes,
+        taxCategory: otcTaxCategory
       };
 
       const transaction = await logTransaction(
@@ -221,6 +225,13 @@ export default function OneTimeCostsSection({
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
+            <select
+              value={otcTaxCategory}
+              onChange={(e) => setOtcTaxCategory(e.target.value)}
+              style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+            >
+              {IRS_TAX_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
             <textarea
               placeholder="Notes (optional)"
               value={otcNotes}
