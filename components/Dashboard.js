@@ -1835,6 +1835,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`Bill "${b.name}" is now ${b.ignored ? 'shown' : 'hidden'}.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling bill ignored:', error);
