@@ -18,6 +18,7 @@ export default function BillsSection({
   editingBill,
   updateBill,
   addBill,
+  getDefaultAutoDeductAccount,
   user,
   supabase
 }) {
@@ -348,7 +349,7 @@ export default function BillsSection({
                   </div>
                 </div>
               )}
-              <select name="accountId" defaultValue={editingBill?.accountId || accounts[0]?.id} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <select name="accountId" defaultValue={editingBill?.accountId || getDefaultAutoDeductAccount() || accounts[0]?.id} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill?.notes || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />

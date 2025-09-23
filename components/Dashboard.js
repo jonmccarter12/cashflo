@@ -152,6 +152,7 @@ function DashboardContent() {
             accountType: tx.payload.accountType || 'debit',
             apr: tx.payload.apr || null,
             creditLimit: tx.payload.creditLimit || null,
+            ignored: tx.payload.ignored || false,
             updatedAt: tx.timestamp // Track for potential individual item merge if needed, though collection is primary
           });
           break;
@@ -190,6 +191,16 @@ function DashboardContent() {
               ...currentAccount,
               ...tx.payload,
               updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'account_ignored_toggled':
+          if (accounts.has(tx.item_id)) {
+            const currentAccount = accounts.get(tx.item_id);
+            accounts.set(tx.item_id, {
+                ...currentAccount,
+                ignored: tx.payload.ignored,
+                updatedAt: tx.timestamp
             });
           }
           break;
@@ -603,6 +614,8 @@ function DashboardContent() {
 
   // Settings/UI with cloud sync - still use useCloudState for UI settings
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
+  const [autoDeductBank, setAutoDeductBank] = useCloudState('autoDeductBank', false, user?.id, supabase);
+  const [includeGuaranteedInNetWorth, setIncludeGuaranteedInNetWorth] = useCloudState('includeGuaranteedInNetWorth', false, user?.id, supabase);
   const [showIgnored, setShowIgnored] = useCloudState('showIgnored', false, user?.id, supabase);
   const [selectedCat, setSelectedCat] = useCloudState('selectedCat', 'All', user?.id, supabase);
 
@@ -613,7 +626,24 @@ function DashboardContent() {
       setSelectedCat('All');
     }
   }, [user?.id, accounts.length, bills.length, oneTimeCosts.length, selectedCat, setSelectedCat]);
-  
+
+  // Helper function to get the default account for auto-deduct
+  const getDefaultAutoDeductAccount = React.useCallback(() => {
+    if (autoDeductBank) {
+      // Find first bank account
+      const bankAccount = accounts.find(a => a.type === 'Bank' && !a.ignored);
+      if (bankAccount) return bankAccount.id;
+    }
+    if (autoDeductCash) {
+      // Find cash account
+      const cashAccount = accounts.find(a => a.type === 'Cash' && !a.ignored);
+      if (cashAccount) return cashAccount.id;
+    }
+    // Fallback to first non-ignored account
+    const fallbackAccount = accounts.find(a => !a.ignored);
+    return fallbackAccount?.id || accounts[0]?.id;
+  }, [accounts, autoDeductBank, autoDeductCash]);
+
   const [showIncomeHistory, setShowIncomeHistory] = React.useState(false); // Managed locally for UI toggle
 
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
@@ -816,7 +846,7 @@ function DashboardContent() {
   // Credit accounts (debt) are subtracted from net worth
   const totalNetWorth = React.useMemo(() => {
     try {
-      return accounts.reduce((total, account) => {
+      let accountsTotal = accounts.reduce((total, account) => {
         const balance = Number(account.balance) || 0;
         if (account.accountType === 'credit') {
           // Credit cards represent debt - subtract from net worth
@@ -826,11 +856,21 @@ function DashboardContent() {
           return total + balance;
         }
       }, 0);
+
+      // Optionally include guaranteed credits based on user setting
+      if (includeGuaranteedInNetWorth) {
+        const guaranteedCredits = upcomingCredits
+          .filter(c => c.guaranteed && !c.ignored)
+          .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+        accountsTotal += guaranteedCredits;
+      }
+
+      return accountsTotal;
     } catch (error) {
       console.error('Error calculating total net worth:', error);
       return 0;
     }
-  }, [accounts]);
+  }, [accounts, includeGuaranteedInNetWorth, upcomingCredits]);
 
   const upcoming = React.useMemo(()=>{
     try {
@@ -1884,6 +1924,34 @@ function DashboardContent() {
       }
     } catch (error) {
       console.error('Error toggling bill ignored:', error);
+      notify('Failed to update ignore status', 'error');
+    }
+  }
+
+  async function toggleAccountIgnored(account){
+    try {
+      if (!user?.id) {
+        notify('Please log in to update account status', 'error');
+        return;
+      }
+
+      const transaction = await logTransaction(
+        supabase,
+        user.id,
+        'account_ignored_toggled',
+        account.id,
+        { ignored: !account.ignored },
+        `Account "${account.name}" ignored status set to ${!account.ignored}`
+      );
+
+      if (transaction) {
+        notify(`Account "${account.name}" is now ${account.ignored ? 'shown' : 'hidden'}.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
+      }
+    } catch (error) {
+      console.error('Error toggling account ignored:', error);
       notify('Failed to update ignore status', 'error');
     }
   }
@@ -3490,6 +3558,7 @@ function DashboardContent() {
           setAccountsView={setAccountsView}
           updateAccount={updateAccount}
           setEditingAccount={setEditingAccount}
+          toggleAccountIgnored={toggleAccountIgnored}
           supabase={supabase}
           user={user}
         />
@@ -3770,6 +3839,7 @@ function DashboardContent() {
               editingBill={editingBill}
               updateBill={updateBill}
               addBill={addBill}
+              getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
               user={user}
               supabase={supabase}
             />
@@ -3804,6 +3874,9 @@ function DashboardContent() {
               toggleOneTimePaid={toggleOneTimePaid}
               selectAllOnFocus={selectAllOnFocus}
               deleteOneTimeCost={deleteOneTimeCost}
+              autoDeductCash={autoDeductCash}
+              autoDeductBank={autoDeductBank}
+              getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
             />
           )}
         </div>
@@ -3870,6 +3943,48 @@ function DashboardContent() {
                 style={{ accentColor: '#8b5cf6' }}
               />
               💰 Auto-deduct from cash
+            </label>
+
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#374151',
+              fontSize: '0.875rem',
+              background: '#f9fafb',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              border: '1px solid #e5e7eb'
+            }}>
+              <input
+                type="checkbox"
+                checked={autoDeductBank}
+                onChange={(e) => setAutoDeductBank(e.target.checked)}
+                style={{ accentColor: '#8b5cf6' }}
+              />
+              🏦 Auto-deduct from bank account
+            </label>
+
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#374151',
+              fontSize: '0.875rem',
+              background: '#f9fafb',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              border: '1px solid #e5e7eb'
+            }}>
+              <input
+                type="checkbox"
+                checked={includeGuaranteedInNetWorth}
+                onChange={(e) => setIncludeGuaranteedInNetWorth(e.target.checked)}
+                style={{ accentColor: '#8b5cf6' }}
+              />
+              💎 Include guaranteed income in net worth
             </label>
           </div>
 

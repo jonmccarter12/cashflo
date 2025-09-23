@@ -32,6 +32,9 @@ export default function OneTimeCostsSection({
   toggleOneTimePaid, // This function is passed from Dashboard.js
   selectAllOnFocus,
   deleteOneTimeCost, // This function is passed from Dashboard.js
+  autoDeductCash,
+  autoDeductBank,
+  getDefaultAutoDeductAccount,
 }) {
 
   async function addOneTimeCost() {
@@ -70,16 +73,31 @@ export default function OneTimeCostsSection({
             { paid: true },
             `Marked one-time cost "${otcName}" as paid`
           );
+
+          // If auto-deduct is enabled (cash or bank), automatically deduct from appropriate account
+          if (autoDeductCash || autoDeductBank) {
+            const autoDeductAccountId = getDefaultAutoDeductAccount();
+            if (autoDeductAccountId) {
+              await logTransaction(
+                supabase,
+                user.id,
+                'account_balance_adjustment',
+                autoDeductAccountId,
+                { adjustment: -Number(otcAmount) },
+                `Auto deducted ${fmt(Number(otcAmount))} for "${otcName}"`
+              );
+            }
+          }
         }
 
-        // If auto deduct is checked, deduct from account balance
+        // If auto deduct is checked (legacy checkbox), deduct from selected account
         if (otcAutoDeduct) {
           await logTransaction(
             supabase,
             user.id,
-            'account_balance_updated',
+            'account_balance_adjustment',
             otcAccountId,
-            { adjustment: -Number(otcAmount), reason: `Auto deduct for "${otcName}"` },
+            { adjustment: -Number(otcAmount) },
             `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
           );
         }
@@ -89,7 +107,18 @@ export default function OneTimeCostsSection({
         setOtcNotes("");
         setOtcMarkAsPaid(false);
         setOtcAutoDeduct(false);
-        notify('One-time cost added' + (otcMarkAsPaid ? ' and marked as paid' : '') + (otcAutoDeduct ? ' and deducted from account' : ''));
+
+        let message = 'One-time cost added';
+        if (otcMarkAsPaid) {
+          message += ' and marked as paid';
+          if (autoDeductCash || autoDeductBank) {
+            message += ' and auto-deducted';
+          }
+        }
+        if (otcAutoDeduct && !otcMarkAsPaid) {
+          message += ' and deducted from account';
+        }
+        notify(message);
       }
     } catch (error) {
       console.error('Error adding one-time cost:', error);

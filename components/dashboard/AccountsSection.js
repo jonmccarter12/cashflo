@@ -13,6 +13,7 @@ export default function AccountsSection({
   setAccountsView,
   updateAccount,
   setEditingAccount,
+  toggleAccountIgnored,
   supabase,
   user
 }) {
@@ -340,6 +341,25 @@ export default function AccountsSection({
                       Edit
                     </button>
                     <button
+                      onClick={() => toggleAccountIgnored(account)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: account.ignored ? 'rgba(34, 197, 94, 0.8)' : 'rgba(251, 191, 36, 0.8)',
+                        color: 'white',
+                        border: `1px solid ${account.ignored ? 'rgba(34, 197, 94, 0.6)' : 'rgba(251, 191, 36, 0.6)'}`,
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        flex: 1,
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = account.ignored ? 'rgba(22, 163, 74, 0.9)' : 'rgba(217, 119, 6, 0.9)'}
+                      onMouseLeave={(e) => e.target.style.background = account.ignored ? 'rgba(34, 197, 94, 0.8)' : 'rgba(251, 191, 36, 0.8)'}
+                    >
+                      {account.ignored ? 'Show' : 'Hide'}
+                    </button>
+                    <button
                       onClick={() => deleteAccount(account.id)}
                       style={{
                         padding: '0.5rem 1rem',
@@ -467,6 +487,20 @@ export default function AccountsSection({
                 }}
               >
                 Edit
+              </button>
+              <button
+                onClick={() => toggleAccountIgnored(account)}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: account.ignored ? '#22c55e' : '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem'
+                }}
+              >
+                {account.ignored ? 'Show' : 'Hide'}
               </button>
               <button
                 onClick={() => deleteAccount(account.id)}
@@ -885,6 +919,21 @@ export default function AccountsSection({
                         }}
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => toggleAccountIgnored(account)}
+                        style={{
+                          padding: '0.5rem 0.75rem',
+                          background: account.ignored ? '#22c55e' : '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.375rem',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '600'
+                        }}
+                      >
+                        {account.ignored ? 'Show' : 'Hide'}
                       </button>
                       <button
                         onClick={() => deleteAccount(account.id)}
