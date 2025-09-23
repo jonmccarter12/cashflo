@@ -3322,7 +3322,7 @@ function DashboardContent() {
                 transition: 'all 0.2s ease'
               }}
             >
-              {showIgnored ? '👁️ Hide Ignored' : '👁️‍🗨️ Show Ignored'}
+              {showIgnored ? '👁️ Hide Ignored Bills' : '👁️‍🗨️ Show Ignored Bills'}
             </button>
           </div>
         </div>
