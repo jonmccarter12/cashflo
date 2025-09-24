@@ -2784,7 +2784,7 @@ function DashboardContent() {
       setShowAuth={setShowAuth}
     >
       <div style={{
-        padding: isMobile ? '1rem' : '2rem',
+        padding: isMobile ? '0.5rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
         background: isMobile ? '#f8fafc' : '#f3f4f6',
         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -3741,7 +3741,7 @@ function DashboardContent() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-        gap: isMobile ? '1rem' : '1.5rem',
+        gap: isMobile ? '0.5rem' : '1.5rem',
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
         overflowX: 'hidden'

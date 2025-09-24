@@ -40,7 +40,10 @@ export default function AccountsSection({
         borderRadius: '0.5rem',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         marginBottom: '0.5rem',
-        border: '1px solid #e5e7eb'
+        border: '1px solid #e5e7eb',
+        width: '100%',
+        minWidth: 0,
+        overflowX: 'hidden'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>Accounts</h3>
@@ -123,11 +126,13 @@ export default function AccountsSection({
                 marginBottom: '0.5rem',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                width: '100%',
+                minWidth: 0
               }}>
                 {/* Card header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', width: '100%', minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                     {editingAccountName === account.id ? (
                       <input
                         type="text"
