@@ -1,9 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CreditCard,
   DollarSign,
@@ -188,6 +183,7 @@ const DebtManagementSection = ({ transactions, accounts, bills }) => {
   const [showAddDebt, setShowAddDebt] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState('snowball');
   const [expandedDebt, setExpandedDebt] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     localStorage.setItem('debtManagementData', JSON.stringify(debts));
@@ -214,474 +210,535 @@ const DebtManagementSection = ({ transactions, accounts, bills }) => {
     const isExpanded = expandedDebt === debt.id;
 
     return (
-      <Card className="p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-3">
-            <CreditCard className="w-5 h-5 text-gray-600" />
+      <div style={{
+        background: 'white',
+        padding: '1rem',
+        marginBottom: '1rem',
+        borderRadius: '0.5rem',
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <CreditCard style={{ width: '1.25rem', height: '1.25rem', color: '#6b7280' }} />
             <div>
-              <h4 className="font-medium">{debt.name}</h4>
-              <p className="text-sm text-gray-600">{debt.creditor}</p>
+              <h4 style={{ fontWeight: '500', margin: 0 }}>{debt.name}</h4>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{debt.creditor}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => setExpandedDebt(isExpanded ? null : debt.id)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0.5rem',
+              cursor: 'pointer',
+              borderRadius: '0.25rem'
+            }}
           >
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
+            {isExpanded ? <ChevronUp style={{ width: '1rem', height: '1rem' }} /> : <ChevronDown style={{ width: '1rem', height: '1rem' }} />}
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '0.75rem' }}>
           <div>
-            <p className="text-xs text-gray-600">Balance</p>
-            <p className="font-semibold">${debt.balance.toLocaleString()}</p>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Balance</p>
+            <p style={{ fontWeight: '600', margin: 0 }}>${debt.balance.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600">Interest Rate</p>
-            <p className="font-semibold">{debt.interestRate}%</p>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Interest Rate</p>
+            <p style={{ fontWeight: '600', margin: 0 }}>{debt.interestRate}%</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600">Min Payment</p>
-            <p className="font-semibold">${debt.minimumPayment}</p>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Min Payment</p>
+            <p style={{ fontWeight: '600', margin: 0 }}>${debt.minimumPayment}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600">Type</p>
-            <Badge variant="outline" className="text-xs">{debt.type}</Badge>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Type</p>
+            <span style={{
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.25rem',
+              background: 'white'
+            }}>{debt.type}</span>
           </div>
         </div>
 
         {showPayoffInfo && payoffInfo && (
-          <div className="bg-blue-50 p-3 rounded-lg mb-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.75rem', fontSize: '0.875rem' }}>
               <div>
-                <p className="text-gray-600">Payoff Order</p>
-                <p className="font-semibold">#{payoffInfo.order}</p>
+                <p style={{ color: '#6b7280', margin: 0 }}>Payoff Order</p>
+                <p style={{ fontWeight: '600', margin: 0 }}>#{payoffInfo.order}</p>
               </div>
               <div>
-                <p className="text-gray-600">Monthly Payment</p>
-                <p className="font-semibold">${payoffInfo.monthlyPayment?.toFixed(2)}</p>
+                <p style={{ color: '#6b7280', margin: 0 }}>Monthly Payment</p>
+                <p style={{ fontWeight: '600', margin: 0 }}>${payoffInfo.monthlyPayment?.toFixed(2)}</p>
               </div>
               <div>
-                <p className="text-gray-600">Payoff Date</p>
-                <p className="font-semibold">{payoffInfo.payoffDate?.toLocaleDateString()}</p>
+                <p style={{ color: '#6b7280', margin: 0 }}>Payoff Date</p>
+                <p style={{ fontWeight: '600', margin: 0 }}>{payoffInfo.payoffDate?.toLocaleDateString()}</p>
               </div>
             </div>
-            <div className="mt-2">
-              <p className="text-xs text-gray-600">Total Interest: ${payoffInfo.totalInterest?.toFixed(2)}</p>
-              <Progress
-                value={Math.max(0, 100 - (payoffInfo.monthsToPayoff || 0) * 2)}
-                className="h-2 mt-1"
-              />
+            <div style={{ marginTop: '0.5rem' }}>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Total Interest: ${payoffInfo.totalInterest?.toFixed(2)}</p>
+              <div style={{
+                width: '100%',
+                height: '0.5rem',
+                background: '#e5e7eb',
+                borderRadius: '0.25rem',
+                marginTop: '0.25rem',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${Math.max(0, 100 - (payoffInfo.monthsToPayoff || 0) * 2)}%`,
+                  height: '100%',
+                  background: '#3b82f6',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
             </div>
           </div>
         )}
 
         {isExpanded && (
-          <div className="border-t pt-3 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div>
-                <label className="text-sm font-medium text-gray-600">Balance</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Balance</label>
                 <input
                   type="number"
                   value={debt.balance}
                   onChange={(e) => updateDebt(debt.id, { balance: parseFloat(e.target.value) || 0 })}
-                  className="w-full mt-1 p-2 border rounded-lg text-sm"
+                  style={{
+                    width: '100%',
+                    marginTop: '0.25rem',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem'
+                  }}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Interest Rate (%)</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Interest Rate (%)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={debt.interestRate}
                   onChange={(e) => updateDebt(debt.id, { interestRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full mt-1 p-2 border rounded-lg text-sm"
+                  style={{
+                    width: '100%',
+                    marginTop: '0.25rem',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem'
+                  }}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label className="text-sm font-medium text-gray-600">Minimum Payment</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Minimum Payment</label>
                 <input
                   type="number"
                   value={debt.minimumPayment}
                   onChange={(e) => updateDebt(debt.id, { minimumPayment: parseFloat(e.target.value) || 0 })}
-                  className="w-full mt-1 p-2 border rounded-lg text-sm"
+                  style={{
+                    width: '100%',
+                    marginTop: '0.25rem',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem'
+                  }}
                 />
               </div>
-              <div className="flex items-end">
-                <Button
-                  variant="destructive"
-                  size="sm"
+              <div style={{ display: 'flex', alignItems: 'end' }}>
+                <button
                   onClick={() => deleteDebt(debt.id)}
-                  className="w-full"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    background: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.25rem'
+                  }}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  <Trash2 style={{ width: '1rem', height: '1rem' }} />
                   Delete
-                </Button>
+                </button>
               </div>
             </div>
           </div>
         )}
-      </Card>
-    );
-  };
-
-  const PayoffPlanView = ({ plan, strategyName }) => {
-    const totalInterest = plan.reduce((sum, debt) => sum + (debt.totalInterest || 0), 0);
-    const totalTime = Math.max(...plan.map(debt => debt.monthsToPayoff || 0));
-
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 text-center">
-            <h4 className="font-medium text-gray-600">Total Interest</h4>
-            <p className="text-2xl font-bold text-red-600">${totalInterest.toFixed(2)}</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <h4 className="font-medium text-gray-600">Time to Freedom</h4>
-            <p className="text-2xl font-bold text-blue-600">{totalTime} months</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <h4 className="font-medium text-gray-600">Total Payments</h4>
-            <p className="text-2xl font-bold text-green-600">${(debtSummary.totalBalance + totalInterest).toFixed(2)}</p>
-          </Card>
-        </div>
-
-        <div className="space-y-3">
-          {plan.map((debt) => (
-            <DebtCard
-              key={debt.id}
-              debt={debt}
-              payoffInfo={debt}
-              showPayoffInfo={true}
-            />
-          ))}
-        </div>
       </div>
     );
   };
-
-  const AddDebtForm = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Add New Debt</h3>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          addDebt({
-            name: formData.get('name'),
-            type: formData.get('type'),
-            creditor: formData.get('creditor'),
-            balance: parseFloat(formData.get('balance')),
-            interestRate: parseFloat(formData.get('interestRate')),
-            minimumPayment: parseFloat(formData.get('minimumPayment'))
-          });
-        }}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600">Debt Name</label>
-              <input
-                name="name"
-                type="text"
-                required
-                placeholder="e.g., Credit Card #3"
-                className="w-full mt-1 p-2 border rounded-lg"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Type</label>
-                <select name="type" required className="w-full mt-1 p-2 border rounded-lg">
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Personal Loan">Personal Loan</option>
-                  <option value="Auto Loan">Auto Loan</option>
-                  <option value="Student Loan">Student Loan</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Creditor</label>
-                <input
-                  name="creditor"
-                  type="text"
-                  required
-                  placeholder="Bank/Lender"
-                  className="w-full mt-1 p-2 border rounded-lg"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Balance ($)</label>
-                <input
-                  name="balance"
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full mt-1 p-2 border rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Interest Rate (%)</label>
-                <input
-                  name="interestRate"
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full mt-1 p-2 border rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Min Payment ($)</label>
-                <input
-                  name="minimumPayment"
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full mt-1 p-2 border rounded-lg"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-3 mt-6">
-            <Button type="button" variant="outline" onClick={() => setShowAddDebt(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Add Debt</Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold flex items-center">
-          <Target className="w-5 h-5 mr-2 text-red-600" />
+    <div style={{
+      background: 'white',
+      padding: '1.5rem',
+      borderRadius: '0.75rem',
+      border: '1px solid #e5e7eb',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', margin: 0 }}>
+          <Target style={{ width: '1.25rem', height: '1.25rem', marginRight: '0.5rem', color: '#dc2626' }} />
           Debt Management & Payoff
         </h2>
-        <Badge className="bg-red-500 text-white px-3 py-1">
+        <span style={{
+          background: '#dc2626',
+          color: 'white',
+          padding: '0.5rem 0.75rem',
+          borderRadius: '0.375rem',
+          fontSize: '0.875rem',
+          fontWeight: '500'
+        }}>
           ${debtSummary.totalBalance.toLocaleString()} total debt
-        </Badge>
+        </span>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="strategies">Payoff Plans</TabsTrigger>
-          <TabsTrigger value="manage">Manage Debts</TabsTrigger>
-          <TabsTrigger value="tips">Tips & Tools</TabsTrigger>
-        </TabsList>
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', marginBottom: '1.5rem' }}>
+        {[
+          { key: 'overview', label: 'Overview' },
+          { key: 'strategies', label: 'Payoff Plans' },
+          { key: 'manage', label: 'Manage Debts' },
+          { key: 'tips', label: 'Tips & Tools' }
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              flex: 1,
+              padding: '0.75rem 1rem',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab.key ? '2px solid #8b5cf6' : '2px solid transparent',
+              color: activeTab === tab.key ? '#8b5cf6' : '#6b7280',
+              fontWeight: activeTab === tab.key ? '600' : '400',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="overview" className="space-y-6">
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 text-center">
-              <h4 className="font-medium text-gray-600 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 mr-1" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div style={{ padding: '1rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+              <h4 style={{ fontWeight: '500', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                <DollarSign style={{ width: '1rem', height: '1rem', marginRight: '0.25rem' }} />
                 Total Debt
               </h4>
-              <p className="text-2xl font-bold text-red-600">${debtSummary.totalBalance.toLocaleString()}</p>
-            </Card>
-            <Card className="p-4 text-center">
-              <h4 className="font-medium text-gray-600 flex items-center justify-center">
-                <Calendar className="w-4 h-4 mr-1" />
+              <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626', margin: '0.5rem 0 0 0' }}>${debtSummary.totalBalance.toLocaleString()}</p>
+            </div>
+            <div style={{ padding: '1rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+              <h4 style={{ fontWeight: '500', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                <Calendar style={{ width: '1rem', height: '1rem', marginRight: '0.25rem' }} />
                 Min Payments
               </h4>
-              <p className="text-2xl font-bold text-blue-600">${debtSummary.totalMinimumPayment.toLocaleString()}</p>
-            </Card>
-            <Card className="p-4 text-center">
-              <h4 className="font-medium text-gray-600 flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 mr-1" />
+              <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2563eb', margin: '0.5rem 0 0 0' }}>${debtSummary.totalMinimumPayment.toLocaleString()}</p>
+            </div>
+            <div style={{ padding: '1rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+              <h4 style={{ fontWeight: '500', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                <BarChart3 style={{ width: '1rem', height: '1rem', marginRight: '0.25rem' }} />
                 Avg Interest
               </h4>
-              <p className="text-2xl font-bold text-orange-600">{debtSummary.weightedInterestRate.toFixed(1)}%</p>
-            </Card>
-            <Card className="p-4 text-center">
-              <h4 className="font-medium text-gray-600 flex items-center justify-center">
-                <CreditCard className="w-4 h-4 mr-1" />
+              <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ea580c', margin: '0.5rem 0 0 0' }}>{debtSummary.weightedInterestRate.toFixed(1)}%</p>
+            </div>
+            <div style={{ padding: '1rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+              <h4 style={{ fontWeight: '500', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                <CreditCard style={{ width: '1rem', height: '1rem', marginRight: '0.25rem' }} />
                 Accounts
               </h4>
-              <p className="text-2xl font-bold text-purple-600">{debtSummary.totalAccounts}</p>
-            </Card>
+              <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#7c3aed', margin: '0.5rem 0 0 0' }}>{debtSummary.totalAccounts}</p>
+            </div>
           </div>
 
           {/* Extra Payment Calculator */}
-          <Card className="p-4">
-            <h3 className="font-medium mb-4 flex items-center">
-              <Calculator className="w-4 h-4 mr-2" />
+          <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+            <h3 style={{ fontWeight: '500', marginBottom: '1rem', display: 'flex', alignItems: 'center', margin: 0 }}>
+              <Calculator style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
               Extra Payment Impact
             </h3>
-            <div className="flex items-center space-x-4 mb-4">
-              <label className="text-sm font-medium">Extra monthly payment:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', marginTop: '1rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: '500' }}>Extra monthly payment:</label>
               <input
                 type="number"
                 value={extraPayment}
                 onChange={(e) => setExtraPayment(parseFloat(e.target.value) || 0)}
-                className="p-2 border rounded-lg w-32"
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  width: '8rem'
+                }}
                 min="0"
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-800">Debt Snowball</h4>
-                <p className="text-sm text-green-600">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ padding: '0.75rem', background: '#dcfce7', borderRadius: '0.5rem' }}>
+                <h4 style={{ fontWeight: '500', color: '#166534', margin: 0 }}>Debt Snowball</h4>
+                <p style={{ fontSize: '0.875rem', color: '#15803d', margin: '0.25rem 0 0 0' }}>
                   Total Interest: ${payoffPlans.snowball.reduce((sum, debt) => sum + (debt.totalInterest || 0), 0).toFixed(2)}
                 </p>
-                <p className="text-sm text-green-600">
+                <p style={{ fontSize: '0.875rem', color: '#15803d', margin: 0 }}>
                   Time to Freedom: {Math.max(...payoffPlans.snowball.map(debt => debt.monthsToPayoff || 0))} months
                 </p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-800">Debt Avalanche</h4>
-                <p className="text-sm text-blue-600">
+              <div style={{ padding: '0.75rem', background: '#dbeafe', borderRadius: '0.5rem' }}>
+                <h4 style={{ fontWeight: '500', color: '#1e40af', margin: 0 }}>Debt Avalanche</h4>
+                <p style={{ fontSize: '0.875rem', color: '#1d4ed8', margin: '0.25rem 0 0 0' }}>
                   Total Interest: ${payoffPlans.avalanche.reduce((sum, debt) => sum + (debt.totalInterest || 0), 0).toFixed(2)}
                 </p>
-                <p className="text-sm text-blue-600">
+                <p style={{ fontSize: '0.875rem', color: '#1d4ed8', margin: 0 }}>
                   Time to Freedom: {Math.max(...payoffPlans.avalanche.map(debt => debt.monthsToPayoff || 0))} months
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* Current Debts */}
           <div>
-            <h3 className="font-medium mb-4">Your Current Debts</h3>
+            <h3 style={{ fontWeight: '500', marginBottom: '1rem' }}>Your Current Debts</h3>
             {debts.map(debt => (
               <DebtCard key={debt.id} debt={debt} />
             ))}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="strategies" className="space-y-6">
-          <div className="flex items-center space-x-4 mb-4">
-            <Button
-              variant={selectedStrategy === 'snowball' ? 'default' : 'outline'}
-              onClick={() => setSelectedStrategy('snowball')}
-              className="flex items-center"
+      {activeTab === 'manage' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontWeight: '500', margin: 0 }}>Manage Your Debts</h3>
+            <button
+              onClick={() => setShowAddDebt(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                background: '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
             >
-              <TrendingDown className="w-4 h-4 mr-2" />
-              Debt Snowball
-            </Button>
-            <Button
-              variant={selectedStrategy === 'avalanche' ? 'default' : 'outline'}
-              onClick={() => setSelectedStrategy('avalanche')}
-              className="flex items-center"
-            >
-              <Flame className="w-4 h-4 mr-2" />
-              Debt Avalanche
-            </Button>
-          </div>
-
-          {selectedStrategy === 'snowball' && (
-            <div>
-              <div className="mb-4 p-4 bg-green-50 rounded-lg">
-                <h3 className="font-medium text-green-800 mb-2">Debt Snowball Strategy</h3>
-                <p className="text-sm text-green-600">
-                  Pay minimums on all debts, then put extra money toward the smallest balance first.
-                  This builds momentum and motivation as you see debts disappear quickly.
-                </p>
-              </div>
-              <PayoffPlanView plan={payoffPlans.snowball} strategyName="snowball" />
-            </div>
-          )}
-
-          {selectedStrategy === 'avalanche' && (
-            <div>
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-800 mb-2">Debt Avalanche Strategy</h3>
-                <p className="text-sm text-blue-600">
-                  Pay minimums on all debts, then put extra money toward the highest interest rate first.
-                  This saves the most money in interest over time.
-                </p>
-              </div>
-              <PayoffPlanView plan={payoffPlans.avalanche} strategyName="avalanche" />
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="manage" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">Manage Your Debts</h3>
-            <Button onClick={() => setShowAddDebt(true)} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus style={{ width: '1rem', height: '1rem' }} />
               Add Debt
-            </Button>
+            </button>
           </div>
 
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {debts.map(debt => (
               <DebtCard key={debt.id} debt={debt} />
             ))}
           </div>
 
           {debts.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Target className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="font-medium">No debts added yet</h3>
-              <p className="text-sm">Add your debts to create a personalized payoff plan.</p>
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6b7280' }}>
+              <Target style={{ width: '3rem', height: '3rem', margin: '0 auto 1rem auto', color: '#9ca3af' }} />
+              <h3 style={{ fontWeight: '500', margin: 0 }}>No debts added yet</h3>
+              <p style={{ fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>Add your debts to create a personalized payoff plan.</p>
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="tips" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {debtTips.map((tip, index) => {
-              const Icon = tip.icon;
-              const priorityColors = {
-                high: 'border-red-200 bg-red-50',
-                medium: 'border-yellow-200 bg-yellow-50',
-                low: 'border-green-200 bg-green-50'
-              };
-
-              return (
-                <Card key={index} className={`p-4 ${priorityColors[tip.priority]}`}>
-                  <div className="flex items-start space-x-3">
-                    <Icon className="w-5 h-5 mt-1 text-gray-600" />
-                    <div>
-                      <h4 className="font-medium text-gray-900">{tip.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{tip.description}</p>
-                    </div>
+      {/* Add Debt Modal */}
+      {showAddDebt && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          zIndex: 50
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '0.5rem',
+            padding: '1.5rem',
+            width: '100%',
+            maxWidth: '28rem'
+          }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>Add New Debt</h3>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              addDebt({
+                name: formData.get('name'),
+                type: formData.get('type'),
+                creditor: formData.get('creditor'),
+                balance: parseFloat(formData.get('balance')),
+                interestRate: parseFloat(formData.get('interestRate')),
+                minimumPayment: parseFloat(formData.get('minimumPayment'))
+              });
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Debt Name</label>
+                  <input
+                    name="name"
+                    type="text"
+                    required
+                    placeholder="e.g., Credit Card #3"
+                    style={{
+                      width: '100%',
+                      marginTop: '0.25rem',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Type</label>
+                    <select name="type" required style={{
+                      width: '100%',
+                      marginTop: '0.25rem',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}>
+                      <option value="Credit Card">Credit Card</option>
+                      <option value="Personal Loan">Personal Loan</option>
+                      <option value="Auto Loan">Auto Loan</option>
+                      <option value="Student Loan">Student Loan</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
-
-          <Card className="p-4">
-            <h3 className="font-medium mb-4">Debt Payoff Calculator</h3>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Try different extra payment amounts to see how they impact your debt freedom date:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[50, 100, 200].map(amount => {
-                  const testPlans = DEBT_MANAGEMENT_ENGINE.calculatePayoffStrategies(debts, amount);
-                  const snowballTime = Math.max(...testPlans.snowball.map(debt => debt.monthsToPayoff || 0));
-                  const avalancheTime = Math.max(...testPlans.avalanche.map(debt => debt.monthsToPayoff || 0));
-
-                  return (
-                    <div key={amount} className="p-3 border rounded-lg text-center">
-                      <h4 className="font-medium">+${amount}/month</h4>
-                      <p className="text-sm text-gray-600">Snowball: {snowballTime} months</p>
-                      <p className="text-sm text-gray-600">Avalanche: {avalancheTime} months</p>
-                    </div>
-                  );
-                })}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Creditor</label>
+                    <input
+                      name="creditor"
+                      type="text"
+                      required
+                      placeholder="Bank/Lender"
+                      style={{
+                        width: '100%',
+                        marginTop: '0.25rem',
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem'
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Balance ($)</label>
+                    <input
+                      name="balance"
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        marginTop: '0.25rem',
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Interest Rate (%)</label>
+                    <input
+                      name="interestRate"
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        marginTop: '0.25rem',
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>Min Payment ($)</label>
+                    <input
+                      name="minimumPayment"
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        marginTop: '0.25rem',
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {showAddDebt && <AddDebtForm />}
-    </Card>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddDebt(false)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    color: '#6b7280',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Add Debt
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
