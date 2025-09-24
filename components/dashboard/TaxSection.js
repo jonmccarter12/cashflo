@@ -499,6 +499,35 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   const transactionIncome = calculateIncomeFromTransactions();
   const selectAllOnFocus = (e) => e.target.select();
 
+  // Modern input styling helper
+  const getModernInputStyle = (isDisabled = false, isSuccess = false) => ({
+    width: '100%',
+    padding: '0.75rem',
+    border: isSuccess ? '2px solid #10b981' : '2px solid #e5e7eb',
+    borderRadius: '12px',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    background: isSuccess ? '#f0fdf4' : 'white',
+    boxShadow: isSuccess ? '0 0 0 3px rgba(16, 185, 129, 0.1)' : '0 2px 4px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s ease',
+    outline: 'none'
+  });
+
+  const handleInputFocus = (e) => {
+    selectAllOnFocus(e);
+    if (!e.target.disabled) {
+      e.target.style.borderColor = '#8b5cf6';
+      e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+    }
+  };
+
+  const handleInputBlur = (e) => {
+    if (!e.target.disabled) {
+      e.target.style.borderColor = '#e5e7eb';
+      e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+    }
+  };
+
   // Advanced tax analysis
   React.useEffect(() => {
     if (taxProfile.annualIncome || transactionIncome.totalIncome > 0) {
@@ -559,34 +588,131 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   };
 
   return (
-    <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-      <h3 style={{ fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: '600', color: '#000', marginBottom: '1rem' }}>
-        🏆 Professional Tax Planning Center
-      </h3>
+    <div style={{
+      background: 'linear-gradient(135deg, #ffffff 0%, #fafbff 100%)',
+      padding: isMobile ? '1rem' : '1.5rem',
+      borderRadius: isMobile ? '1rem' : '1.5rem',
+      boxShadow: isMobile
+        ? '0 8px 25px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.05)'
+        : '0 20px 40px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08)',
+      border: '1px solid rgba(139, 92, 246, 0.1)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Modern gradient overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '150px',
+        height: '150px',
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(99, 102, 241, 0.03) 100%)',
+        borderRadius: '50%',
+        transform: 'translate(75px, -75px)',
+        pointerEvents: 'none'
+      }} />
 
-      {/* Tab Navigation */}
-      <div style={{ display: 'flex', marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', overflowX: 'auto' }}>
+      {/* Header with modern styling */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        marginBottom: '1.5rem',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <div style={{
+          width: isMobile ? '40px' : '48px',
+          height: isMobile ? '40px' : '48px',
+          background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 16px rgba(139, 92, 246, 0.3)',
+          fontSize: isMobile ? '18px' : '22px'
+        }}>
+          📊
+        </div>
+        <div>
+          <h3 style={{
+            fontSize: isMobile ? '1.25rem' : '1.5rem',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            margin: 0,
+            lineHeight: 1.2
+          }}>
+            Tax Calculator
+          </h3>
+          <p style={{
+            fontSize: '0.875rem',
+            color: '#6b7280',
+            margin: '0.25rem 0 0 0',
+            fontWeight: '500'
+          }}>
+            Smart tax estimation & planning
+          </p>
+        </div>
+      </div>
+
+      {/* Modern Tab Navigation */}
+      <div style={{
+        display: 'flex',
+        gap: isMobile ? '0.5rem' : '0.75rem',
+        marginBottom: '2rem',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        position: 'relative',
+        zIndex: 1
+      }}>
         {[
-          { id: 'calculator', label: '📊 Tax Calculator', icon: '📊' },
-          { id: 'planning', label: '📈 Tax Planning', icon: '📈' },
-          { id: 'quarterly', label: '📅 Quarterly Payments', icon: '📅' },
-          { id: 'optimization', label: '🎯 Optimization', icon: '🎯' },
-          { id: 'scenarios', label: '🔮 Scenarios', icon: '🔮' }
+          { id: 'calculator', label: isMobile ? 'Calculator' : '📊 Calculator', icon: '📊' },
+          { id: 'planning', label: isMobile ? 'Planning' : '📈 Planning', icon: '📈' },
+          { id: 'quarterly', label: isMobile ? 'Quarterly' : '📅 Quarterly', icon: '📅' },
+          { id: 'optimization', label: isMobile ? 'Tips' : '🎯 Tips', icon: '🎯' },
+          { id: 'scenarios', label: isMobile ? 'Scenarios' : '🔮 Scenarios', icon: '🔮' }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '0.75rem 1rem',
-              background: activeTab === tab.id ? '#8b5cf6' : 'transparent',
+              padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1.25rem',
+              background: activeTab === tab.id
+                ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'
+                : 'rgba(255, 255, 255, 0.7)',
               color: activeTab === tab.id ? 'white' : '#6b7280',
-              border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #8b5cf6' : '2px solid transparent',
+              border: activeTab === tab.id
+                ? '1px solid rgba(139, 92, 246, 0.3)'
+                : '1px solid rgba(0, 0, 0, 0.1)',
+              borderRadius: '12px',
               fontWeight: activeTab === tab.id ? '600' : '500',
-              fontSize: '0.875rem',
+              fontSize: isMobile ? '0.75rem' : '0.875rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              marginRight: '0.5rem'
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === tab.id
+                ? '0 4px 12px rgba(139, 92, 246, 0.25)'
+                : '0 2px 4px rgba(0, 0, 0, 0.05)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== tab.id) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.1)';
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 4px 8px rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== tab.id) {
+                e.target.style.background = 'rgba(255, 255, 255, 0.7)';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+              }
             }}
           >
             {tab.label}
@@ -594,12 +720,50 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
-        {/* Input Section */}
-        <div>
-          <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '0.75rem' }}>
-            Income & Filing Information
-          </h4>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: isMobile ? '1rem' : '2rem',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {/* Modern Input Card */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: '16px',
+          padding: isMobile ? '1rem' : '1.5rem',
+          boxShadow: '0 8px 25px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          border: '1px solid rgba(139, 92, 246, 0.08)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '1.25rem'
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px'
+            }}>
+              💰
+            </div>
+            <h4 style={{
+              fontSize: isMobile ? '1rem' : '1.125rem',
+              fontWeight: '700',
+              color: '#1f2937',
+              margin: 0
+            }}>
+              Income & Filing Info
+            </h4>
+          </div>
 
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
@@ -608,7 +772,26 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             <select
               value={taxProfile.filingStatus}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, filingStatus: e.target.value }))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                background: 'white',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.3s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#8b5cf6';
+                e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e5e7eb';
+                e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+              }}
             >
               <option value="single">Single</option>
               <option value="marriedJoint">Married Filing Jointly</option>
@@ -631,15 +814,10 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
               type="number"
               value={transactionIncome.w2Income > 0 ? transactionIncome.w2Income : taxProfile.annualIncome}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, annualIncome: e.target.value }))}
-              onFocus={selectAllOnFocus}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder={transactionIncome.w2Income > 0 ? "Auto-calculated from transactions" : "Enter annual income"}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: `1px solid ${transactionIncome.w2Income > 0 ? '#059669' : '#d1d5db'}`,
-                borderRadius: '0.375rem',
-                background: transactionIncome.w2Income > 0 ? '#f0fdf4' : 'white'
-              }}
+              style={getModernInputStyle(transactionIncome.w2Income > 0, transactionIncome.w2Income > 0)}
               disabled={transactionIncome.w2Income > 0}
             />
           </div>
