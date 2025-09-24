@@ -41,13 +41,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Cashflo" />
-        <meta name="description" content="Smart personal finance management with bill tracking, budgeting, and cash flow forecasting" />
+        <meta name="description" content="Your personal AI-powered financial dashboard with credit monitoring, budgeting, smart insights, and bill tracking" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-config" content="/icons/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#8b5cf6" />
+        <meta name="msapplication-TileColor" content="#3b82f6" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="theme-color" content="#8b5cf6" />
+        <meta name="theme-color" content="#3b82f6" />
 
         {/* Viewport for mobile optimization */}
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, user-scalable=no, viewport-fit=cover" />

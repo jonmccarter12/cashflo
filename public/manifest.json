@@ -1,15 +1,15 @@
 {
-  "name": "Cashflo - Personal Finance Dashboard",
+  "name": "Cashflo - Smart Financial Assistant",
   "short_name": "Cashflo",
-  "description": "Smart personal finance management with bill tracking, budgeting, and cash flow forecasting",
+  "description": "Your personal AI-powered financial dashboard with credit monitoring, budgeting, smart insights, and bill tracking",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#8b5cf6",
-  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
   "scope": "/",
   "lang": "en-US",
-  "categories": ["finance", "productivity"],
+  "categories": ["finance", "productivity", "business", "lifestyle"],
   "icons": [
     {
       "src": "/icons/icon-72x72.svg",
@@ -62,18 +62,32 @@
   ],
   "shortcuts": [
     {
-      "name": "Add Bill",
-      "short_name": "Add Bill",
-      "description": "Quickly add a new recurring bill",
-      "url": "/?action=add-bill",
-      "icons": [{ "src": "/icons/shortcut-bill.png", "sizes": "96x96" }]
+      "name": "Credit Score",
+      "short_name": "Credit",
+      "description": "Check your credit score and report",
+      "url": "/?tab=credit",
+      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
     },
     {
-      "name": "Check Due",
-      "short_name": "Due This Week",
-      "description": "View bills due this week",
-      "url": "/?action=due-this-week",
-      "icons": [{ "src": "/icons/shortcut-due.png", "sizes": "96x96" }]
+      "name": "Budget Tracker",
+      "short_name": "Budget",
+      "description": "Track spending and manage budgets",
+      "url": "/?tab=budgeting",
+      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Smart Notifications",
+      "short_name": "Alerts",
+      "description": "View financial alerts and notifications",
+      "url": "/?tab=notifications",
+      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Add Income",
+      "short_name": "Add Income",
+      "description": "Quickly log new income",
+      "url": "/?action=add-income",
+      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
     }
   ],
   "screenshots": [

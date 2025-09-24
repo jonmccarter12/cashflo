@@ -1,5 +1,6 @@
-const CACHE_NAME = 'cashflo-v1.0.0';
-const API_CACHE_NAME = 'cashflo-api-v1.0.0';
+const CACHE_NAME = 'cashflo-v1.4.0';
+const API_CACHE_NAME = 'cashflo-api-v1.4.0';
+const FINANCIAL_CACHE = 'cashflo-financial-v1.4.0';
 
 // Essential files to cache for offline functionality
 const STATIC_CACHE_URLS = [

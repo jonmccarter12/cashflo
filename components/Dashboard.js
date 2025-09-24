@@ -25,6 +25,7 @@ import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
 import DebtManagementSection from './dashboard/DebtManagementSection';
 import TransactionImport from './TransactionImport';
+import MobileAppShell from './MobileAppShell';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -69,7 +70,7 @@ function DashboardContent() {
   } = useAuth();
 
   // Navigation state
-  const [currentView, setCurrentView] = React.useState('dashboard');
+  const [currentView, setCurrentView] = React.useState('overview');
 
   // Transaction log view state
   const [transactionFilter, setTransactionFilter] = React.useState('');
@@ -2742,12 +2743,14 @@ function DashboardContent() {
 
   // Render the dashboard UI
   return (
-    <div style={{
-      padding: isMobile ? '1rem' : '2rem',
-      minHeight: '100vh',
-      background: '#f3f4f6',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
+    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView}>
+      <div style={{
+        padding: isMobile ? '1rem' : '1.5rem',
+        background: '#f8fafc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        borderTopLeftRadius: '1.5rem',
+        borderTopRightRadius: '1.5rem'
+      }}>
       {/* Header */}
       <div style={{
         marginBottom: '2rem',
@@ -3022,8 +3025,9 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - Hidden in Mobile App Mode */}
       <div style={{
+        display: 'none', // Hidden since MobileAppShell handles navigation
         marginBottom: '1.5rem',
         background: 'white',
         borderRadius: '1rem',
@@ -3036,12 +3040,12 @@ function DashboardContent() {
           background: '#f9fafb'
         }}>
           <button
-            onClick={() => setCurrentView('dashboard')}
+            onClick={() => setCurrentView('overview'))
             style={{
               flex: 1,
               padding: '1rem 1.5rem',
-              background: currentView === 'dashboard' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'dashboard' ? 'white' : '#6b7280',
+              background: currentView === 'overview' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'overview' ? 'white' : '#6b7280',
               border: 'none',
               fontSize: '1rem',
               fontWeight: '600',
@@ -3116,7 +3120,7 @@ function DashboardContent() {
             💼 Budget & Goals
           </button>
           <button
-            onClick={() => setCurrentView('health')}
+            onClick={() => setCurrentView('financial-health'))
             style={{
               flex: 1,
               padding: '1rem 1.5rem',
@@ -3691,7 +3695,7 @@ function DashboardContent() {
       )}
 
       {/* Dashboard Content */}
-      {currentView === 'dashboard' && (
+      {currentView === 'overview' && (
         <>
       {/* Top Row: Accounts, Credits, and Due This Week - Side by Side */}
       <div style={{
@@ -4926,7 +4930,7 @@ function DashboardContent() {
       )}
 
       {/* Financial Health Tab */}
-      {currentView === 'health' && (
+      {currentView === 'financial-health' && (
         <FinancialHealthSection
           isMobile={isMobile}
           transactions={transactions}
@@ -5698,7 +5702,8 @@ function DashboardContent() {
         />
       )}
 
-    </div>
+      </div>
+    </MobileAppShell>
   );
 }
 
