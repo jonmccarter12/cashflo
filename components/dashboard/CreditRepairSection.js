@@ -12,7 +12,8 @@ import {
   canCheckCredit,
   saveCreditCheckHistory,
   getTimeUntilNextCheck,
-  CREDIT_CHECK_POLICIES
+  CREDIT_CHECK_POLICIES,
+  pullFullCreditReport
 } from '../../lib/creditApis';
 
 // AI-powered credit analysis engine
@@ -455,7 +456,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     zipCode: '',
     phone: '',
     email: '',
-    ssn: '', // Last 4 digits only for security
+    ssn: '', // Full SSN required for real credit data (encrypted/secured)
     dateOfBirth: ''
   });
   const [creditReportData, setCreditReportData] = React.useState(null);
@@ -471,6 +472,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
   const [liveScores, setLiveScores] = React.useState({});
   const [creditMonitoring, setCreditMonitoring] = React.useState(false);
   const [checkLimits, setCheckLimits] = React.useState(canCheckCredit());
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Load saved profile data
   React.useEffect(() => {
@@ -507,8 +509,8 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
 
     try {
       // Check if user profile is complete
-      if (!userProfile.ssn || !userProfile.dateOfBirth || !userProfile.fullName) {
-        notify('Please complete your profile information first (SSN, DOB, Full Name required)', 'error');
+      if (!userProfile.ssn || userProfile.ssn.length !== 9 || !userProfile.dateOfBirth || !userProfile.fullName) {
+        notify('Please complete your profile information first (Full SSN, DOB, Full Name required)', 'error');
         setCreditConnection(prev => ({
           ...prev,
           [bureau]: { connected: false, loading: false }
@@ -547,8 +549,8 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     }
   };
 
-  // Credit Karma style multi-bureau pull (2 of 3 bureaus)
-  const pullMultiBureauCredit = async () => {
+  // Credit Karma style all-in-one credit report pull
+  const pullCreditReport = async () => {
     // Check frequency limits first
     const currentLimits = canCheckCredit();
     if (!currentLimits.canCheck) {
@@ -558,86 +560,73 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     }
 
     // Check if user profile is complete
-    if (!userProfile.ssn || !userProfile.dateOfBirth || !userProfile.fullName) {
-      notify('Please complete your profile information first (SSN, DOB, Full Name required)', 'error');
+    if (!userProfile.ssn || userProfile.ssn.length !== 9 || !userProfile.dateOfBirth || !userProfile.fullName) {
+      notify('Please complete your profile information first (Full SSN, DOB, Full Name required)', 'error');
       return;
     }
 
-    const bureaus = ['experian', 'equifax', 'transunion'];
-    const pullPromises = [];
-    let successfulPulls = 0;
-
-    notify('Connecting to credit bureaus... This may take a moment.', 'info');
+    setIsLoading(true);
+    notify('🔄 Getting your credit report from all bureaus... This may take a moment.', 'info');
 
     // Set all bureaus to loading
-    bureaus.forEach(bureau => {
-      setCreditConnection(prev => ({
-        ...prev,
-        [bureau]: { ...prev[bureau], loading: true }
-      }));
+    setCreditConnection({
+      experian: { connected: false, loading: true },
+      equifax: { connected: false, loading: true },
+      transunion: { connected: false, loading: true }
     });
 
-    // Try to connect to all 3 bureaus (Credit Karma style)
-    for (const bureau of bureaus) {
-      try {
-        const result = await connectToCreditBureau(bureau, userProfile);
+    try {
+      const creditReport = await pullFullCreditReport(userProfile);
 
-        setCreditConnection(prev => ({
-          ...prev,
-          [bureau]: { connected: result.success, loading: false }
-        }));
+      // Update all credit data at once
+      setCreditData(creditReport);
+      setRealCreditData(creditReport);
+
+      // Mark all bureaus as connected
+      setCreditConnection({
+        experian: { connected: true, loading: false },
+        equifax: { connected: true, loading: false },
+        transunion: { connected: true, loading: false }
+      });
+
+      // Save check to history
+      saveCreditCheckHistory({
+        bureaus: ['experian', 'equifax', 'transunion'],
+        success: true,
+        source: 'credit_karma_style_pull'
+      });
+
+      // Update check limits state
+      setCheckLimits(canCheckCredit());
+
+      notify('✅ Credit report successfully retrieved from all bureaus! (Soft pull - no impact on credit score)', 'success');
+
+      // Set up monitoring automatically
+      try {
+        const result = await setupCreditMonitoring({
+          frequency: 'daily',
+          alertTypes: ['score_changes', 'new_accounts', 'inquiries', 'new_collections'],
+          bureaus: ['experian', 'equifax', 'transunion']
+        });
 
         if (result.success) {
-          successfulPulls++;
-          // Merge credit data from multiple sources
-          setCreditData(prevData => ({
-            ...prevData,
-            ...result.data,
-            creditScores: {
-              ...prevData.creditScores,
-              ...result.data.creditScores
-            },
-            accounts: [...(prevData.accounts || []), ...(result.data.accounts || [])],
-            inquiries: [...(prevData.inquiries || []), ...(result.data.inquiries || [])]
-          }));
-
-          // Fetch live score for this bureau
-          const scoreData = await fetchLiveCreditScore(bureau, userProfile);
-          setLiveScores(prev => ({
-            ...prev,
-            [bureau]: scoreData
-          }));
+          notify('📱 Credit monitoring activated automatically!', 'success');
         }
       } catch (error) {
-        console.error(`Failed to connect to ${bureau}:`, error);
-        setCreditConnection(prev => ({
-          ...prev,
-          [bureau]: { connected: false, loading: false }
-        }));
+        console.warn('Could not set up monitoring:', error);
       }
-    }
+    } catch (error) {
+      console.error('Failed to pull credit report:', error);
+      notify(`❌ Failed to get credit report: ${error.message}`, 'error');
 
-    // Save check to history and update limits
-    const successfulBureaus = bureaus.filter(bureau =>
-      creditConnection[bureau] && creditConnection[bureau].connected
-    );
-
-    saveCreditCheckHistory({
-      bureaus: successfulBureaus,
-      success: successfulPulls > 0,
-      source: successfulPulls > 0 ? 'multi_bureau_pull' : 'failed_attempt'
-    });
-
-    // Update check limits state
-    setCheckLimits(canCheckCredit());
-
-    // Report results
-    if (successfulPulls >= 2) {
-      notify(`Successfully connected to ${successfulPulls} credit bureaus! Your credit profile has been updated. (Soft pull - no impact on credit score)`, 'success');
-    } else if (successfulPulls === 1) {
-      notify(`Connected to 1 credit bureau. Some data may be limited. (Soft pull - no impact on credit score)`, 'warning');
-    } else {
-      notify(`Unable to connect to credit bureaus at this time. Using sample data for demonstration.`, 'error');
+      // Reset connection status
+      setCreditConnection({
+        experian: { connected: false, loading: false },
+        equifax: { connected: false, loading: false },
+        transunion: { connected: false, loading: false }
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1145,14 +1134,14 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
-                    Last 4 Digits of SSN (for verification)
+                    Social Security Number (encrypted & secure)
                   </label>
                   <input
                     type="text"
                     value={userProfile.ssn}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, ssn: e.target.value.slice(0, 4) }))}
-                    placeholder="1234"
-                    maxLength="4"
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, ssn: e.target.value.replace(/[^0-9]/g, '').slice(0, 9) }))}
+                    placeholder="123456789"
+                    maxLength="9"
                     style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                   />
                 </div>
@@ -1536,7 +1525,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
               </div>
 
               <button
-                onClick={pullMultiBureauCredit}
+                onClick={pullCreditReport}
                 disabled={Object.values(creditConnection).some(conn => conn.loading) || !checkLimits.canCheck}
                 style={{
                   width: '100%',
@@ -1553,10 +1542,10 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                 }}
               >
                 {Object.values(creditConnection).some(conn => conn.loading) ?
-                  '🔄 Checking...' :
+                  '🔄 Getting Your Credit Report...' :
                   !checkLimits.canCheck ?
                   `⏰ Check again ${getTimeUntilNextCheck()}` :
-                  '🚀 Check My Score Now'
+                  '📊 Get My Free Credit Report'
                 }
               </button>
             </div>
