@@ -677,6 +677,17 @@ function DashboardContent() {
   const [showTransactionImport, setShowTransactionImport] = React.useState(false);
   const [categoryFilterSticky, setCategoryFilterSticky] = React.useState(false);
   const categoryFilterRef = React.useRef(null);
+
+  // Shared input styling for mobile-friendly forms
+  const inputStyle = {
+    width: '100%',
+    padding: isMobile ? '0.4rem' : '0.5rem',
+    fontSize: isMobile ? '0.8rem' : '0.875rem',
+    maxWidth: isMobile ? '90%' : '100%',
+    marginBottom: '0.5rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.375rem'
+  };
   const billsSectionRef = React.useRef(null);
 
   // One-time cost form state - these states are kept in DashboardContent
@@ -3745,7 +3756,7 @@ function DashboardContent() {
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
         overflowX: 'hidden',
-        padding: isMobile ? '0 2.5rem' : '0'
+        padding: isMobile ? '0 3rem' : '0'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3775,7 +3786,7 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '80%' : '100%',
+          maxWidth: isMobile ? '70%' : '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
@@ -3931,7 +3942,7 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '80%' : '100%',
+          maxWidth: isMobile ? '70%' : '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
@@ -5033,17 +5044,17 @@ function DashboardContent() {
                 formData.get('notes')
               );
             }}>
-              <input name="name" placeholder="Credit name (e.g., Tax Refund)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 2500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <input name="expectedDate" type="date" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <input name="name" placeholder="Credit name (e.g., Tax Refund)" required style={inputStyle} />
+              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 2500.00)" required style={inputStyle} />
+              <input name="expectedDate" type="date" required style={inputStyle} />
+              <select name="accountId" required style={inputStyle}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <input name="guaranteed" type="checkbox" />
                 <span>Guaranteed (include in liquid calculation)</span>
               </label>
-              <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <textarea name="notes" placeholder="Notes (optional)" style={{...inputStyle, marginBottom: '1rem', resize: 'vertical', minHeight: '60px' }} />
               <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
                 <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
                   Add Credit
@@ -5084,7 +5095,7 @@ function DashboardContent() {
               );
               setShowAddIncome(false);
             }}>
-              <input name="name" placeholder="Income name (e.g., Salary)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="name" placeholder="Income name (e.g., Salary)" required style={inputStyle} />
               {(() => {
                 // Extract unique sources from income history for autocomplete
                 const previousSources = [...new Set(incomeHistory.map(entry => entry.source).filter(Boolean))];
@@ -5105,10 +5116,7 @@ function DashboardContent() {
                       onFocus={() => setShowSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                       style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.375rem',
+                        ...inputStyle,
                         backgroundColor: previousSources.length > 0 ? '#f8fafc' : 'white'
                       }}
                     />
@@ -5157,7 +5165,7 @@ function DashboardContent() {
               })()}
 
               {/* Income Type Selection */}
-              <select name="incomeType" id="incomeType" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+              <select name="incomeType" id="incomeType" required style={inputStyle} onChange={(e) => {
                 const hourlyFields = document.getElementById('hourlyFields');
                 const amountField = document.querySelector('input[name="amount"]');
                 if (e.target.value === 'hourly') {
@@ -5175,12 +5183,12 @@ function DashboardContent() {
               </select>
 
               {/* Amount or Hourly Rate */}
-              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 3500.00)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 3500.00)" required style={inputStyle} />
 
               {/* Hourly Fields (Hidden by default) */}
               <div id="hourlyFields" style={{ display: 'none', marginBottom: '0.5rem' }}>
-                <input name="hourlyRate" type="number" step="0.01" placeholder="Hourly rate (e.g., 25.00)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-                <input name="hoursPerPeriod" type="number" step="0.5" placeholder="Expected hours per pay period (e.g., 80)" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+                <input name="hourlyRate" type="number" step="0.01" placeholder="Hourly rate (e.g., 25.00)" style={inputStyle} />
+                <input name="hoursPerPeriod" type="number" step="0.5" placeholder="Expected hours per pay period (e.g., 80)" style={inputStyle} />
               </div>
 
               {/* Tax Withholding Section */}
@@ -5199,17 +5207,17 @@ function DashboardContent() {
                   💡 Leave blank to use gross amounts. Fill in to see your take-home pay.
                 </div>
               </div>
-              <select name="frequency" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <select name="frequency" required style={inputStyle}>
                 <option value="monthly">Monthly</option>
                 <option value="biweekly">Bi-weekly</option>
                 <option value="weekly">Weekly</option>
                 <option value="yearly">Yearly</option>
               </select>
-              <input name="payDay" type="number" min="1" max="31" placeholder="Pay day of month (e.g., 15)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <select name="accountId" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+              <input name="payDay" type="number" min="1" max="31" placeholder="Pay day of month (e.g., 15)" required style={inputStyle} />
+              <select name="accountId" required style={inputStyle}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <textarea name="notes" placeholder="Notes (optional)" style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <textarea name="notes" placeholder="Notes (optional)" style={{...inputStyle, marginBottom: '1rem', resize: 'vertical', minHeight: '60px' }} />
               <div style={{ display: 'flex', gap: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
                 <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
                   Add Income
@@ -5240,8 +5248,8 @@ function DashboardContent() {
                 formData.get('creditLimit')
               );
             }}>
-              <input name="name" placeholder="Account name (e.g., Checking Account)" required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-              <select name="accountType" defaultValue={accountsView} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} onChange={(e) => {
+              <input name="name" placeholder="Account name (e.g., Checking Account)" required style={inputStyle} />
+              <select name="accountType" defaultValue={accountsView} required style={inputStyle} onChange={(e) => {
                 const creditFields = document.getElementById('creditCardFields');
                 const typeSelect = document.querySelector('select[name="type"]');
 
