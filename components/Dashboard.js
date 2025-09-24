@@ -50,8 +50,7 @@ function DashboardContent() {
     }, 50);
     return () => clearTimeout(timer);
   }, []);
-  // Force mobile experience for testing
-  const isMobile = true; // useIsMobile();
+  const isMobile = useIsMobile();
   
   // Auth state from useAuth hook
   const {
