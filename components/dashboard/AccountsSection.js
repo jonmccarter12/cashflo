@@ -36,10 +36,10 @@ export default function AccountsSection({
     return (
       <div style={{
         background: 'white',
-        padding: '1rem',
+        padding: '0.75rem',
         borderRadius: '0.5rem',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        marginBottom: '0.75rem',
+        marginBottom: '0.5rem',
         border: '1px solid #e5e7eb'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -389,8 +389,12 @@ export default function AccountsSection({
                           const minPayment = account.balance * 0.04;
                           const minMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
                           const minTotalInterest = (minPayment * minMonths) - account.balance;
-                          const smartTotalInterest = Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance;
-                          return (minTotalInterest - smartTotalInterest).toFixed(0);
+                          // Smart plan: Pay double minimum payment (if possible) or at least 5% of balance
+                          const smartPayment = Math.max(minPayment * 2, account.balance * 0.05, 25);
+                          const smartMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / smartPayment) / Math.log(1 + monthlyRate));
+                          const smartTotalInterest = Math.max(0, (smartPayment * smartMonths) - account.balance);
+                          const savings = Math.max(0, minTotalInterest - smartTotalInterest);
+                          return savings.toFixed(0);
                         })()} with smart plan
                       </div>
                     </div>
@@ -912,8 +916,12 @@ export default function AccountsSection({
                               const minPayment = account.balance * 0.04;
                               const minMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
                               const minTotalInterest = (minPayment * minMonths) - account.balance;
-                              const smartTotalInterest = Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance;
-                              return (minTotalInterest - smartTotalInterest).toFixed(0);
+                              // Smart plan: Pay double minimum payment (if possible) or at least 5% of balance
+                              const smartPayment = Math.max(minPayment * 2, account.balance * 0.05, 25);
+                              const smartMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / smartPayment) / Math.log(1 + monthlyRate));
+                              const smartTotalInterest = Math.max(0, (smartPayment * smartMonths) - account.balance);
+                              const savings = Math.max(0, minTotalInterest - smartTotalInterest);
+                              return savings.toFixed(0);
                             })()} in interest with the smart payment plan
                           </div>
                         </div>

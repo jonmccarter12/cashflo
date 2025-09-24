@@ -2763,9 +2763,18 @@ function DashboardContent() {
     }
   };
 
+  // Search handler for mobile search
+  const handleSearchChange = (searchValue) => {
+    setTransactionFilter(searchValue);
+    // If searching, switch to history view to show results
+    if (searchValue && searchValue.trim()) {
+      setCurrentView('history');
+    }
+  };
+
   // Render the dashboard UI
   return (
-    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction}>
+    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction} onSearchChange={handleSearchChange}>
       <div style={{
         padding: isMobile ? '0.5rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
@@ -3048,10 +3057,10 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Navigation Tabs - Hidden in Mobile, Shown on Desktop */}
+      {/* Navigation Tabs - Responsive for Mobile and Desktop */}
       <div style={{
-        display: isMobile ? 'none' : 'block', // Hidden on mobile since MobileAppShell handles navigation
-        marginBottom: '1.5rem',
+        display: 'block', // Show on both mobile and desktop
+        marginBottom: isMobile ? '1rem' : '1.5rem',
         background: 'white',
         borderRadius: '1rem',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
@@ -3066,7 +3075,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('overview')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'overview' ? '#8b5cf6' : 'transparent',
               color: currentView === 'overview' ? 'white' : '#6b7280',
               border: 'none',
@@ -3082,7 +3091,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('history')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'history' ? '#8b5cf6' : 'transparent',
               color: currentView === 'history' ? 'white' : '#6b7280',
               border: 'none',
@@ -3098,7 +3107,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('tax')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'tax' ? '#8b5cf6' : 'transparent',
               color: currentView === 'tax' ? 'white' : '#6b7280',
               border: 'none',
@@ -3114,7 +3123,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('credit')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'credit' ? '#8b5cf6' : 'transparent',
               color: currentView === 'credit' ? 'white' : '#6b7280',
               border: 'none',
@@ -3130,7 +3139,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('budgeting')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'budgeting' ? '#8b5cf6' : 'transparent',
               color: currentView === 'budgeting' ? 'white' : '#6b7280',
               border: 'none',
@@ -3146,7 +3155,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('financial-health')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'financial-health' ? '#8b5cf6' : 'transparent',
               color: currentView === 'financial-health' ? 'white' : '#6b7280',
               border: 'none',
@@ -3162,7 +3171,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('notifications')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'notifications' ? '#8b5cf6' : 'transparent',
               color: currentView === 'notifications' ? 'white' : '#6b7280',
               border: 'none',
@@ -3178,7 +3187,7 @@ function DashboardContent() {
             onClick={() => setCurrentView('debt')}
             style={{
               flex: 1,
-              padding: '1rem 1.5rem',
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
               background: currentView === 'debt' ? '#8b5cf6' : 'transparent',
               color: currentView === 'debt' ? 'white' : '#6b7280',
               border: 'none',
@@ -3724,8 +3733,8 @@ function DashboardContent() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-        gap: '1.5rem',
-        marginBottom: '2rem'
+        gap: isMobile ? '1rem' : '1.5rem',
+        marginBottom: isMobile ? '1rem' : '2rem'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3748,30 +3757,30 @@ function DashboardContent() {
         {/* Income & Credits */}
         <div style={{
           background: 'white',
-          padding: '0.75rem',
-          borderRadius: '1rem',
+          padding: isMobile ? '0.5rem' : '0.75rem',
+          borderRadius: isMobile ? '0.5rem' : '1rem',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Income</h3>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
+            <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.125rem', fontWeight: '600' }}>Income</h3>
+            <div style={{ display: 'flex', gap: isMobile ? '0.25rem' : '0.5rem' }}>
               <button
                 onClick={() => setShowAddIncome(true)}
-                style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                style={{ padding: isMobile ? '0.375rem 0.75rem' : '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.875rem' }}
               >
                 + Income
               </button>
               <button
                 onClick={() => setShowAddCredit(true)}
-                style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                style={{ padding: isMobile ? '0.375rem 0.75rem' : '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.875rem' }}
               >
                 + Credit
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem', maxHeight: isMobile ? '250px' : '400px', overflowY: 'auto' }}>
             {/* Recurring Income */}
             {recurringIncome.map(income => {
               const account = accounts.find(a => a.id === income.accountId);
@@ -3899,13 +3908,13 @@ function DashboardContent() {
         {/* Due This Week */}
         <div style={{
           background: 'white',
-          padding: '0.75rem',
-          borderRadius: '1rem',
+          padding: isMobile ? '0.5rem' : '0.75rem',
+          borderRadius: isMobile ? '0.5rem' : '1rem',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb'
         }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#000' }}>Due This Week</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: isMobile ? '400px' : '500px', overflowY: 'auto' }}>
+          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.75rem' : '1rem', color: '#000' }}>Due This Week</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem', maxHeight: isMobile ? '250px' : '500px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;
@@ -3914,19 +3923,19 @@ function DashboardContent() {
               return (
                 <div key={index} style={{
                   background: item.overdue ? '#fef2f2' : '#f9fafb',
-                  padding: '1rem',
+                  padding: isMobile ? '0.75rem' : '1rem',
                   borderRadius: '0.5rem',
                   border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                     <div>
-                      <div style={{ fontWeight: '500', fontSize: '1rem', color: '#000' }}>{name}</div>
+                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.9rem' : '1rem', color: '#000' }}>{name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                         Due: {item.due.toLocaleDateString()} • {account?.name}
                         {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
                       </div>
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
+                    <div style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
                       {fmt(amount)}
                     </div>
                   </div>

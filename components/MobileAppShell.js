@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 
-const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction }) => {
+const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSearchChange }) => {
   const isMobile = useIsMobile();
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -220,6 +220,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction }) => 
             <input
               type="text"
               placeholder="Search transactions, bills, or insights..."
+              onChange={(e) => {
+                if (onSearchChange) {
+                  onSearchChange(e.target.value);
+                }
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',
