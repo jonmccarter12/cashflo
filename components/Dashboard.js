@@ -50,7 +50,8 @@ function DashboardContent() {
     }, 50);
     return () => clearTimeout(timer);
   }, []);
-  const isMobile = useIsMobile();
+  // Force mobile experience for testing
+  const isMobile = true; // useIsMobile();
   
   // Auth state from useAuth hook
   const {
@@ -3039,7 +3040,7 @@ function DashboardContent() {
       }}>
         <div style={{
           display: 'flex',
-          background: '#f9fafb'
+          background: '#f9fafb',
         }}>
           <button
             onClick={() => setCurrentView('overview')}
