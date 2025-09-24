@@ -44,7 +44,7 @@ export default function AccountsSection({
         width: '100%',
         minWidth: 0,
         overflowX: 'hidden',
-        maxWidth: '95%',
+        maxWidth: '80%',
         margin: '0 auto 0.5rem auto'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
