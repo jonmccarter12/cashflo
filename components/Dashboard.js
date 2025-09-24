@@ -2774,7 +2774,7 @@ function DashboardContent() {
 
   // Render the dashboard UI
   return (
-    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction} onSearchChange={handleSearchChange}>
+    <>
       <div style={{
         padding: isMobile ? '0.5rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
@@ -2783,9 +2783,9 @@ function DashboardContent() {
         borderTopLeftRadius: isMobile ? '1.5rem' : '0',
         borderTopRightRadius: isMobile ? '1.5rem' : '0'
       }}>
-      {/* Header - Hidden on mobile, shown on desktop */}
+      {/* Header - Shown on both mobile and desktop */}
       <div style={{
-        display: isMobile ? 'none' : 'block',
+        display: 'block',
         marginBottom: '2rem',
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
         padding: '1.5rem',
@@ -3057,10 +3057,10 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Navigation Tabs - Responsive for Mobile and Desktop */}
+      {/* Navigation Tabs - Shown on both Mobile and Desktop */}
       <div style={{
         display: 'block', // Show on both mobile and desktop
-        marginBottom: isMobile ? '1rem' : '1.5rem',
+        marginBottom: '1.5rem',
         background: 'white',
         borderRadius: '1rem',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
@@ -5735,7 +5735,7 @@ function DashboardContent() {
       )}
 
       </div>
-    </MobileAppShell>
+    </>
   );
 }
 

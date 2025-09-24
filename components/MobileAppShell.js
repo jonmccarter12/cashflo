@@ -159,136 +159,10 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowSearch(!showSearch)}
-            style={{
-              width: '40px',
-              height: '40px',
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)'
-            }}
-          >
-            <Search style={{ width: '18px', height: '18px', color: 'white' }} />
-          </button>
-
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            style={{
-              width: '40px',
-              height: '40px',
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)'
-            }}
-          >
-            {showMenu ?
-              <X style={{ width: '18px', height: '18px', color: 'white' }} /> :
-              <Menu style={{ width: '18px', height: '18px', color: 'white' }} />
-            }
-          </button>
-        </div>
+        <div></div>
       </div>
 
-      {/* Search Bar */}
-      {showSearch && (
-        <div style={{
-          padding: '1rem',
-          background: 'rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '1rem',
-            padding: '0.75rem'
-          }}>
-            <Search style={{ width: '18px', height: '18px', color: 'rgba(255,255,255,0.8)', marginRight: '0.5rem' }} />
-            <input
-              type="text"
-              placeholder="Search transactions, bills, or insights..."
-              onChange={(e) => {
-                if (onSearchChange) {
-                  onSearchChange(e.target.value);
-                }
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                flex: 1,
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-        </div>
-      )}
 
-      {/* Quick Actions Menu */}
-      {showMenu && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          zIndex: 200,
-          padding: '1rem',
-          borderBottomLeftRadius: '1rem',
-          borderBottomRightRadius: '1rem',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '1rem',
-            marginBottom: '1rem'
-          }}>
-            {quickActions.map((action, index) => (
-              <QuickActionButton key={index} {...action} />
-            ))}
-          </div>
-
-          {isInstallable && (
-            <button
-              onClick={handleInstallApp}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                background: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.75rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <Plus style={{ width: '16px', height: '16px' }} />
-              Install Cashflo App
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Main Content */}
       <div style={{
@@ -372,21 +246,6 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
         </div>
       </div>
 
-      {/* Backdrop for menu */}
-      {showMenu && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.3)',
-            zIndex: 150
-          }}
-          onClick={() => setShowMenu(false)}
-        />
-      )}
     </div>
   );
 };

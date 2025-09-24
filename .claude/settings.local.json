@@ -20,7 +20,9 @@
       "Bash(git push:*)",
       "Bash(git checkout:*)",
       "Bash(npx next lint:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(tasklist:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": []
