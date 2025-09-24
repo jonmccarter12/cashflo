@@ -3767,33 +3767,33 @@ function DashboardContent() {
         {/* Income & Credits */}
         <div style={{
           background: 'white',
-          padding: isMobile ? '0.5rem' : '0.75rem',
-          borderRadius: isMobile ? '0.5rem' : '1rem',
-          boxShadow: isMobile ? '0 2px 4px -1px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          padding: isMobile ? '0.25rem' : '0.75rem',
+          borderRadius: isMobile ? '0.25rem' : '1rem',
+          boxShadow: isMobile ? '0 1px 2px rgba(0, 0, 0, 0.05)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb',
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem' }}>
-            <h3 style={{ fontSize: isMobile ? '0.85rem' : '1.125rem', fontWeight: '600' }}>Income</h3>
-            <div style={{ display: 'flex', gap: isMobile ? '0.25rem' : '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
+            <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', margin: 0 }}>Income</h3>
+            <div style={{ display: 'flex', gap: isMobile ? '0.125rem' : '0.5rem' }}>
               <button
                 onClick={() => setShowAddIncome(true)}
-                style={{ padding: isMobile ? '0.375rem 0.75rem' : '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+                style={{ padding: isMobile ? '0.125rem 0.25rem' : '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: isMobile ? '0.6rem' : '0.875rem' }}
               >
                 + Income
               </button>
               <button
                 onClick={() => setShowAddCredit(true)}
-                style={{ padding: isMobile ? '0.375rem 0.75rem' : '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+                style={{ padding: isMobile ? '0.125rem 0.25rem' : '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: isMobile ? '0.6rem' : '0.875rem' }}
               >
                 + Credit
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem', maxHeight: isMobile ? '250px' : '400px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '150px' : '400px', overflowY: 'auto' }}>
             {/* Recurring Income */}
             {recurringIncome.map(income => {
               const account = accounts.find(a => a.id === income.accountId);
@@ -3803,9 +3803,9 @@ function DashboardContent() {
               return (
                 <div key={income.id} style={{
                   background: isReceived ? '#f0fdf4' : '#fef3c7',
-                  padding: '1rem',
-                  borderRadius: '0.5rem',
-                  border: `2px solid ${isReceived ? '#bbf7d0' : '#fde68a'}`,
+                  padding: isMobile ? '0.25rem' : '1rem',
+                  borderRadius: isMobile ? '0.25rem' : '0.5rem',
+                  border: `${isMobile ? '1px' : '2px'} solid ${isReceived ? '#bbf7d0' : '#fde68a'}`,
                   position: 'relative'
                 }}>
                   <div style={{
@@ -3824,13 +3824,13 @@ function DashboardContent() {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                     <div style={{ paddingRight: '4rem' }}>
-                      <div style={{ fontWeight: '500', fontSize: '1rem' }}>{income.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.7rem' : '1rem' }}>{income.name}</div>
+                      <div style={{ fontSize: isMobile ? '0.6rem' : '0.75rem', color: '#6b7280' }}>
                         {income.frequency} • Next: {nextDate.toLocaleDateString()} • {account?.name}
                       </div>
-                      {income.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{income.notes}</div>}
+                      {income.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: isMobile ? '0.125rem' : '0.25rem' }}>{income.notes}</div>}
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981' }}>
+                    <div style={{ fontSize: isMobile ? '0.8rem' : '1.25rem', fontWeight: '700', color: '#10b981' }}>
                       +{fmt(income.amount)}
                     </div>
                   </div>
@@ -3864,23 +3864,23 @@ function DashboardContent() {
                 return (
                   <div key={credit.id} style={{
                     background: credit.guaranteed ? '#f0fdf4' : '#f8fafc',
-                    padding: '1rem',
-                    borderRadius: '0.5rem',
-                    border: `2px solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
+                    padding: isMobile ? '0.25rem' : '1rem',
+                    borderRadius: isMobile ? '0.25rem' : '0.5rem',
+                    border: `${isMobile ? '1px' : '2px'} solid ${credit.guaranteed ? '#16a34a' : '#e2e8f0'}`,
                     position: 'relative'
                   }}>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: '500', fontSize: '1rem' }}>{credit.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        <div style={{ fontWeight: '500', fontSize: isMobile ? '0.7rem' : '1rem' }}>{credit.name}</div>
+                        <div style={{ fontSize: isMobile ? '0.6rem' : '0.75rem', color: '#6b7280' }}>
                           Expected: {new Date(credit.expectedDate).toLocaleDateString()} • {account?.name}
                           {isOverdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
                           {credit.guaranteed && <span style={{ color: '#16a34a', fontWeight: '600' }}> • GUARANTEED</span>}
                         </div>
-                        {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{credit.notes}</div>}
+                        {credit.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: isMobile ? '0.125rem' : '0.25rem' }}>{credit.notes}</div>}
                       </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                      <div style={{ fontSize: isMobile ? '0.8rem' : '1.25rem', fontWeight: '700', color: '#16a34a' }}>
                         +{fmt(credit.amount)}
                       </div>
                     </div>
@@ -3921,16 +3921,16 @@ function DashboardContent() {
         {/* Due This Week */}
         <div style={{
           background: 'white',
-          padding: isMobile ? '0.5rem' : '0.75rem',
-          borderRadius: isMobile ? '0.5rem' : '1rem',
-          boxShadow: isMobile ? '0 2px 4px -1px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          padding: isMobile ? '0.25rem' : '0.75rem',
+          borderRadius: isMobile ? '0.25rem' : '1rem',
+          boxShadow: isMobile ? '0 1px 2px rgba(0, 0, 0, 0.05)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb',
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0
         }}>
-          <h3 style={{ fontSize: isMobile ? '0.85rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.5rem' : '1rem', color: '#000' }}>Due This Week</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.4rem' : '0.75rem', maxHeight: isMobile ? '200px' : '500px', overflowY: 'auto' }}>
+          <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '120px' : '500px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;
@@ -3939,19 +3939,19 @@ function DashboardContent() {
               return (
                 <div key={index} style={{
                   background: item.overdue ? '#fef2f2' : '#f9fafb',
-                  padding: isMobile ? '0.5rem' : '1rem',
-                  borderRadius: '0.5rem',
-                  border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
+                  padding: isMobile ? '0.25rem' : '1rem',
+                  borderRadius: isMobile ? '0.25rem' : '0.375rem',
+                  border: `1px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem', width: '100%', minWidth: 0 }}>
                     <div style={{ minWidth: 0, overflow: 'hidden', flex: 1, paddingRight: '0.5rem' }}>
-                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.9rem' : '1rem', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.7rem' : '1rem', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                      <div style={{ fontSize: isMobile ? '0.6rem' : '0.75rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         Due: {item.due.toLocaleDateString()} • {account?.name}
                         {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
                       </div>
                     </div>
-                    <div style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151', flexShrink: 0 }}>
+                    <div style={{ fontSize: isMobile ? '0.8rem' : '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151', flexShrink: 0 }}>
                       {fmt(amount)}
                     </div>
                   </div>
@@ -4824,9 +4824,9 @@ function DashboardContent() {
                         <div>
                           <div style={{ fontWeight: '500' }}>{transactionName}</div>
                           {isMobile && (
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.125rem' }}>
                               {new Date(tx.timestamp).toLocaleDateString()} • {category} • {amount ? (isDebit ? '-' : '+') + fmt(amount) : 'N/A'}
-                              <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
+                              <div style={{ display: 'flex', gap: '0.125rem', marginTop: '0.125rem' }}>
                                 <button
                                   onClick={() => {
                                     setEditingTransaction(tx);
@@ -5143,7 +5143,7 @@ function DashboardContent() {
                       </div>
                     )}
                     {previousSources.length > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: isMobile ? '0.125rem' : '0.25rem' }}>
                         💡 Start typing to see previous sources
                       </div>
                     )}
@@ -5190,7 +5190,7 @@ function DashboardContent() {
                   <input name="medicareRate" type="number" step="0.01" min="0" max="5" placeholder="Medicare %" defaultValue="1.45" style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
                 </div>
                 <input name="otherDeductions" type="number" step="0.01" min="0" placeholder="Other deductions ($ amount)" style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.875rem' }} />
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: isMobile ? '0.125rem' : '0.25rem' }}>
                   💡 Leave blank to use gross amounts. Fill in to see your take-home pay.
                 </div>
               </div>
