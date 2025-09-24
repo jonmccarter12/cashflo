@@ -2745,11 +2745,12 @@ function DashboardContent() {
   return (
     <MobileAppShell activeTab={currentView} onTabChange={setCurrentView}>
       <div style={{
-        padding: isMobile ? '1rem' : '1.5rem',
-        background: '#f8fafc',
+        padding: isMobile ? '1rem' : '2rem',
+        minHeight: isMobile ? 'auto' : '100vh',
+        background: isMobile ? '#f8fafc' : '#f3f4f6',
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        borderTopLeftRadius: '1.5rem',
-        borderTopRightRadius: '1.5rem'
+        borderTopLeftRadius: isMobile ? '1.5rem' : '0',
+        borderTopRightRadius: isMobile ? '1.5rem' : '0'
       }}>
       {/* Header */}
       <div style={{
@@ -3025,9 +3026,9 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Navigation Tabs - Hidden in Mobile App Mode */}
+      {/* Navigation Tabs - Hidden in Mobile, Shown on Desktop */}
       <div style={{
-        display: 'none', // Hidden since MobileAppShell handles navigation
+        display: isMobile ? 'none' : 'block', // Hidden on mobile since MobileAppShell handles navigation
         marginBottom: '1.5rem',
         background: 'white',
         borderRadius: '1rem',

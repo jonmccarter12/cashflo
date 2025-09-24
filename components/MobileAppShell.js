@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   Home,
   CreditCard,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 const MobileAppShell = ({ children, activeTab, onTabChange }) => {
+  const isMobile = useIsMobile();
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -96,6 +98,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange }) => {
       <span style={{ fontSize: '0.75rem', color: '#374151', fontWeight: '500' }}>{label}</span>
     </button>
   );
+
+  // On desktop, just return the children without the mobile shell
+  if (!isMobile) {
+    return <>{children}</>;
+  }
 
   return (
     <div style={{
