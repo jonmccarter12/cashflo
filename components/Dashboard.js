@@ -3744,7 +3744,8 @@ function DashboardContent() {
         gap: isMobile ? '0.5rem' : '1.5rem',
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        padding: isMobile ? '0 1.5rem' : '0'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3773,7 +3774,9 @@ function DashboardContent() {
           border: '1px solid #e5e7eb',
           width: '100%',
           overflowX: 'hidden',
-          minWidth: 0
+          minWidth: 0,
+          maxWidth: isMobile ? '95%' : '100%',
+          margin: isMobile ? '0 auto' : '0'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
             <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', margin: 0 }}>Income</h3>
@@ -3927,7 +3930,9 @@ function DashboardContent() {
           border: '1px solid #e5e7eb',
           width: '100%',
           overflowX: 'hidden',
-          minWidth: 0
+          minWidth: 0,
+          maxWidth: isMobile ? '95%' : '100%',
+          margin: isMobile ? '0 auto' : '0'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '120px' : '500px', overflowY: 'auto' }}>
