@@ -69,8 +69,20 @@ function DashboardContent() {
     supabase
   } = useAuth();
 
-  // Navigation state
-  const [currentView, setCurrentView] = React.useState('overview');
+  // Navigation state with persistence
+  const [currentView, setCurrentView] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('cashflo-current-tab') || 'overview';
+    }
+    return 'overview';
+  });
+
+  // Save current tab to localStorage when it changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cashflo-current-tab', currentView);
+    }
+  }, [currentView]);
 
   // Transaction log view state
   const [transactionFilter, setTransactionFilter] = React.useState('');
@@ -683,7 +695,7 @@ function DashboardContent() {
     width: '100%',
     padding: isMobile ? '0.4rem' : '0.5rem',
     fontSize: isMobile ? '0.8rem' : '0.875rem',
-    maxWidth: isMobile ? '90%' : '100%',
+    maxWidth: '100%',
     marginBottom: '0.5rem',
     border: '1px solid #d1d5db',
     borderRadius: '0.375rem'
@@ -2795,7 +2807,7 @@ function DashboardContent() {
       setShowAuth={setShowAuth}
     >
       <div style={{
-        padding: isMobile ? '0.5rem' : '2rem',
+        padding: isMobile ? '0.25rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
         background: isMobile ? '#f8fafc' : '#f3f4f6',
         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -3755,7 +3767,8 @@ function DashboardContent() {
         gap: isMobile ? '0.5rem' : '1.5rem',
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        boxSizing: 'border-box'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3786,7 +3799,8 @@ function DashboardContent() {
           overflowX: 'hidden',
           minWidth: 0,
           maxWidth: '100%',
-          margin: '0'
+          margin: '0',
+          boxSizing: 'border-box'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
             <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', margin: 0 }}>Income</h3>
@@ -3942,7 +3956,8 @@ function DashboardContent() {
           overflowX: 'hidden',
           minWidth: 0,
           maxWidth: '100%',
-          margin: '0'
+          margin: '0',
+          boxSizing: 'border-box'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '500px', overflowY: 'auto' }}>
