@@ -36,17 +36,17 @@ export default function AccountsSection({
     return (
       <div style={{
         background: 'white',
-        padding: '0.75rem',
+        padding: '0.5rem',
         borderRadius: '0.5rem',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.1)',
         marginBottom: '0.5rem',
         border: '1px solid #e5e7eb',
         width: '100%',
         minWidth: 0,
         overflowX: 'hidden'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>Accounts</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h3 style={{ fontSize: '0.85rem', fontWeight: '600', color: '#1f2937' }}>Accounts</h3>
           <button
             onClick={() => setShowAddAccount(true)}
             style={{
