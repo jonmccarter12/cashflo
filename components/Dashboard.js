@@ -256,7 +256,7 @@ function DashboardContent() {
               const account = accounts.get(tx.payload.accountId);
               accounts.set(tx.payload.accountId, {
                 ...account,
-                balance: account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)
+                balance: Math.round((account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)) * 100) / 100
               });
             }
           }
@@ -310,7 +310,7 @@ function DashboardContent() {
               const account = accounts.get(tx.payload.accountId);
               accounts.set(tx.payload.accountId, {
                 ...account,
-                balance: account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)
+                balance: Math.round((account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)) * 100) / 100
               });
             }
           }
@@ -371,7 +371,7 @@ function DashboardContent() {
               const account = accounts.get(tx.payload.accountId);
               accounts.set(tx.payload.accountId, {
                 ...account,
-                balance: account.balance + (tx.payload.is_received ? tx.payload.amount : -tx.payload.amount)
+                balance: Math.round((account.balance + (tx.payload.is_received ? tx.payload.amount : -tx.payload.amount)) * 100) / 100
               });
             }
             if (tx.payload.is_received) {
@@ -430,7 +430,7 @@ function DashboardContent() {
               const account = accounts.get(tx.payload.accountId);
               accounts.set(tx.payload.accountId, {
                 ...account,
-                balance: account.balance + tx.payload.amount
+                balance: Math.round((account.balance + tx.payload.amount) * 100) / 100
               });
             }
             incomeHistory.push({

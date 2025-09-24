@@ -312,7 +312,12 @@ export default function AccountsSection({
                 )}
 
                 {/* Credit info grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', marginBottom: '0.5rem' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                  gap: '0.375rem',
+                  marginBottom: '0.5rem'
+                }}>
                   <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.375rem', borderRadius: '0.375rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                     <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>APR</div>
                     <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24' }}>{account.apr || 0}%</div>
@@ -334,7 +339,12 @@ export default function AccountsSection({
                     <div style={{ fontSize: '0.65rem', color: '#a5b4fc', marginBottom: '0.25rem', fontWeight: '600' }}>💡 Smart Payment Strategy</div>
 
                     {/* Payment Options Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.375rem' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                      gap: '0.25rem',
+                      marginBottom: '0.375rem'
+                    }}>
                       <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.25rem', borderRadius: '0.25rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                         <div style={{ fontSize: '0.55rem', color: '#fca5a5', fontWeight: '500' }}>Min (4%)</div>
                         <div style={{ fontSize: '0.6rem', color: '#ef4444', fontWeight: '700' }}>${(account.balance * 0.04).toFixed(0)}</div>
