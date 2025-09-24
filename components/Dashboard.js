@@ -3756,7 +3756,7 @@ function DashboardContent() {
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
         overflowX: 'hidden',
-        padding: isMobile ? '0 3rem' : '0'
+        padding: isMobile ? '0 1rem' : '0'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3786,7 +3786,7 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '70%' : '100%',
+          maxWidth: isMobile ? '85%' : '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
@@ -3942,7 +3942,7 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '70%' : '100%',
+          maxWidth: isMobile ? '85%' : '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
