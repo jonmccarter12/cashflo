@@ -856,7 +856,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
     );
   };
 
-  const creditData = realCreditData || creditReportData || sampleCreditData;
+  const displayCreditData = realCreditData || creditReportData || sampleCreditData;
 
   return (
     <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
@@ -898,18 +898,18 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
       {activeTab === 'overview' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-            <ScoreGauge score={creditData.currentScore} previousScore={creditData.previousScore} />
+            <ScoreGauge score={displayCreditData.currentScore} previousScore={displayCreditData.previousScore} />
 
             <div>
               <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Credit Health Summary</h4>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{ background: '#f0fdf4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1fae5' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{creditData.positiveItems}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{displayCreditData.positiveItems}</div>
                   <div style={{ fontSize: '0.75rem', color: '#065f46' }}>Positive Items</div>
                 </div>
                 <div style={{ background: '#fef2f2', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #fecaca' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>{creditData.negativeItems}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>{displayCreditData.negativeItems}</div>
                   <div style={{ fontSize: '0.75rem', color: '#991b1b' }}>Items to Dispute</div>
                 </div>
               </div>
@@ -1648,7 +1648,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
           {/* Account Review */}
           <div style={{ marginBottom: '1.5rem' }}>
             <h5 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>Accounts Review</h5>
-            {creditData.accounts.map(account => (
+            {displayCreditData.accounts.map(account => (
               <div key={account.id} style={{
                 background: account.issues.length > 0 ? '#fef2f2' : '#f0fdf4',
                 border: `1px solid ${account.issues.length > 0 ? '#fecaca' : '#d1fae5'}`,
@@ -1720,7 +1720,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
           {/* Recent Inquiries */}
           <div>
             <h5 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>Recent Credit Inquiries</h5>
-            {creditData.inquiries.map((inquiry, index) => (
+            {displayCreditData.inquiries.map((inquiry, index) => (
               <div key={index} style={{
                 background: '#f9fafb',
                 border: '1px solid #e5e7eb',
@@ -1757,7 +1757,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                 🚀 Quick Wins (30-60 days)
               </h5>
               <div style={{ fontSize: '0.875rem', color: '#065f46' }}>
-                <div>• Dispute {creditData.negativeItems} negative items on your report</div>
+                <div>• Dispute {displayCreditData.negativeItems} negative items on your report</div>
                 <div>• Pay down credit card balances below 10% utilization</div>
                 <div>• Request credit limit increases on existing cards</div>
                 <div>• Become an authorized user on someone's old account</div>
