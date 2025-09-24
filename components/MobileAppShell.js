@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 
-const MobileAppShell = ({ children, activeTab, onTabChange }) => {
+const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction }) => {
   const isMobile = useIsMobile();
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -68,8 +68,9 @@ const MobileAppShell = ({ children, activeTab, onTabChange }) => {
   const QuickActionButton = ({ action, icon: Icon, label, color }) => (
     <button
       onClick={() => {
-        console.log(`Quick action: ${action}`);
-        // Handle quick actions here
+        if (onQuickAction) {
+          onQuickAction(action);
+        }
         setShowMenu(false);
       }}
       style={{

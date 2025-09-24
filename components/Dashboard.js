@@ -2741,11 +2741,33 @@ function DashboardContent() {
     }
   }
 
+  // Quick action handler for mobile menu
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'add-income':
+        setShowAddIncome(true);
+        break;
+      case 'add-expense':
+        // Navigate to bills/expenses section
+        setCurrentView('bills-otc');
+        setBillsOtcView('bills');
+        break;
+      case 'check-credit':
+        setCurrentView('credit');
+        break;
+      case 'set-budget':
+        setCurrentView('budgeting');
+        break;
+      default:
+        console.log(`Quick action not implemented: ${action}`);
+    }
+  };
+
   // Render the dashboard UI
   return (
-    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView}>
+    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction}>
       <div style={{
-        padding: isMobile ? '1rem' : '2rem',
+        padding: isMobile ? '0.5rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
         background: isMobile ? '#f8fafc' : '#f3f4f6',
         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -2958,22 +2980,21 @@ function DashboardContent() {
         {/* Quick Stats Row */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)',
-          gap: '1rem',
-          marginBottom: '1rem',
-          margin: isMobile ? '0 1rem 1rem 1rem' : '0 0 1rem 0'
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)',
+          gap: isMobile ? '0.75rem' : '1rem',
+          marginBottom: '1rem'
         }}>
           <div style={{
             background: '#f0fdf4',
-            padding: '0.75rem',
+            padding: isMobile ? '0.5rem' : '0.75rem',
             borderRadius: '0.5rem',
             border: '1px solid #bbf7d0',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+            <div style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: '700', color: '#16a34a' }}>
               {fmt(currentLiquidWithGuaranteed)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#15803d' }}>Available Now</div>
+            <div style={{ fontSize: isMobile ? '0.65rem' : '0.75rem', color: '#15803d' }}>Available Now</div>
           </div>
           <div style={{
             background: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#f0fdf4' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fffbeb' : '#fef2f2'),
@@ -4660,7 +4681,7 @@ function DashboardContent() {
                 padding: '0.75rem 1rem',
                 borderBottom: '1px solid #e5e7eb',
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 1fr 120px 120px 100px 120px',
+                gridTemplateColumns: isMobile ? '2fr 1fr' : '1fr 1fr 120px 120px 100px 120px',
                 gap: '1rem',
                 fontSize: '0.875rem',
                 fontWeight: '600',
@@ -4768,7 +4789,7 @@ function DashboardContent() {
                           padding: '0.75rem 1rem',
                           borderBottom: index < 99 ? '1px solid #f3f4f6' : 'none',
                           display: 'grid',
-                          gridTemplateColumns: isMobile ? '1fr 80px' : '1fr 1fr 120px 120px 100px 120px',
+                          gridTemplateColumns: isMobile ? '2fr 1fr' : '1fr 1fr 120px 120px 100px 120px',
                           gap: '1rem',
                           fontSize: '0.875rem',
                           alignItems: 'center'
