@@ -426,6 +426,15 @@ const CREDIT_BUREAUS = {
 };
 
 export default function CreditRepairSection({ isMobile, accounts, transactions, user }) {
+  // Mobile-friendly input style
+  const inputStyle = {
+    width: '100%',
+    padding: isMobile ? '0.5rem' : '0.75rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.375rem',
+    fontSize: isMobile ? '0.8rem' : '0.875rem',
+    maxWidth: isMobile ? '90%' : '100%'
+  };
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedDispute, setSelectedDispute] = React.useState(null);
   const [disputeForm, setDisputeForm] = React.useState({
@@ -1091,7 +1100,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     value={userProfile.fullName}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, fullName: e.target.value }))}
                     placeholder="John Smith"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1104,7 +1113,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     value={userProfile.phone}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="(555) 123-4567"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1117,7 +1126,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     value={userProfile.email}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="john@example.com"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1129,7 +1138,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     type="date"
                     value={userProfile.dateOfBirth}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1138,12 +1147,12 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     Social Security Number (encrypted & secure)
                   </label>
                   <input
-                    type="text"
+                    type="password"
                     value={userProfile.ssn}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, ssn: e.target.value.replace(/[^0-9]/g, '').slice(0, 9) }))}
                     placeholder="123456789"
                     maxLength="9"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
               </div>
@@ -1165,7 +1174,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     value={userProfile.address}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="123 Main Street"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1178,7 +1187,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                     value={userProfile.city}
                     onChange={(e) => setUserProfile(prev => ({ ...prev, city: e.target.value }))}
                     placeholder="Anytown"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                    style={inputStyle}
                   />
                 </div>
 
@@ -1193,7 +1202,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                       onChange={(e) => setUserProfile(prev => ({ ...prev, state: e.target.value.toUpperCase().slice(0, 2) }))}
                       placeholder="NY"
                       maxLength="2"
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                      style={inputStyle}
                     />
                   </div>
 
@@ -1207,7 +1216,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                       onChange={(e) => setUserProfile(prev => ({ ...prev, zipCode: e.target.value.slice(0, 5) }))}
                       placeholder="12345"
                       maxLength="5"
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                      style={inputStyle}
                     />
                   </div>
                 </div>
