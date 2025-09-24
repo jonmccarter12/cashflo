@@ -3756,7 +3756,7 @@ function DashboardContent() {
         marginBottom: isMobile ? '1rem' : '2rem',
         width: '100%',
         overflowX: 'hidden',
-        padding: isMobile ? '0 1rem' : '0'
+        padding: isMobile ? '0 0.5rem' : '0'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3786,7 +3786,7 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '85%' : '100%',
+          maxWidth: '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.25rem' : '1rem' }}>
@@ -3807,7 +3807,7 @@ function DashboardContent() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '150px' : '400px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '400px', overflowY: 'auto' }}>
             {/* Recurring Income */}
             {recurringIncome.map(income => {
               const account = accounts.find(a => a.id === income.accountId);
@@ -3942,11 +3942,11 @@ function DashboardContent() {
           width: '100%',
           overflowX: 'hidden',
           minWidth: 0,
-          maxWidth: isMobile ? '85%' : '100%',
+          maxWidth: '100%',
           margin: isMobile ? '0 auto' : '0'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '120px' : '500px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '500px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;

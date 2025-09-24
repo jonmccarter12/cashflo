@@ -44,8 +44,8 @@ export default function AccountsSection({
         width: '100%',
         minWidth: 0,
         overflowX: 'hidden',
-        maxWidth: '85%',
-        margin: '0 auto 0.5rem auto'
+        maxWidth: '100%',
+        margin: '0 0 0.5rem 0'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
           <h3 style={{ fontSize: '0.75rem', fontWeight: '600', color: '#1f2937' }}>Accounts</h3>

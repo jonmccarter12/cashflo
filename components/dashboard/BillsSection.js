@@ -59,7 +59,8 @@ export default function BillsSection({
             <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#000' }}>Recurring Bills</h3>
             <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
           </div>
-          
+
+          <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '0.5rem' }}>
           {bills
             .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
             .sort((a,b) => {
@@ -122,6 +123,7 @@ export default function BillsSection({
                 </div>
               );
             })}
+          </div>
             <button
               onClick={() => setShowAddBillDialog(true)}
               style={{ width: '100%', padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem', marginTop: '0.5rem' }}
