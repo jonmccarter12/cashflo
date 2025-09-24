@@ -51,11 +51,8 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
   };
 
   const tabs = [
-    { id: 'overview', label: 'Home', icon: Home },
-    { id: 'credit', label: 'Credit', icon: CreditCard },
-    { id: 'budgeting', label: 'Budget', icon: PieChart },
-    { id: 'financial-health', label: 'Health', icon: Activity },
-    { id: 'notifications', label: 'Alerts', icon: Bell }
+    { id: 'overview', label: 'Dashboard', icon: Home, emoji: '📊' },
+    { id: 'history', label: 'History', icon: Activity, emoji: '📈' }
   ];
 
   const quickActions = [
@@ -192,7 +189,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
         <div style={{
           display: 'flex',
           paddingTop: '0.5rem',
-          paddingBottom: '0.5rem'
+          paddingBottom: '0.5rem',
+          overflowX: 'auto',
+          gap: '1rem',
+          paddingLeft: '1rem',
+          paddingRight: '1rem'
         }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -203,17 +204,19 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 style={{
-                  flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '0.25rem',
-                  padding: '0.5rem',
-                  background: 'transparent',
-                  border: 'none',
+                  padding: '0.75rem 1rem',
+                  background: isActive ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                  border: isActive ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid transparent',
+                  borderRadius: '1rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  color: isActive ? '#3b82f6' : '#6b7280'
+                  color: isActive ? '#8b5cf6' : '#6b7280',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'fit-content'
                 }}
                 onTouchStart={(e) => {
                   e.target.style.transform = 'scale(0.95)';
@@ -222,23 +225,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
                   e.target.style.transform = 'scale(1)';
                 }}
               >
-                <div style={{
-                  padding: '0.5rem',
-                  borderRadius: '1rem',
-                  background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                  transition: 'all 0.2s ease'
-                }}>
-                  <Icon style={{
-                    width: '20px',
-                    height: '20px',
-                    color: isActive ? '#3b82f6' : '#6b7280'
-                  }} />
-                </div>
                 <span style={{
-                  fontSize: '0.75rem',
-                  fontWeight: isActive ? '600' : '400'
+                  fontSize: '1rem',
+                  fontWeight: '600'
                 }}>
-                  {tab.label}
+                  {tab.emoji} {tab.label}
                 </span>
               </button>
             );

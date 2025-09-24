@@ -2774,9 +2774,9 @@ function DashboardContent() {
 
   // Render the dashboard UI
   return (
-    <>
+    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction} onSearchChange={handleSearchChange}>
       <div style={{
-        padding: isMobile ? '0.5rem' : '2rem',
+        padding: isMobile ? '1rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
         background: isMobile ? '#f8fafc' : '#f3f4f6',
         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -2989,21 +2989,21 @@ function DashboardContent() {
         {/* Quick Stats Row */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)',
-          gap: isMobile ? '0.75rem' : '1rem',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+          gap: '1rem',
           marginBottom: '1rem'
         }}>
           <div style={{
             background: '#f0fdf4',
-            padding: isMobile ? '0.5rem' : '0.75rem',
+            padding: '0.75rem',
             borderRadius: '0.5rem',
             border: '1px solid #bbf7d0',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#16a34a' }}>
               {fmt(currentLiquidWithGuaranteed)}
             </div>
-            <div style={{ fontSize: isMobile ? '0.65rem' : '0.75rem', color: '#15803d' }}>Available Now</div>
+            <div style={{ fontSize: '0.75rem', color: '#15803d' }}>Available Now</div>
           </div>
           <div style={{
             background: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#f0fdf4' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fffbeb' : '#fef2f2'),
@@ -3012,7 +3012,7 @@ function DashboardContent() {
             border: `1px solid ${currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#bbf7d0' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fed7aa' : '#fecaca')}`,
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#d97706' : '#dc2626') }}>
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#d97706' : '#dc2626') }}>
               {fmt(weekNeedWithSavings)}
             </div>
             <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#92400e' : '#991b1b') }}>Need This Week</div>
@@ -3024,7 +3024,7 @@ function DashboardContent() {
             border: '1px solid #38bdf8',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0284c7' }}>
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#0284c7' }}>
               {fmt(afterWeek)}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>After This Week</div>
@@ -3036,7 +3036,7 @@ function DashboardContent() {
             border: '1px solid #c084fc',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#9333ea' }}>
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#9333ea' }}>
               {fmt(upcoming.weekDueTotal)}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due This Week</div>
@@ -3047,9 +3047,9 @@ function DashboardContent() {
             borderRadius: '0.5rem',
             border: '1px solid #fbbf24',
             textAlign: 'center',
-            gridColumn: isMobile ? 'span 2' : 'auto'
+            gridColumn: isMobile ? '1 / -1' : 'auto'
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#d97706' }}>
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#d97706' }}>
               {fmt(netWorthValue)}
             </div>
             <div style={{ fontSize: '0.75rem', color: '#92400e' }}>Net Worth</div>
@@ -3057,9 +3057,9 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Navigation Tabs - Shown on both Mobile and Desktop */}
+      {/* Navigation Tabs - Hidden on mobile, shown on desktop */}
       <div style={{
-        display: 'block', // Show on both mobile and desktop
+        display: isMobile ? 'none' : 'block', // Hidden on mobile since they're in bottom nav
         marginBottom: '1.5rem',
         background: 'white',
         borderRadius: '1rem',
@@ -3595,8 +3595,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Category Filter - Show on both dashboard and transaction history */}
-      {(currentView === 'dashboard' || currentView === 'history') && (
+      {/* Category Filter - Show on overview, dashboard, and transaction history */}
+      {(currentView === 'overview' || currentView === 'dashboard' || currentView === 'history') && (
         <div
           ref={categoryFilterRef}
           style={{
@@ -5735,7 +5735,7 @@ function DashboardContent() {
       )}
 
       </div>
-    </>
+    </MobileAppShell>
   );
 }
 
