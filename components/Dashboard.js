@@ -2752,11 +2752,12 @@ function DashboardContent() {
         borderTopLeftRadius: isMobile ? '1.5rem' : '0',
         borderTopRightRadius: isMobile ? '1.5rem' : '0'
       }}>
-      {/* Header */}
+      {/* Header - Hidden on mobile, shown on desktop */}
       <div style={{
+        display: isMobile ? 'none' : 'block',
         marginBottom: '2rem',
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        padding: isMobile ? '0.25rem' : '1.5rem',
+        padding: '1.5rem',
         borderRadius: '1rem',
         boxShadow: '0 20px 40px rgba(139, 92, 246, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         border: '1px solid rgba(139, 92, 246, 0.3)'
@@ -3041,7 +3042,7 @@ function DashboardContent() {
           background: '#f9fafb'
         }}>
           <button
-            onClick={() => setCurrentView('overview'))
+            onClick={() => setCurrentView('overview')}
             style={{
               flex: 1,
               padding: '1rem 1.5rem',
@@ -3121,12 +3122,12 @@ function DashboardContent() {
             💼 Budget & Goals
           </button>
           <button
-            onClick={() => setCurrentView('financial-health'))
+            onClick={() => setCurrentView('financial-health')}
             style={{
               flex: 1,
               padding: '1rem 1.5rem',
-              background: currentView === 'health' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'health' ? 'white' : '#6b7280',
+              background: currentView === 'financial-health' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'financial-health' ? 'white' : '#6b7280',
               border: 'none',
               fontSize: '1rem',
               fontWeight: '600',

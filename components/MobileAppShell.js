@@ -99,10 +99,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange }) => {
     </button>
   );
 
-  // On desktop, just return the children without the mobile shell
-  if (!isMobile) {
-    return <>{children}</>;
-  }
+  // For now, always show mobile experience to test it
+  // TODO: Later add proper responsive logic
+  // if (!isMobile) {
+  //   return <>{children}</>;
+  // }
 
   return (
     <div style={{
