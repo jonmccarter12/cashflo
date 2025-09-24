@@ -473,6 +473,7 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
   const [creditMonitoring, setCreditMonitoring] = React.useState(false);
   const [checkLimits, setCheckLimits] = React.useState(canCheckCredit());
   const [isLoading, setIsLoading] = React.useState(false);
+  const [creditData, setCreditData] = React.useState(null);
 
   // Load saved profile data
   React.useEffect(() => {
