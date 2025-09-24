@@ -2774,7 +2774,15 @@ function DashboardContent() {
 
   // Render the dashboard UI
   return (
-    <MobileAppShell activeTab={currentView} onTabChange={setCurrentView} onQuickAction={handleQuickAction} onSearchChange={handleSearchChange}>
+    <MobileAppShell
+      activeTab={currentView}
+      onTabChange={setCurrentView}
+      onQuickAction={handleQuickAction}
+      onSearchChange={handleSearchChange}
+      user={user}
+      supabase={supabase}
+      setShowAuth={setShowAuth}
+    >
       <div style={{
         padding: isMobile ? '1rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
@@ -2814,8 +2822,8 @@ function DashboardContent() {
               />
             </div>
 
-            {/* Login/Logout Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', paddingBottom: '1rem' }}>
+            {/* Login/Logout Buttons - Hidden on mobile (moved to header) */}
+            <div style={{ display: 'none' }}>
               {user ? (
                 <button
                   onClick={() => supabase.auth.signOut()}
@@ -3734,7 +3742,9 @@ function DashboardContent() {
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
         gap: isMobile ? '1rem' : '1.5rem',
-        marginBottom: isMobile ? '1rem' : '2rem'
+        marginBottom: isMobile ? '1rem' : '2rem',
+        width: '100%',
+        overflowX: 'hidden'
       }}>
         {/* Accounts Section */}
         <AccountsSection
@@ -3760,7 +3770,10 @@ function DashboardContent() {
           padding: isMobile ? '0.5rem' : '0.75rem',
           borderRadius: isMobile ? '0.5rem' : '1rem',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          border: '1px solid #e5e7eb',
+          width: '100%',
+          overflowX: 'hidden',
+          minWidth: 0
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
             <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.125rem', fontWeight: '600' }}>Income</h3>
@@ -3911,7 +3924,10 @@ function DashboardContent() {
           padding: isMobile ? '0.5rem' : '0.75rem',
           borderRadius: isMobile ? '0.5rem' : '1rem',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          border: '1px solid #e5e7eb',
+          width: '100%',
+          overflowX: 'hidden',
+          minWidth: 0
         }}>
           <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.75rem' : '1rem', color: '#000' }}>Due This Week</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem', maxHeight: isMobile ? '250px' : '500px', overflowY: 'auto' }}>
@@ -3927,15 +3943,15 @@ function DashboardContent() {
                   borderRadius: '0.5rem',
                   border: `2px solid ${item.overdue ? '#fca5a5' : '#e5e7eb'}`
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                    <div>
-                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.9rem' : '1rem', color: '#000' }}>{name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem', width: '100%', minWidth: 0 }}>
+                    <div style={{ minWidth: 0, overflow: 'hidden', flex: 1, paddingRight: '0.5rem' }}>
+                      <div style={{ fontWeight: '500', fontSize: isMobile ? '0.9rem' : '1rem', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         Due: {item.due.toLocaleDateString()} • {account?.name}
                         {item.overdue && <span style={{ color: '#dc2626', fontWeight: '600' }}> • OVERDUE</span>}
                       </div>
                     </div>
-                    <div style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151' }}>
+                    <div style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: '700', color: item.overdue ? '#dc2626' : '#374151', flexShrink: 0 }}>
                       {fmt(amount)}
                     </div>
                   </div>

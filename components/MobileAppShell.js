@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 
-const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSearchChange }) => {
+const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSearchChange, user, supabase, setShowAuth }) => {
   const isMobile = useIsMobile();
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -52,7 +52,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
 
   const tabs = [
     { id: 'overview', label: 'Dashboard', icon: Home, emoji: '📊' },
-    { id: 'history', label: 'History', icon: Activity, emoji: '📈' }
+    { id: 'history', label: 'Transaction History', icon: Activity, emoji: '📋' },
+    { id: 'tax', label: 'Tax Estimator', icon: DollarSign, emoji: '💰' },
+    { id: 'credit', label: 'Credit Accounts', icon: CreditCard, emoji: '💳' },
+    { id: 'budgeting', label: 'Budget & Goals', icon: Target, emoji: '💼' },
+    { id: 'financial-health', label: 'Financial Health', icon: TrendingUp, emoji: '📈' }
   ];
 
   const quickActions = [
@@ -156,7 +160,68 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
           </div>
         </div>
 
-        <div></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {user ? (
+            <button
+              onClick={() => supabase?.auth.signOut()}
+              style={{
+                padding: '0.375rem 0.75rem',
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              Logout
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => supabase?.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: {
+                    redirectTo: window.location.origin,
+                    queryParams: {
+                      access_type: 'offline',
+                      prompt: 'consent',
+                      hd: 'cashfl0.io'
+                    }
+                  }
+                })}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  background: '#4285f4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: '500'
+                }}
+              >
+                🚀 Google
+              </button>
+              <button
+                onClick={() => setShowAuth && setShowAuth(true)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  background: '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: '500'
+                }}
+              >
+                Login
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
 
