@@ -20,6 +20,10 @@ import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import TaxSection from './dashboard/TaxSection';
 import CreditRepairSection from './dashboard/CreditRepairSection';
+import BudgetingSection from './dashboard/BudgetingSection';
+import FinancialHealthSection from './dashboard/FinancialHealthSection';
+import NotificationsSection from './dashboard/NotificationsSection';
+import DebtManagementSection from './dashboard/DebtManagementSection';
 import TransactionImport from './TransactionImport';
 // Lazy load for performance
 
@@ -3095,6 +3099,70 @@ function DashboardContent() {
           >
             💳 Credit Accounts
           </button>
+          <button
+            onClick={() => setCurrentView('budgeting')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'budgeting' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'budgeting' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💼 Budget & Goals
+          </button>
+          <button
+            onClick={() => setCurrentView('health')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'health' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'health' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📈 Financial Health
+          </button>
+          <button
+            onClick={() => setCurrentView('notifications')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'notifications' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'notifications' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            🔔 Notifications
+          </button>
+          <button
+            onClick={() => setCurrentView('debt')}
+            style={{
+              flex: 1,
+              padding: '1rem 1.5rem',
+              background: currentView === 'debt' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'debt' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            🎯 Debt Payoff
+          </button>
         </div>
       </div>
 
@@ -4843,6 +4911,49 @@ function DashboardContent() {
           isMobile={isMobile}
           accounts={accounts}
           transactions={transactions}
+        />
+      )}
+
+      {/* Budgeting & Goals Tab */}
+      {currentView === 'budgeting' && (
+        <BudgetingSection
+          isMobile={isMobile}
+          transactions={transactions}
+          bills={bills}
+          oneTimeCosts={oneTimeCosts}
+          accounts={accounts}
+        />
+      )}
+
+      {/* Financial Health Tab */}
+      {currentView === 'health' && (
+        <FinancialHealthSection
+          isMobile={isMobile}
+          transactions={transactions}
+          accounts={accounts}
+          bills={bills}
+        />
+      )}
+
+      {/* Notifications Tab */}
+      {currentView === 'notifications' && (
+        <NotificationsSection
+          isMobile={isMobile}
+          transactions={transactions}
+          bills={bills}
+          accounts={accounts}
+          creditData={null} // Will be integrated with credit API data
+          budgetData={null} // Will be integrated with budget data
+        />
+      )}
+
+      {/* Debt Management Tab */}
+      {currentView === 'debt' && (
+        <DebtManagementSection
+          isMobile={isMobile}
+          transactions={transactions}
+          accounts={accounts}
+          bills={bills}
         />
       )}
 

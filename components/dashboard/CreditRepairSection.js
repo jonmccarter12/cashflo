@@ -1657,18 +1657,24 @@ export default function CreditRepairSection({ isMobile, accounts, transactions, 
                 padding: '1rem',
                 marginBottom: '0.5rem'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <div>
                     <div style={{ fontSize: '1rem', fontWeight: '600' }}>{account.creditor}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      {account.type} • {account.accountNumber} • Opened {account.dateOpened}
-                    </div>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{account.type}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: isMobile ? 'left' : 'center' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Account</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{account.accountNumber}</div>
+                  </div>
+                  <div style={{ textAlign: isMobile ? 'left' : 'center' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Balance</div>
                     <div style={{ fontSize: '1rem', fontWeight: '600' }}>
                       {account.balance > 0 ? fmt(account.balance) : 'Paid Off'}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                  </div>
+                  <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Status</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: '500', color: account.status === 'Open' ? '#059669' : '#6b7280' }}>
                       {account.status}
                     </div>
                   </div>
