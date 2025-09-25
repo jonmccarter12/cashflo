@@ -353,14 +353,35 @@ const TransactionAnalysis = ({
         let bestMatch = 'Uncategorized';
         let maxMatches = 0;
 
+        // Determine if this is income or expense
+        const isExpense = transaction.amount < 0;
+        const isIncome = transaction.amount > 0;
+
         Object.entries(TAX_CATEGORIES).forEach(([category, config]) => {
           const matches = config.keywords.filter(keyword =>
             combined.includes(keyword.toLowerCase())
           ).length;
 
+          // Only consider categories that match the transaction type (income vs expense)
           if (matches > maxMatches) {
+            // For business categories, create appropriate income/expense subcategory
+            if (category === 'Self-Employment Income' && isExpense) {
+              bestMatch = 'Business Expenses';
+            } else if (category === 'Self-Employment Income' && isIncome) {
+              bestMatch = 'Self-Employment Income';
+            } else if (config.businessType === 'business') {
+              // For business-related transactions
+              if (isExpense) {
+                bestMatch = 'Business Expenses';
+              } else if (isIncome) {
+                bestMatch = 'Self-Employment Income';
+              } else {
+                bestMatch = category;
+              }
+            } else {
+              bestMatch = category;
+            }
             maxMatches = matches;
-            bestMatch = category;
           }
         });
 
