@@ -295,7 +295,12 @@ const TransactionAnalysis = ({
       frequency: bill.frequency,
       annualAmount: bill.frequency === 'monthly' ? bill.amount * 12 :
                    bill.frequency === 'weekly' ? bill.amount * 52 :
-                   bill.frequency === 'biweekly' ? bill.amount * 26 : bill.amount
+                   bill.frequency === 'biweekly' ? bill.amount * 26 : bill.amount,
+      // Professional data fields
+      account: bill.account || 'Auto-pay Account',
+      paymentMethod: bill.paymentMethod || 'Auto-debit',
+      notes: `Recurring ${bill.frequency} bill${bill.notes ? ` - ${bill.notes}` : ''}`,
+      receipts: []
     }));
 
     // Convert one-time costs to transaction format
@@ -305,7 +310,12 @@ const TransactionAnalysis = ({
       amount: -Math.abs(cost.amount), // Costs are expenses (negative)
       date: cost.date || new Date().toISOString().split('T')[0],
       category: cost.category || 'One-time Expenses',
-      source: 'oneTimeCosts'
+      source: 'oneTimeCosts',
+      // Professional data fields
+      account: cost.account || 'Business Checking',
+      paymentMethod: cost.paymentMethod || 'Debit Card',
+      notes: cost.notes || '',
+      receipts: cost.receipts || []
     }));
 
     // Convert recurring income to transaction format
@@ -319,12 +329,29 @@ const TransactionAnalysis = ({
       frequency: income.frequency,
       annualAmount: income.frequency === 'monthly' ? income.amount * 12 :
                    income.frequency === 'weekly' ? income.amount * 52 :
-                   income.frequency === 'biweekly' ? income.amount * 26 : income.amount
+                   income.frequency === 'biweekly' ? income.amount * 26 : income.amount,
+      // Professional data fields
+      account: income.account || 'Business Checking',
+      paymentMethod: income.paymentMethod || 'Direct Deposit',
+      notes: `Recurring ${income.frequency} income${income.notes ? ` - ${income.notes}` : ''}`,
+      receipts: []
     }));
+
+    // Enhance existing transactions with professional fields if missing
+    const enhancedTransactions = transactions
+      .filter(t => new Date(t.date).getFullYear() === currentYear)
+      .map(transaction => ({
+        ...transaction,
+        // Add professional fields with defaults if missing
+        account: transaction.account || 'Main Account',
+        paymentMethod: transaction.paymentMethod || (transaction.amount > 0 ? 'Deposit' : 'Debit Card'),
+        notes: transaction.notes || '',
+        receipts: transaction.receipts || []
+      }));
 
     // Combine all financial data
     const allTransactions = [
-      ...transactions.filter(t => new Date(t.date).getFullYear() === currentYear),
+      ...enhancedTransactions,
       ...billTransactions,
       ...oneTimeCostTransactions,
       ...incomeTransactions
@@ -1513,7 +1540,7 @@ const TransactionAnalysis = ({
               display: 'grid',
               gridTemplateColumns: isMobile
                 ? '2fr 1fr 1fr'
-                : '2fr 1fr 1fr 1.5fr 1fr 1fr 0.5fr',
+                : '2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 0.5fr',
               padding: '1rem',
               background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
               borderBottom: '1px solid #e2e8f0',
@@ -1525,7 +1552,9 @@ const TransactionAnalysis = ({
               <div style={{ textAlign: 'center' }}>Amount</div>
               <div style={{ textAlign: 'center' }}>Date</div>
               {!isMobile && <div style={{ textAlign: 'center' }}>Category</div>}
-              {!isMobile && <div style={{ textAlign: 'center' }}>Business</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Account</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Notes</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Receipt</div>}
               {!isMobile && <div style={{ textAlign: 'center' }}>Tax Impact</div>}
               {!isMobile && <div style={{ textAlign: 'center' }}>Actions</div>}
             </div>
@@ -1558,7 +1587,7 @@ const TransactionAnalysis = ({
                     display: 'grid',
                     gridTemplateColumns: isMobile
                       ? '2fr 1fr 1fr'
-                      : '2fr 1fr 1fr 1.5fr 1fr 1fr 0.5fr',
+                      : '2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 0.5fr',
                     padding: '1rem',
                     borderBottom: index < 19 ? '1px solid #f1f5f9' : 'none',
                     alignItems: 'center',
@@ -1642,6 +1671,73 @@ const TransactionAnalysis = ({
                       color: '#6b7280'
                     }}>
                       {transaction.businessName}
+                    </div>
+                  )}
+
+                  {/* Account - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center',
+                      color: '#6b7280',
+                      fontSize: '0.9rem'
+                    }}>
+                      {transaction.account}
+                    </div>
+                  )}
+
+                  {/* Notes - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center',
+                      color: '#6b7280',
+                      fontSize: '0.9rem',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {transaction.notes || '-'}
+                    </div>
+                  )}
+
+                  {/* Receipt - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center'
+                    }}>
+                      {transaction.receipts && transaction.receipts.length > 0 ? (
+                        <span style={{
+                          fontSize: '1.2rem',
+                          color: '#059669',
+                          cursor: 'pointer'
+                        }} title={`${transaction.receipts.length} receipt(s)`}>
+                          📎
+                        </span>
+                      ) : (
+                        <button
+                          style={{
+                            background: 'none',
+                            border: '1px dashed #d1d5db',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#6b7280',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.color = '#3b82f6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.borderColor = '#d1d5db';
+                            e.target.style.color = '#6b7280';
+                          }}
+                          title="Add Receipt"
+                        >
+                          + Add
+                        </button>
+                      )}
                     </div>
                   )}
 
