@@ -1653,7 +1653,8 @@ const TransactionAnalysis = ({
                     </div>
                   )}
                 </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
 
