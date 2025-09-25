@@ -19,13 +19,22 @@ self.addEventListener('install', (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('📦 Caching essential files');
-        return cache.addAll(STATIC_CACHE_URLS.map(url => new Request(url, { cache: 'reload' })));
+        // Cache each file individually to avoid failing on one bad request
+        const cachePromises = STATIC_CACHE_URLS.map(async (url) => {
+          try {
+            const request = new Request(url, { cache: 'reload' });
+            await cache.add(request);
+          } catch (error) {
+            console.warn(`Failed to cache ${url}:`, error);
+          }
+        });
+        await Promise.allSettled(cachePromises);
+        console.log('✅ Cache installation completed');
       })
       .catch((error) => {
-        console.warn('Failed to cache some resources:', error);
-        // Don't fail installation if some resources can't be cached
+        console.warn('Failed to open cache:', error);
       })
   );
 
@@ -119,16 +128,23 @@ self.addEventListener('fetch', (event) => {
 
         // Strategy 3: Stale while revalidate for main app
         const cachedResponse = await caches.match(request);
-        const networkResponsePromise = fetch(request).then(response => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            const cache = caches.open(CACHE_NAME);
-            cache.then(c => c.put(request, responseClone));
-          }
-          return response;
-        }).catch(() => null);
 
-        return cachedResponse || await networkResponsePromise || await caches.match('/offline');
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse.ok) {
+            // Clone BEFORE any consumption
+            const responseToCache = networkResponse.clone();
+            const cache = await caches.open(CACHE_NAME);
+            // Don't await the cache operation to avoid blocking
+            cache.put(request, responseToCache).catch(err => {
+              console.warn('Failed to cache response:', err);
+            });
+          }
+          return cachedResponse || networkResponse;
+        } catch (networkError) {
+          console.warn('Network request failed:', networkError);
+          return cachedResponse || await caches.match('/offline');
+        }
 
       } catch (error) {
         console.error('Fetch failed:', error);
