@@ -4628,6 +4628,10 @@ function DashboardContent() {
       {currentView === 'history' && featuresLoaded.advanced && (
         <TransactionAnalysis
           transactions={transactions}
+          bills={bills}
+          oneTimeCosts={oneTimeCosts}
+          accounts={accounts}
+          recurringIncome={recurringIncome}
           onUpdateTransactionCategory={(transactionId, category) => {
             // Handle transaction category updates
             console.log('Updating transaction category:', transactionId, category);
@@ -4993,6 +4997,10 @@ function DashboardContent() {
       {currentView === 'tax' && (
         <TransactionAnalysis
           transactions={transactions}
+          bills={bills}
+          oneTimeCosts={oneTimeCosts}
+          accounts={accounts}
+          recurringIncome={recurringIncome}
           onUpdateTransactionCategory={(transactionId, category) => {
             console.log('Updating transaction category:', transactionId, category);
           }}

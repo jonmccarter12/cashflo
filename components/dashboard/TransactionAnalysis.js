@@ -254,7 +254,14 @@ const STANDARD_DEDUCTIONS_2024 = {
   qualifyingWidow: 29200
 };
 
-const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory }) => {
+const TransactionAnalysis = ({
+  transactions = [],
+  bills = [],
+  oneTimeCosts = [],
+  accounts = [],
+  recurringIncome = [],
+  onUpdateTransactionCategory
+}) => {
   const isMobile = useIsMobile();
   const [selectedBusinessType, setSelectedBusinessType] = useState('sole-proprietorship');
   const [viewMode, setViewMode] = useState('overview'); // overview, categories, optimization
@@ -270,13 +277,62 @@ const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory })
   const [showBusinessSetup, setShowBusinessSetup] = useState(false);
   const [transactionBusinessAssignments, setTransactionBusinessAssignments] = useState({});
 
-  // INTELLIGENT TRANSACTION CATEGORIZATION
-  const categorizedTransactions = useMemo(() => {
+  // COMPREHENSIVE TRANSACTION + BILLS DATA INTEGRATION
+  const allFinancialData = useMemo(() => {
     const currentYear = new Date().getFullYear();
 
-    return transactions
-      .filter(t => new Date(t.date).getFullYear() === currentYear)
-      .map(transaction => {
+    // Convert bills to transaction format
+    const billTransactions = bills.map(bill => ({
+      id: `bill-${bill.id}`,
+      description: bill.name,
+      amount: -Math.abs(bill.amount), // Bills are expenses (negative)
+      date: new Date().toISOString().split('T')[0], // Current date for bills
+      category: bill.category || 'Bills',
+      source: 'bills',
+      frequency: bill.frequency,
+      annualAmount: bill.frequency === 'monthly' ? bill.amount * 12 :
+                   bill.frequency === 'weekly' ? bill.amount * 52 :
+                   bill.frequency === 'biweekly' ? bill.amount * 26 : bill.amount
+    }));
+
+    // Convert one-time costs to transaction format
+    const oneTimeCostTransactions = oneTimeCosts.map(cost => ({
+      id: `cost-${cost.id}`,
+      description: cost.name,
+      amount: -Math.abs(cost.amount), // Costs are expenses (negative)
+      date: cost.date || new Date().toISOString().split('T')[0],
+      category: cost.category || 'One-time Expenses',
+      source: 'oneTimeCosts'
+    }));
+
+    // Convert recurring income to transaction format
+    const incomeTransactions = recurringIncome.map(income => ({
+      id: `income-${income.id}`,
+      description: income.name,
+      amount: Math.abs(income.amount), // Income is positive
+      date: new Date().toISOString().split('T')[0],
+      category: income.category || 'Recurring Income',
+      source: 'recurringIncome',
+      frequency: income.frequency,
+      annualAmount: income.frequency === 'monthly' ? income.amount * 12 :
+                   income.frequency === 'weekly' ? income.amount * 52 :
+                   income.frequency === 'biweekly' ? income.amount * 26 : income.amount
+    }));
+
+    // Combine all financial data
+    const allTransactions = [
+      ...transactions.filter(t => new Date(t.date).getFullYear() === currentYear),
+      ...billTransactions,
+      ...oneTimeCostTransactions,
+      ...incomeTransactions
+    ];
+
+    return allTransactions;
+  }, [transactions, bills, oneTimeCosts, recurringIncome]);
+
+  // INTELLIGENT TRANSACTION CATEGORIZATION
+  const categorizedTransactions = useMemo(() => {
+    return allFinancialData.map(transaction => {
         // Check if transaction already has manual category
         if (transaction.taxCategory) {
           return {
@@ -323,7 +379,7 @@ const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory })
           confidence: maxMatches / Math.max(TAX_CATEGORIES[bestMatch].keywords.length, 1)
         };
       });
-  }, [transactions, businessEntities, transactionBusinessAssignments]);
+  }, [allFinancialData, businessEntities, transactionBusinessAssignments]);
 
   // CHECK IF THERE ARE ACTIVE BUSINESS TRANSACTIONS
   const hasBusinessTransactions = useMemo(() => {
