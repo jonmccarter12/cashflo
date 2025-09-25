@@ -586,7 +586,7 @@ const TransactionAnalysis = ({
           margin: 0,
           marginBottom: '0.5rem'
         }}>
-          🏆 Ultimate Tax Intelligence
+          📊 Financial Dashboard
         </h1>
         <p style={{
           fontSize: isMobile ? '1.1rem' : '1.25rem',
