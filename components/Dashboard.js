@@ -20,7 +20,6 @@ import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import TaxSection from './dashboard/TaxSectionV2';
 import CreditRepairSection from './dashboard/CreditRepairSection';
-import BudgetingSection from './dashboard/BudgetingSection';
 import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
 import DebtManagementSection from './dashboard/DebtManagementSection';
@@ -674,6 +673,8 @@ function DashboardContent() {
   const [tempCategoryName, setTempCategoryName] = React.useState('');
   const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
   const [autoDeductPopup, setAutoDeductPopup] = React.useState(null); // { amount, accountName, newBalance, billName }
+  const [editingCategoryBusiness, setEditingCategoryBusiness] = React.useState(null);
+  const [categoryBusinessTypes, setCategoryBusinessTypes] = React.useState({})
   const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
   const [accountsView, setAccountsView] = React.useState('debit'); // 'debit' or 'credit'
 
@@ -2638,6 +2639,34 @@ function DashboardContent() {
     }
   }
 
+  // Load business types from localStorage
+  React.useEffect(() => {
+    const savedBusinessTypes = localStorage.getItem('cashflo_category_business_types');
+    if (savedBusinessTypes) {
+      try {
+        setCategoryBusinessTypes(JSON.parse(savedBusinessTypes));
+      } catch (error) {
+        console.error('Error loading category business types:', error);
+      }
+    }
+  }, []);
+
+  // Update business classification for category
+  const updateCategoryBusiness = (categoryName, businessType, entityType) => {
+    const newBusinessTypes = {
+      ...categoryBusinessTypes,
+      [categoryName]: {
+        businessType: businessType || 'personal',
+        entityType: entityType || null,
+        updatedAt: new Date().toISOString()
+      }
+    };
+    setCategoryBusinessTypes(newBusinessTypes);
+    localStorage.setItem('cashflo_category_business_types', JSON.stringify(newBusinessTypes));
+    notify(`Business classification updated for ${categoryName}`, 'success');
+    setEditingCategoryBusiness(null);
+  };
+
   async function moveCategoryUp(categoryName) {
     try {
       if (!user?.id) {
@@ -2824,9 +2853,6 @@ function DashboardContent() {
         break;
       case 'check-credit':
         setCurrentView('credit');
-        break;
-      case 'set-budget':
-        setCurrentView('budgeting');
         break;
       default:
         console.log(`Quick action not implemented: ${action}`);
@@ -3214,22 +3240,6 @@ function DashboardContent() {
             💳 Credit Accounts
           </button>
           <button
-            onClick={() => setCurrentView('budgeting')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'budgeting' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'budgeting' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            💼 Budget & Goals
-          </button>
-          <button
             onClick={() => setCurrentView('financial-health')}
             style={{
               flex: 1,
@@ -3309,7 +3319,8 @@ function DashboardContent() {
                   <div style={{ display: 'inline-block', position: 'relative' }}>
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
-                        const total = accounts.reduce((sum, acc) => {
+                        const visibleAccounts = accounts.filter(acc => !acc.ignored);
+                        const total = visibleAccounts.reduce((sum, acc) => {
                           if (acc.accountType === 'credit') {
                             // For credit cards, show available credit (limit - balance)
                             const availableCredit = Math.max(0, (acc.creditLimit || 0) - (acc.balance || 0));
@@ -3324,7 +3335,7 @@ function DashboardContent() {
                         let currentAngle = 0;
                         const colors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
-                        return accounts.map((account, index) => {
+                        return visibleAccounts.map((account, index) => {
                           let displayValue;
                           if (account.accountType === 'credit') {
                             // For credit cards, show available credit
@@ -4459,6 +4470,15 @@ function DashboardContent() {
                             {cat}
                           </div>
                         )}
+                        {categoryBusinessTypes[cat] && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            {categoryBusinessTypes[cat].businessType === 'business' ? (
+                              <span>🏢 Business {categoryBusinessTypes[cat].entityType ? `(${categoryBusinessTypes[cat].entityType})` : ''}</span>
+                            ) : (
+                              <span>👤 Personal</span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -4588,6 +4608,22 @@ function DashboardContent() {
                           >
                             Edit Budget
                           </button>
+                          {cat !== 'Personal' && (
+                            <button
+                              onClick={() => setEditingCategoryBusiness(cat)}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                background: '#8b5cf6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.625rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
                           <button
                             onClick={() => removeCategory(cat)}
                             style={{
@@ -5064,16 +5100,6 @@ function DashboardContent() {
         />
       )}
 
-      {/* Budgeting & Goals Tab */}
-      {currentView === 'budgeting' && (
-        <BudgetingSection
-          isMobile={isMobile}
-          transactions={transactions}
-          bills={bills}
-          oneTimeCosts={oneTimeCosts}
-          accounts={accounts}
-        />
-      )}
 
       {/* Financial Health Tab */}
       {currentView === 'financial-health' && (
@@ -5677,6 +5703,115 @@ function DashboardContent() {
             >
               ✕
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Business Classification Modal */}
+      {editingCategoryBusiness && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '0.75rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            width: isMobile ? '90%' : '400px',
+            maxWidth: '90vw'
+          }}>
+            <h4 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '1rem', color: '#1f2937' }}>
+              🏷️ Classify "{editingCategoryBusiness}"
+            </h4>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+              Set business classification for tax purposes
+            </p>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1f2937' }}>Type</label>
+              <select
+                defaultValue={categoryBusinessTypes[editingCategoryBusiness]?.businessType || 'personal'}
+                id={`businessType-${editingCategoryBusiness}`}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <option value="personal">👤 Personal</option>
+                <option value="business">🏢 Business</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1f2937' }}>Business Entity</label>
+              <select
+                defaultValue={categoryBusinessTypes[editingCategoryBusiness]?.entityType || ''}
+                id={`entityType-${editingCategoryBusiness}`}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <option value="">Select entity type...</option>
+                <option value="Sole Proprietorship">Sole Proprietorship</option>
+                <option value="LLC">LLC</option>
+                <option value="Corporation">Corporation</option>
+                <option value="S-Corp">S-Corp</option>
+                <option value="Partnership">Partnership</option>
+                <option value="Non-Profit">Non-Profit</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setEditingCategoryBusiness(null)}
+                style={{
+                  background: 'white',
+                  color: '#6b7280',
+                  border: '1px solid #d1d5db',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const businessType = document.getElementById(`businessType-${editingCategoryBusiness}`).value;
+                  const entityType = document.getElementById(`entityType-${editingCategoryBusiness}`)?.value || null;
+                  updateCategoryBusiness(editingCategoryBusiness, businessType, entityType);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}
