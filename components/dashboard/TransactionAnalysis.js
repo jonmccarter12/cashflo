@@ -264,7 +264,7 @@ const TransactionAnalysis = ({
 }) => {
   const isMobile = useIsMobile();
   const [selectedBusinessType, setSelectedBusinessType] = useState('sole-proprietorship');
-  const [viewMode, setViewMode] = useState('overview'); // overview, categories, optimization
+  const [viewMode, setViewMode] = useState('transactions'); // transactions, overview, categories, optimization
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   // MULTI-BUSINESS ENTITY SUPPORT
@@ -627,7 +627,7 @@ const TransactionAnalysis = ({
         marginBottom: '2rem',
         justifyContent: 'center'
       }}>
-        {['overview', 'transactions', 'categories', ...(hasBusinessTransactions ? ['businesses'] : []), 'optimization'].map(mode => (
+        {['transactions', 'overview', 'categories', ...(hasBusinessTransactions ? ['businesses'] : []), 'optimization'].map(mode => (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
@@ -649,7 +649,12 @@ const TransactionAnalysis = ({
               transform: viewMode === mode ? 'translateY(-2px)' : 'none'
             }}
           >
-            {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            {mode === 'transactions' ? '📋 Transaction Log' :
+             mode === 'overview' ? '📊 Overview' :
+             mode === 'categories' ? '🏷️ Categories' :
+             mode === 'businesses' ? '🏢 Businesses' :
+             mode === 'optimization' ? '🚀 Optimization' :
+             mode.charAt(0).toUpperCase() + mode.slice(1)}
           </button>
         ))}
       </div>
