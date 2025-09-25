@@ -1780,73 +1780,6 @@ const TransactionAnalysis = ({
             </div>
           </div>
 
-          {/* Transaction Summary Stats - Wave Style */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-            gap: '1rem',
-            marginTop: '2rem'
-          }}>
-            {[
-              {
-                label: 'Total Income',
-                value: categorizedTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
-                color: '#10b981',
-                icon: '📈'
-              },
-              {
-                label: 'Total Expenses',
-                value: Math.abs(categorizedTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
-                color: '#ef4444',
-                icon: '📉'
-              },
-              {
-                label: 'Net Income',
-                value: categorizedTransactions.reduce((sum, t) => sum + t.amount, 0),
-                color: '#3b82f6',
-                icon: '💰'
-              },
-              {
-                label: 'Tax Deductions',
-                value: Math.abs(categorizedTransactions.filter(t => t.amount < 0 && TAX_CATEGORIES[t.taxCategory]?.businessType === 'business').reduce((sum, t) => sum + t.amount, 0)),
-                color: '#8b5cf6',
-                icon: '🎯'
-              }
-            ].map((stat, index) => (
-              <div
-                key={index}
-                style={{
-                  background: `${stat.color}08`,
-                  border: `2px solid ${stat.color}20`,
-                  borderRadius: '16px',
-                  padding: '1.5rem',
-                  textAlign: 'center'
-                }}
-              >
-                <div style={{
-                  fontSize: '1.5rem',
-                  marginBottom: '0.5rem'
-                }}>
-                  {stat.icon}
-                </div>
-                <div style={{
-                  fontSize: '0.8rem',
-                  color: '#6b7280',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500'
-                }}>
-                  {stat.label}
-                </div>
-                <div style={{
-                  fontSize: '1.2rem',
-                  fontWeight: '700',
-                  color: stat.color
-                }}>
-                  {fmt(stat.value)}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -2124,6 +2057,74 @@ const TransactionAnalysis = ({
                     color: '#6b7280'
                   }}>
                     {segment.percentage.toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Transaction Summary Stats - Moved from bottom */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+              gap: '1rem',
+              marginTop: '2rem'
+            }}>
+              {[
+                {
+                  label: 'Total Income',
+                  value: categorizedTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
+                  color: '#10b981',
+                  icon: '📈'
+                },
+                {
+                  label: 'Total Expenses',
+                  value: Math.abs(categorizedTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
+                  color: '#ef4444',
+                  icon: '📉'
+                },
+                {
+                  label: 'Net Income',
+                  value: categorizedTransactions.reduce((sum, t) => sum + t.amount, 0),
+                  color: '#3b82f6',
+                  icon: '💰'
+                },
+                {
+                  label: 'Tax Deductions',
+                  value: Math.abs(categorizedTransactions.filter(t => t.amount < 0 && TAX_CATEGORIES[t.taxCategory]?.businessType === 'business').reduce((sum, t) => sum + t.amount, 0)),
+                  color: '#8b5cf6',
+                  icon: '🎯'
+                }
+              ].map((stat, index) => (
+                <div
+                  key={index}
+                  style={{
+                    background: `${stat.color}08`,
+                    border: `2px solid ${stat.color}20`,
+                    borderRadius: '16px',
+                    padding: '1.5rem',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{
+                    fontSize: '1.5rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {stat.icon}
+                  </div>
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#6b7280',
+                    marginBottom: '0.5rem',
+                    fontWeight: '500'
+                  }}>
+                    {stat.label}
+                  </div>
+                  <div style={{
+                    fontSize: '1.2rem',
+                    fontWeight: '700',
+                    color: stat.color
+                  }}>
+                    {fmt(stat.value)}
                   </div>
                 </div>
               ))}

@@ -4998,16 +4998,14 @@ function DashboardContent() {
       {/* Tax Estimator Tab */}
       {currentView === 'tax' && (
         <ErrorBoundary>
-          <TransactionAnalysis
-          transactions={transactions}
-          bills={bills}
-          oneTimeCosts={oneTimeCosts}
-          accounts={accounts}
-          recurringIncome={recurringIncome}
-          onUpdateTransactionCategory={(transactionId, category) => {
-            console.log('Updating transaction category:', transactionId, category);
-          }}
-        />
+          <TaxSection
+            isMobile={isMobile}
+            transactions={transactions}
+            bills={bills}
+            oneTimeCosts={oneTimeCosts}
+            accounts={accounts}
+            recurringIncome={recurringIncome}
+          />
         </ErrorBoundary>
       )}
 
