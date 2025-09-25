@@ -897,7 +897,7 @@ const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory })
                     <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
                       💰 Advanced Tax Optimization Strategies
                     </div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.9', lineHeight: '1.4' }}>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9, lineHeight: '1.4' }}>
                       <strong>Immediate Actions:</strong><br/>
                       • Max retirement: 401k ($23,000), IRA ($7,000), SEP-IRA (25% of income)<br/>
                       • HSA triple tax advantage: $4,150 individual, $8,300 family<br/>
