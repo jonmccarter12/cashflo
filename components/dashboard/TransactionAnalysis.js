@@ -634,7 +634,7 @@ const TransactionAnalysis = ({
           margin: 0,
           marginBottom: '0.5rem'
         }}>
-          📊 Financial Dashboard
+          📋 Transaction History
         </h1>
         <p style={{
           fontSize: isMobile ? '1.1rem' : '1.25rem',
@@ -642,7 +642,7 @@ const TransactionAnalysis = ({
           margin: 0,
           fontWeight: '500'
         }}>
-          AI-Powered Transaction Analysis • Real-Time Tax Estimation • Business Optimization
+          Professional transaction management with tax intelligence
         </p>
       </div>
 
@@ -1634,7 +1634,7 @@ const TransactionAnalysis = ({
                     fontSize: '1rem',
                     color: amountColor
                   }}>
-                    {isCredit ? '+' : '-'}${fmt(Math.abs(transaction.amount))}
+                    {isCredit ? '+' : '-'}{fmt(Math.abs(transaction.amount))}
                   </div>
 
                   {/* Date */}
@@ -1842,7 +1842,7 @@ const TransactionAnalysis = ({
                   fontWeight: '700',
                   color: stat.color
                 }}>
-                  ${fmt(stat.value)}
+                  {fmt(stat.value)}
                 </div>
               </div>
             ))}
@@ -1901,7 +1901,7 @@ const TransactionAnalysis = ({
                         {businessTransactions.length} transactions
                       </div>
                       <div style={{ fontWeight: '600', fontSize: '1.1rem', color: business.color }}>
-                        Net: ${fmt(businessIncome - businessExpenses)}
+                        Net: {fmt(businessIncome - businessExpenses)}
                       </div>
                     </div>
                   </div>
@@ -1915,7 +1915,7 @@ const TransactionAnalysis = ({
                     }}>
                       <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.25rem' }}>Income</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#059669' }}>
-                        ${fmt(businessIncome)}
+                        {fmt(businessIncome)}
                       </div>
                     </div>
                     <div style={{
@@ -1926,7 +1926,7 @@ const TransactionAnalysis = ({
                     }}>
                       <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.25rem' }}>Expenses</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#dc2626' }}>
-                        ${fmt(businessExpenses)}
+                        {fmt(businessExpenses)}
                       </div>
                     </div>
                   </div>
