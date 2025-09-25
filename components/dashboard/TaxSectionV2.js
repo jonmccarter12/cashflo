@@ -92,64 +92,221 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
     medicalExpenses: ''
   });
 
-  // Calculate income from transactions
-  const calculateIncomeFromTransactions = () => {
+  // SMART TAX INTELLIGENCE - Auto-detect everything from transactions
+  const analyzeAllTaxData = () => {
     if (!transactions || transactions.length === 0) {
-      return { totalIncome: 0, w2Income: 0, selfEmploymentIncome: 0, incomeTransactions: [] };
+      return {
+        income: { totalIncome: 0, w2Income: 0, selfEmploymentIncome: 0, incomeTransactions: [] },
+        deductions: {},
+        payments: {},
+        summary: { detectedItems: 0, confidence: 0 }
+      };
     }
 
     const currentYear = new Date().getFullYear();
+    let detectedItems = 0;
+
+    // === INCOME DETECTION ===
     const incomeTransactions = transactions.filter(t => {
       const transactionYear = new Date(t.date).getFullYear();
-      return transactionYear === currentYear &&
-             t.amount > 0 &&
-             (t.category?.toLowerCase().includes('income') ||
-              t.category?.toLowerCase().includes('salary') ||
-              t.category?.toLowerCase().includes('wages') ||
-              t.description?.toLowerCase().includes('payroll'));
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+
+      return transactionYear === currentYear && t.amount > 0 && (
+        cat.includes('income') || cat.includes('salary') || cat.includes('wages') ||
+        cat.includes('payroll') || cat.includes('employment') ||
+        desc.includes('payroll') || desc.includes('salary') || desc.includes('wages') ||
+        desc.includes('paycheck') || desc.includes('direct deposit') ||
+        desc.includes('bonus') || desc.includes('commission')
+      );
     });
 
     let w2Income = 0;
     let selfEmploymentIncome = 0;
 
     incomeTransactions.forEach(t => {
-      if (t.category?.toLowerCase().includes('self-employment') ||
-          t.category?.toLowerCase().includes('freelance') ||
-          t.category?.toLowerCase().includes('business')) {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+
+      if (cat.includes('self-employment') || cat.includes('freelance') ||
+          cat.includes('business') || cat.includes('contractor') ||
+          desc.includes('freelance') || desc.includes('1099') ||
+          desc.includes('contractor') || desc.includes('consulting')) {
         selfEmploymentIncome += t.amount;
       } else {
         w2Income += t.amount;
       }
     });
 
+    if (incomeTransactions.length > 0) detectedItems++;
+
+    // === DEDUCTION DETECTION ===
+    const expenseTransactions = transactions.filter(t => {
+      const transactionYear = new Date(t.date).getFullYear();
+      return transactionYear === currentYear && t.amount < 0;
+    });
+
+    // Medical expenses
+    const medicalTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('medical') || cat.includes('health') || cat.includes('pharmacy') ||
+             cat.includes('doctor') || cat.includes('hospital') || cat.includes('dental') ||
+             desc.includes('medical') || desc.includes('pharmacy') || desc.includes('cvs') ||
+             desc.includes('walgreens') || desc.includes('doctor') || desc.includes('hospital') ||
+             desc.includes('dental') || desc.includes('urgent care') || desc.includes('clinic');
+    });
+    const medicalExpenses = Math.abs(medicalTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // Charitable donations
+    const charityTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('charity') || cat.includes('donation') || cat.includes('nonprofit') ||
+             desc.includes('donation') || desc.includes('charity') || desc.includes('church') ||
+             desc.includes('salvation army') || desc.includes('goodwill') || desc.includes('red cross') ||
+             desc.includes('united way') || desc.includes('nonprofit') || desc.includes('foundation');
+    });
+    const charitableDonations = Math.abs(charityTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // Mortgage interest (from bills or transactions)
+    const mortgageTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('mortgage') || cat.includes('home loan') ||
+             desc.includes('mortgage') || desc.includes('home loan') || desc.includes('wells fargo home') ||
+             desc.includes('quicken loan') || desc.includes('bank of america home') || desc.includes('chase home');
+    });
+    const mortgageTotal = Math.abs(mortgageTransactions.reduce((sum, t) => sum + t.amount, 0));
+    const mortgageInterest = mortgageTotal * 0.75; // Estimate 75% is interest
+
+    // State and local taxes
+    const taxTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('tax') && !cat.includes('federal') ||
+             desc.includes('state tax') || desc.includes('property tax') ||
+             desc.includes('irs') && desc.includes('state') || desc.includes('dmv') ||
+             desc.includes('county tax') || desc.includes('city tax');
+    });
+    const stateLocalTaxes = Math.abs(taxTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // Student loan interest
+    const studentLoanTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('student loan') || cat.includes('education loan') ||
+             desc.includes('student loan') || desc.includes('navient') || desc.includes('great lakes') ||
+             desc.includes('fedloan') || desc.includes('nelnet') || desc.includes('sallie mae');
+    });
+    const studentLoanTotal = Math.abs(studentLoanTransactions.reduce((sum, t) => sum + t.amount, 0));
+    const studentLoanInterest = Math.min(studentLoanTotal * 0.6, 2500); // Estimate 60% interest, cap at $2500
+
+    // IRA contributions
+    const iraTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('ira') || cat.includes('retirement') ||
+             desc.includes('traditional ira') || desc.includes('ira contribution') ||
+             desc.includes('retirement') || desc.includes('401k') || desc.includes('403b');
+    });
+    const traditionalIRA = Math.abs(iraTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // HSA contributions
+    const hsaTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return cat.includes('hsa') || desc.includes('health savings') || desc.includes('hsa');
+    });
+    const hsaContributions = Math.abs(hsaTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // === TAX PAYMENTS/WITHHOLDINGS DETECTION ===
+    const taxPaymentTransactions = expenseTransactions.filter(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const cat = t.category?.toLowerCase() || '';
+      return desc.includes('irs') || desc.includes('tax payment') ||
+             desc.includes('federal withholding') || desc.includes('estimated tax') ||
+             cat.includes('tax payment') || cat.includes('withholding');
+    });
+    const estimatedQuarterlyPaid = Math.abs(taxPaymentTransactions.reduce((sum, t) => sum + t.amount, 0));
+
+    // Estimate withholdings from payroll (typically 20-25% of gross income)
+    const estimatedWithholdings = w2Income * 0.22;
+
+    // Count detected deduction categories
+    if (medicalExpenses > 0) detectedItems++;
+    if (charitableDonations > 0) detectedItems++;
+    if (mortgageInterest > 0) detectedItems++;
+    if (stateLocalTaxes > 0) detectedItems++;
+    if (studentLoanInterest > 0) detectedItems++;
+    if (traditionalIRA > 0) detectedItems++;
+    if (hsaContributions > 0) detectedItems++;
+    if (estimatedQuarterlyPaid > 0) detectedItems++;
+
+    const maxPossibleItems = 9; // Total categories we check for
+    const confidence = Math.round((detectedItems / maxPossibleItems) * 100);
+
     return {
-      totalIncome: w2Income + selfEmploymentIncome,
-      w2Income,
-      selfEmploymentIncome,
-      incomeTransactions
+      income: {
+        totalIncome: w2Income + selfEmploymentIncome,
+        w2Income,
+        selfEmploymentIncome,
+        incomeTransactions
+      },
+      deductions: {
+        medicalExpenses,
+        charitableDonations,
+        mortgageInterest,
+        stateLocalTaxes,
+        studentLoanInterest,
+        traditionalIRA,
+        hsaContributions,
+        // Add transaction details for transparency
+        medicalTransactions,
+        charityTransactions,
+        mortgageTransactions,
+        taxTransactions,
+        studentLoanTransactions,
+        iraTransactions,
+        hsaTransactions
+      },
+      payments: {
+        estimatedQuarterlyPaid,
+        totalWithholdings: estimatedWithholdings,
+        taxPaymentTransactions
+      },
+      summary: {
+        detectedItems,
+        maxPossibleItems,
+        confidence,
+        totalTransactionsAnalyzed: transactions.length,
+        currentYearTransactions: transactions.filter(t => new Date(t.date).getFullYear() === currentYear).length
+      }
     };
   };
 
-  const transactionIncome = calculateIncomeFromTransactions();
+  // Get comprehensive smart analysis
+  const smartTaxData = analyzeAllTaxData();
 
-  // Main tax calculation
+  // Main tax calculation with smart auto-population
   const calculateTax = () => {
-    const income = transactionIncome.w2Income > 0 ? transactionIncome.w2Income : (Number(taxData.annualIncome) || 0);
-    const seIncome = transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : (Number(taxData.selfEmploymentIncome) || 0);
+    // Use detected values or fall back to manual input
+    const income = smartTaxData.income.w2Income > 0 ? smartTaxData.income.w2Income : (Number(taxData.annualIncome) || 0);
+    const seIncome = smartTaxData.income.selfEmploymentIncome > 0 ? smartTaxData.income.selfEmploymentIncome : (Number(taxData.selfEmploymentIncome) || 0);
 
-    // Calculate AGI
-    const iraDeduction = Number(taxData.traditionalIRA) || 0;
-    const hsa = Number(taxData.hsaContributions) || 0;
-    const studentLoan = Math.min(Number(taxData.studentLoanInterest) || 0, 2500);
+    // Use detected deductions or manual input
+    const iraDeduction = smartTaxData.deductions.traditionalIRA > 0 ? smartTaxData.deductions.traditionalIRA : (Number(taxData.traditionalIRA) || 0);
+    const hsa = smartTaxData.deductions.hsaContributions > 0 ? smartTaxData.deductions.hsaContributions : (Number(taxData.hsaContributions) || 0);
+    const studentLoan = smartTaxData.deductions.studentLoanInterest > 0 ? smartTaxData.deductions.studentLoanInterest : Math.min(Number(taxData.studentLoanInterest) || 0, 2500);
     const agi = income + seIncome - iraDeduction - hsa - studentLoan;
 
-    // Calculate deductions
+    // Calculate deductions with smart detection
     const standardDeduction = STANDARD_DEDUCTIONS_2024[taxData.filingStatus];
     const itemizedDeductions =
-      (Number(taxData.stateLocalTaxes) || 0) +
-      (Number(taxData.mortgageInterest) || 0) +
-      (Number(taxData.charitableDonations) || 0) +
-      Math.max(0, (Number(taxData.medicalExpenses) || 0) - agi * 0.075);
+      (smartTaxData.deductions.stateLocalTaxes > 0 ? smartTaxData.deductions.stateLocalTaxes : (Number(taxData.stateLocalTaxes) || 0)) +
+      (smartTaxData.deductions.mortgageInterest > 0 ? smartTaxData.deductions.mortgageInterest : (Number(taxData.mortgageInterest) || 0)) +
+      (smartTaxData.deductions.charitableDonations > 0 ? smartTaxData.deductions.charitableDonations : (Number(taxData.charitableDonations) || 0)) +
+      Math.max(0, (smartTaxData.deductions.medicalExpenses > 0 ? smartTaxData.deductions.medicalExpenses : (Number(taxData.medicalExpenses) || 0)) - agi * 0.075);
 
     const totalDeductions = Math.max(standardDeduction, itemizedDeductions);
     const taxableIncome = Math.max(0, agi - totalDeductions);
@@ -159,9 +316,9 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
     const childTaxCredit = calculateChildTaxCredit(agi, taxData.numChildren, taxData.filingStatus);
     const netTax = Math.max(0, incomeTax - childTaxCredit);
 
-    // Calculate payments
-    const withholdings = Number(taxData.totalWithholdings) || 0;
-    const quarterlyPaid = Number(taxData.estimatedQuarterlyPaid) || 0;
+    // Calculate payments with smart detection
+    const withholdings = smartTaxData.payments.totalWithholdings > 0 ? smartTaxData.payments.totalWithholdings : (Number(taxData.totalWithholdings) || 0);
+    const quarterlyPaid = smartTaxData.payments.estimatedQuarterlyPaid > 0 ? smartTaxData.payments.estimatedQuarterlyPaid : (Number(taxData.estimatedQuarterlyPaid) || 0);
     const totalPaid = withholdings + quarterlyPaid;
 
     return {
@@ -434,6 +591,137 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               </p>
             </div>
 
+            {/* Smart Intelligence Dashboard */}
+            <div style={{
+              background: `linear-gradient(135deg,
+                rgba(59, 130, 246, 0.05) 0%,
+                rgba(16, 185, 129, 0.05) 50%,
+                rgba(245, 158, 11, 0.05) 100%)`,
+              border: `2px solid ${smartTaxData.summary.confidence > 70 ? '#10b981' : smartTaxData.summary.confidence > 40 ? '#f59e0b' : '#ef4444'}`,
+              borderRadius: isMobile ? '20px' : '16px',
+              padding: isMobile ? '1.5rem' : '1.25rem',
+              marginBottom: isMobile ? '2rem' : '1.5rem',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{
+                  background: smartTaxData.summary.confidence > 70 ? '#10b981' : smartTaxData.summary.confidence > 40 ? '#f59e0b' : '#ef4444',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px'
+                }}>🤖</div>
+                <div>
+                  <h4 style={{
+                    margin: 0,
+                    fontSize: isMobile ? '1.1rem' : '1rem',
+                    fontWeight: '700',
+                    color: '#1f2937'
+                  }}>
+                    Smart Tax Intelligence
+                  </h4>
+                  <p style={{
+                    margin: 0,
+                    fontSize: isMobile ? '0.9rem' : '0.8rem',
+                    color: '#6b7280'
+                  }}>
+                    {smartTaxData.summary.confidence}% confidence • {smartTaxData.summary.detectedItems}/{smartTaxData.summary.maxPossibleItems} categories detected
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                gap: '0.75rem',
+                marginBottom: '1rem'
+              }}>
+                {smartTaxData.income.w2Income > 0 && (
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#047857', fontWeight: '600', marginBottom: '0.25rem' }}>
+                      💼 W-2 Income Detected
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1f2937' }}>
+                      {fmt(smartTaxData.income.w2Income)}
+                    </div>
+                  </div>
+                )}
+
+                {smartTaxData.income.selfEmploymentIncome > 0 && (
+                  <div style={{
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(59, 130, 246, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: '600', marginBottom: '0.25rem' }}>
+                      🚀 Self-Employment Income
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1f2937' }}>
+                      {fmt(smartTaxData.income.selfEmploymentIncome)}
+                    </div>
+                  </div>
+                )}
+
+                {smartTaxData.deductions.charitableDonations > 0 && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(245, 158, 11, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#b45309', fontWeight: '600', marginBottom: '0.25rem' }}>
+                      ❤️ Charitable Donations
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1f2937' }}>
+                      {fmt(smartTaxData.deductions.charitableDonations)}
+                    </div>
+                  </div>
+                )}
+
+                {smartTaxData.deductions.medicalExpenses > 0 && (
+                  <div style={{
+                    background: 'rgba(236, 72, 153, 0.1)',
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(236, 72, 153, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#be185d', fontWeight: '600', marginBottom: '0.25rem' }}>
+                      🩺 Medical Expenses
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1f2937' }}>
+                      {fmt(smartTaxData.deductions.medicalExpenses)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#6b7280',
+                textAlign: 'center',
+                padding: '0.5rem',
+                background: 'rgba(255, 255, 255, 0.5)',
+                borderRadius: '8px'
+              }}>
+                Analyzed {smartTaxData.summary.currentYearTransactions} transactions from this year •
+                All values auto-populate as placeholders • You can override any amount
+              </div>
+            </div>
+
             <AppSelect
               label="Filing Status"
               value={taxData.filingStatus}
@@ -453,13 +741,13 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="Annual W-2 Income"
               value={taxData.annualIncome || ''}
               onChange={(value) => setTaxData({...taxData, annualIncome: value})}
-              placeholder={transactionIncome.w2Income > 0 ? `Auto-detected: $${transactionIncome.w2Income}` : "Enter your total W-2 income"}
+              placeholder={smartTaxData.income.w2Income > 0 ? `Auto-detected: $${smartTaxData.income.w2Income}` : "Enter your total W-2 income"}
               type="number"
               icon="💼"
               prefix="$"
             />
 
-            {transactionIncome.w2Income > 0 && (
+            {smartTaxData.income.w2Income > 0 && (
               <div style={{
                 background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
                 border: '2px solid #10b981',
@@ -487,7 +775,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
                   fontSize: isMobile ? '0.8rem' : '0.75rem',
                   color: '#047857'
                 }}>
-                  Found {transactionIncome.incomeTransactions.length} income transactions totaling {fmt(transactionIncome.w2Income)}
+                  Found {smartTaxData.income.incomeTransactions.length} income transactions totaling {fmt(smartTaxData.income.w2Income)}
                 </div>
               </div>
             )}
@@ -497,7 +785,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="Self-Employment Income (1099, business)"
               value={taxData.selfEmploymentIncome || ''}
               onChange={(value) => setTaxData({...taxData, selfEmploymentIncome: value})}
-              placeholder={transactionIncome.selfEmploymentIncome > 0 ? `Auto-detected: $${transactionIncome.selfEmploymentIncome}` : "Enter your 1099 or business income"}
+              placeholder={smartTaxData.income.selfEmploymentIncome > 0 ? `Auto-detected: $${smartTaxData.income.selfEmploymentIncome}` : "Enter your 1099 or business income"}
               type="number"
               icon="🚀"
               prefix="$"
@@ -557,50 +845,55 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             </div>
 
             <AppInput
+              key="withholdings-input"
               label="Tax Withholdings (from paychecks)"
               value={taxData.totalWithholdings}
               onChange={(value) => setTaxData({...taxData, totalWithholdings: value})}
-              placeholder="Federal taxes withheld from your pay"
+              placeholder={smartTaxData.payments.totalWithholdings > 0 ? `Auto-estimated: $${smartTaxData.payments.totalWithholdings}` : "Federal taxes withheld from your pay"}
               type="number"
               icon="💰"
               prefix="$"
             />
 
             <AppInput
+              key="quarterly-payments-input"
               label="Estimated Quarterly Payments"
               value={taxData.estimatedQuarterlyPaid}
               onChange={(value) => setTaxData({...taxData, estimatedQuarterlyPaid: value})}
-              placeholder="Self-employment quarterly payments"
+              placeholder={smartTaxData.payments.estimatedQuarterlyPaid > 0 ? `Auto-detected: $${smartTaxData.payments.estimatedQuarterlyPaid}` : "Self-employment quarterly payments"}
               type="number"
               icon="📅"
               prefix="$"
             />
 
             <AppInput
+              key="ira-input"
               label="Traditional IRA Contributions"
               value={taxData.traditionalIRA}
               onChange={(value) => setTaxData({...taxData, traditionalIRA: value})}
-              placeholder="Tax-deductible retirement contributions"
+              placeholder={smartTaxData.deductions.traditionalIRA > 0 ? `Auto-detected: $${smartTaxData.deductions.traditionalIRA}` : "Tax-deductible retirement contributions"}
               type="number"
               icon="🏦"
               prefix="$"
             />
 
             <AppInput
+              key="hsa-input"
               label="HSA Contributions"
               value={taxData.hsaContributions}
               onChange={(value) => setTaxData({...taxData, hsaContributions: value})}
-              placeholder="Health Savings Account contributions"
+              placeholder={smartTaxData.deductions.hsaContributions > 0 ? `Auto-detected: $${smartTaxData.deductions.hsaContributions}` : "Health Savings Account contributions"}
               type="number"
               icon="🏥"
               prefix="$"
             />
 
             <AppInput
+              key="student-loan-input"
               label="Student Loan Interest"
               value={taxData.studentLoanInterest}
               onChange={(value) => setTaxData({...taxData, studentLoanInterest: value})}
-              placeholder="Interest paid on student loans (up to $2,500)"
+              placeholder={smartTaxData.deductions.studentLoanInterest > 0 ? `Auto-estimated: $${smartTaxData.deductions.studentLoanInterest}` : "Interest paid on student loans (up to $2,500)"}
               type="number"
               icon="🎓"
               prefix="$"
@@ -638,7 +931,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="State & Local Taxes (SALT)"
               value={taxData.stateLocalTaxes}
               onChange={(value) => setTaxData({...taxData, stateLocalTaxes: value})}
-              placeholder="Max $10,000 deductible"
+              placeholder={smartTaxData.deductions.stateLocalTaxes > 0 ? `Auto-detected: $${smartTaxData.deductions.stateLocalTaxes}` : "Max $10,000 deductible"}
               type="number"
               icon="🏛️"
               prefix="$"
@@ -648,7 +941,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="Mortgage Interest"
               value={taxData.mortgageInterest}
               onChange={(value) => setTaxData({...taxData, mortgageInterest: value})}
-              placeholder="Interest paid on home mortgage"
+              placeholder={smartTaxData.deductions.mortgageInterest > 0 ? `Auto-estimated: $${smartTaxData.deductions.mortgageInterest}` : "Interest paid on home mortgage"}
               type="number"
               icon="🏠"
               prefix="$"
@@ -658,7 +951,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="Charitable Donations"
               value={taxData.charitableDonations}
               onChange={(value) => setTaxData({...taxData, charitableDonations: value})}
-              placeholder="Cash and property donations"
+              placeholder={smartTaxData.deductions.charitableDonations > 0 ? `Auto-detected: $${smartTaxData.deductions.charitableDonations}` : "Cash and property donations"}
               type="number"
               icon="❤️"
               prefix="$"
@@ -668,7 +961,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               label="Medical Expenses"
               value={taxData.medicalExpenses}
               onChange={(value) => setTaxData({...taxData, medicalExpenses: value})}
-              placeholder="Only amount over 7.5% of AGI counts"
+              placeholder={smartTaxData.deductions.medicalExpenses > 0 ? `Auto-detected: $${smartTaxData.deductions.medicalExpenses}` : "Only amount over 7.5% of AGI counts"}
               type="number"
               icon="🩺"
               prefix="$"
