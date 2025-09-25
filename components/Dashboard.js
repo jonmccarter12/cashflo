@@ -1372,6 +1372,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify('Recurring income added successfully!');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error adding recurring income:', error);
@@ -3235,7 +3238,7 @@ function DashboardContent() {
       </div>
 
       {/* Summary Charts Section */}
-      {(currentView === 'dashboard' || currentView === 'history') && (
+      {true && (
         <div style={{
           marginBottom: '1.5rem',
           background: 'white',
@@ -3253,7 +3256,7 @@ function DashboardContent() {
             gap: '1.5rem',
             alignItems: 'start'
           }}>
-            {currentView === 'dashboard' ? (
+            {(currentView === 'overview' || currentView === 'dashboard') ? (
               <>
                 {/* Accounts Pie Chart */}
                 <div style={{ textAlign: 'center' }}>
@@ -3961,7 +3964,7 @@ function DashboardContent() {
           boxSizing: 'border-box'
         }}>
           <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: '0 0 1rem 0' }}>Due This Week</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '500px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '800px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
               const amount = item.bill?.amount || item.otc?.amount;
