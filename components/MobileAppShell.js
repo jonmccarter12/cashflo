@@ -55,7 +55,6 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
     { id: 'history', label: 'Transaction History', icon: Activity, emoji: '📋' },
     { id: 'tax', label: 'Tax Estimator', icon: DollarSign, emoji: '💰' },
     { id: 'credit', label: 'Credit Accounts', icon: CreditCard, emoji: '💳' },
-    { id: 'budgeting', label: 'Budget & Goals', icon: Target, emoji: '💼' },
     { id: 'financial-health', label: 'Financial Health', icon: TrendingUp, emoji: '📈' }
   ];
 
@@ -63,7 +62,6 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
     { label: 'Add Income', icon: Plus, action: 'add-income', color: '#10b981' },
     { label: 'Track Expense', icon: DollarSign, action: 'add-expense', color: '#f59e0b' },
     { label: 'Check Credit', icon: CreditCard, action: 'check-credit', color: '#3b82f6' },
-    { label: 'Set Budget', icon: Target, action: 'set-budget', color: '#8b5cf6' }
   ];
 
   const QuickActionButton = ({ action, icon: Icon, label, color }) => (
