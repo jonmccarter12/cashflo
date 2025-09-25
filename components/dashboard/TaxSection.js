@@ -100,78 +100,91 @@ export const IRS_TAX_CATEGORIES = [
   'Other Deductible'
 ];
 
-// 2024 Tax Brackets (Corrected)
+// 2024 Standard Deductions
+const STANDARD_DEDUCTIONS_2024 = {
+  single: 14600,
+  marriedJoint: 29200,
+  marriedSeparate: 14600,
+  headOfHousehold: 21900,
+  qualifyingWidow: 29200
+};
+
+// 2024 Tax Brackets
 const TAX_BRACKETS_2024 = {
   single: [
-    { min: 0, max: 11000, rate: 0.10 },
-    { min: 11000, max: 44725, rate: 0.12 },
-    { min: 44725, max: 95375, rate: 0.22 },
-    { min: 95375, max: 182050, rate: 0.24 },
-    { min: 182050, max: 231250, rate: 0.32 },
-    { min: 231250, max: 578125, rate: 0.35 },
-    { min: 578125, max: Infinity, rate: 0.37 }
+    { rate: 0.10, min: 0, max: 11000 },
+    { rate: 0.12, min: 11000, max: 44725 },
+    { rate: 0.22, min: 44725, max: 95375 },
+    { rate: 0.24, min: 95375, max: 182050 },
+    { rate: 0.32, min: 182050, max: 231250 },
+    { rate: 0.35, min: 231250, max: 578100 },
+    { rate: 0.37, min: 578100, max: Infinity }
   ],
   marriedJoint: [
-    { min: 0, max: 22000, rate: 0.10 },
-    { min: 22000, max: 89450, rate: 0.12 },
-    { min: 89450, max: 190750, rate: 0.22 },
-    { min: 190750, max: 364200, rate: 0.24 },
-    { min: 364200, max: 462500, rate: 0.32 },
-    { min: 462500, max: 693750, rate: 0.35 },
-    { min: 693750, max: Infinity, rate: 0.37 }
+    { rate: 0.10, min: 0, max: 22000 },
+    { rate: 0.12, min: 22000, max: 89450 },
+    { rate: 0.22, min: 89450, max: 190750 },
+    { rate: 0.24, min: 190750, max: 364200 },
+    { rate: 0.32, min: 364200, max: 462500 },
+    { rate: 0.35, min: 462500, max: 693750 },
+    { rate: 0.37, min: 693750, max: Infinity }
   ],
   marriedSeparate: [
-    { min: 0, max: 11000, rate: 0.10 },
-    { min: 11000, max: 44725, rate: 0.12 },
-    { min: 44725, max: 95375, rate: 0.22 },
-    { min: 95375, max: 182100, rate: 0.24 },
-    { min: 182100, max: 231250, rate: 0.32 },
-    { min: 231250, max: 346875, rate: 0.35 },
-    { min: 346875, max: Infinity, rate: 0.37 }
+    { rate: 0.10, min: 0, max: 11000 },
+    { rate: 0.12, min: 11000, max: 44725 },
+    { rate: 0.22, min: 44725, max: 95375 },
+    { rate: 0.24, min: 95375, max: 182100 },
+    { rate: 0.32, min: 182100, max: 231250 },
+    { rate: 0.35, min: 231250, max: 346875 },
+    { rate: 0.37, min: 346875, max: Infinity }
   ],
   headOfHousehold: [
-    { min: 0, max: 15700, rate: 0.10 },
-    { min: 15700, max: 59850, rate: 0.12 },
-    { min: 59850, max: 95350, rate: 0.22 },
-    { min: 95350, max: 182050, rate: 0.24 },
-    { min: 182050, max: 231250, rate: 0.32 },
-    { min: 231250, max: 578100, rate: 0.35 },
-    { min: 578100, max: Infinity, rate: 0.37 }
+    { rate: 0.10, min: 0, max: 15700 },
+    { rate: 0.12, min: 15700, max: 59850 },
+    { rate: 0.22, min: 59850, max: 95350 },
+    { rate: 0.24, min: 95350, max: 182050 },
+    { rate: 0.32, min: 182050, max: 231250 },
+    { rate: 0.35, min: 231250, max: 578100 },
+    { rate: 0.37, min: 578100, max: Infinity }
   ],
   qualifyingWidow: [
-    { min: 0, max: 22000, rate: 0.10 },
-    { min: 22000, max: 89450, rate: 0.12 },
-    { min: 89450, max: 190750, rate: 0.22 },
-    { min: 190750, max: 364200, rate: 0.24 },
-    { min: 364200, max: 462500, rate: 0.32 },
-    { min: 462500, max: 693750, rate: 0.35 },
-    { min: 693750, max: Infinity, rate: 0.37 }
+    { rate: 0.10, min: 0, max: 22000 },
+    { rate: 0.12, min: 22000, max: 89450 },
+    { rate: 0.22, min: 89450, max: 190750 },
+    { rate: 0.24, min: 190750, max: 364200 },
+    { rate: 0.32, min: 364200, max: 462500 },
+    { rate: 0.35, min: 462500, max: 693750 },
+    { rate: 0.37, min: 693750, max: Infinity }
   ]
 };
 
-// Standard Deductions 2024 (Corrected)
-const STANDARD_DEDUCTIONS_2024 = {
-  single: 13850,
-  marriedJoint: 27700,
-  marriedSeparate: 13850,
-  headOfHousehold: 20800,
-  qualifyingWidow: 27700
+// Calculate income tax for given income and filing status
+const calculateIncomeTax = (income, status) => {
+  const brackets = TAX_BRACKETS_2024[status];
+  let tax = 0;
+  let remainingIncome = income;
+
+  for (const bracket of brackets) {
+    if (remainingIncome <= 0) break;
+
+    const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min);
+    tax += taxableInBracket * bracket.rate;
+    remainingIncome -= taxableInBracket;
+  }
+
+  return tax;
 };
 
-// EITC Income Limits 2024
-const EITC_LIMITS_2024 = {
-  0: { single: 17640, married: 23740 },
-  1: { single: 46560, married: 52918 },
-  2: { single: 51464, married: 57822 },
-  3: { single: 55529, married: 61887 }
-};
+// Calculate self-employment tax
+const calculateSelfEmploymentTax = (seIncome) => {
+  if (seIncome <= 400) return 0;
 
-// EITC Credit Amounts 2024
-const EITC_AMOUNTS_2024 = {
-  0: 632,
-  1: 4213,
-  2: 6960,
-  3: 7830
+  const seTaxableIncome = seIncome * 0.9235; // 92.35% of SE income is subject to SE tax
+  const ssTax = Math.min(seTaxableIncome, 160200) * 0.124; // SS tax on first $160,200 (2024)
+  const medicareTax = seTaxableIncome * 0.029; // Medicare tax on all SE income
+  const additionalMedicare = Math.max(0, seTaxableIncome - 200000) * 0.009; // Additional Medicare tax
+
+  return ssTax + medicareTax + additionalMedicare;
 };
 
 export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts }) {
@@ -227,180 +240,153 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
 
   // Calculate income from transaction data
   const calculateIncomeFromTransactions = () => {
+    if (!transactions || transactions.length === 0) {
+      return {
+        totalIncome: 0,
+        w2Income: 0,
+        selfEmploymentIncome: 0,
+        incomeTransactions: []
+      };
+    }
+
     const currentYear = new Date().getFullYear();
-    const incomeTransactions = transactions.filter(tx => {
-      const txDate = new Date(tx.timestamp);
-      const isCurrentYear = txDate.getFullYear() === currentYear;
-
-      // Look for income-related transaction types and positive amounts
-      const isIncome = (
-        tx.action_type?.includes('income') ||
-        tx.action_type?.includes('credit_received') ||
-        tx.action_type?.includes('payment_received') ||
-        (tx.description && (
-          tx.description.toLowerCase().includes('salary') ||
-          tx.description.toLowerCase().includes('paycheck') ||
-          tx.description.toLowerCase().includes('wage') ||
-          tx.description.toLowerCase().includes('freelance') ||
-          tx.description.toLowerCase().includes('contract') ||
-          tx.description.toLowerCase().includes('bonus') ||
-          tx.description.toLowerCase().includes('commission')
-        ))
-      ) && (tx.details?.amount > 0 || tx.amount > 0);
-
-      return isCurrentYear && isIncome;
+    const incomeTransactions = transactions.filter(t => {
+      const transactionYear = new Date(t.date).getFullYear();
+      return transactionYear === currentYear &&
+             t.amount > 0 &&
+             (t.category?.toLowerCase().includes('income') ||
+              t.category?.toLowerCase().includes('salary') ||
+              t.category?.toLowerCase().includes('wages') ||
+              t.description?.toLowerCase().includes('payroll') ||
+              t.description?.toLowerCase().includes('salary'));
     });
 
-    const totalIncome = incomeTransactions.reduce((sum, tx) => {
-      return sum + (tx.details?.amount || tx.amount || 0);
-    }, 0);
+    let w2Income = 0;
+    let selfEmploymentIncome = 0;
 
-    const selfEmploymentIncome = incomeTransactions
-      .filter(tx =>
-        tx.description?.toLowerCase().includes('freelance') ||
-        tx.description?.toLowerCase().includes('contract') ||
-        tx.description?.toLowerCase().includes('1099') ||
-        tx.action_type?.includes('business')
-      )
-      .reduce((sum, tx) => sum + (tx.details?.amount || tx.amount || 0), 0);
+    incomeTransactions.forEach(t => {
+      if (t.category?.toLowerCase().includes('self-employment') ||
+          t.category?.toLowerCase().includes('freelance') ||
+          t.category?.toLowerCase().includes('business') ||
+          t.description?.toLowerCase().includes('1099')) {
+        selfEmploymentIncome += t.amount;
+      } else {
+        w2Income += t.amount;
+      }
+    });
 
     return {
-      totalIncome,
-      w2Income: totalIncome - selfEmploymentIncome,
+      totalIncome: w2Income + selfEmploymentIncome,
+      w2Income,
       selfEmploymentIncome,
       incomeTransactions
     };
   };
 
-  // Calculate deductible expenses from tracked bills and one-time costs
+  const transactionIncome = calculateIncomeFromTransactions();
+
+  // Calculate tracked tax-deductible expenses from bills and costs
   const calculateTrackedExpenses = () => {
+    const allExpenses = [...(bills || []), ...(oneTimeCosts || [])];
+
+    const deductibleExpenses = allExpenses.filter(expense =>
+      expense.taxCategory &&
+      expense.taxCategory !== 'None/Personal' &&
+      IRS_TAX_CATEGORIES.includes(expense.taxCategory)
+    );
+
+    const categoryTotals = {};
     let total = 0;
-    const breakdown = {};
 
-    // Add bills with categories (excluding 'None/Personal')
-    bills.forEach(bill => {
-      if (bill.taxCategory && bill.taxCategory !== 'None/Personal') {
-        let annualAmount = 0;
-        if (bill.frequency === 'monthly') annualAmount = bill.amount * 12;
-        else if (bill.frequency === 'weekly') annualAmount = bill.amount * 52;
-        else if (bill.frequency === 'biweekly') annualAmount = bill.amount * 26;
-        else if (bill.frequency === 'yearly') annualAmount = bill.amount;
-
-        breakdown[bill.taxCategory] = (breakdown[bill.taxCategory] || 0) + annualAmount;
-        total += annualAmount;
-      }
+    deductibleExpenses.forEach(expense => {
+      const amount = expense.amount || 0;
+      total += amount;
+      categoryTotals[expense.taxCategory] = (categoryTotals[expense.taxCategory] || 0) + amount;
     });
 
-    // Add one-time costs with categories
-    oneTimeCosts.forEach(cost => {
-      if (cost.taxCategory && cost.taxCategory !== 'None/Personal') {
-        breakdown[cost.taxCategory] = (breakdown[cost.taxCategory] || 0) + cost.amount;
-        total += cost.amount;
-      }
-    });
-
-    return { total, breakdown };
-  };
-
-  // Calculate federal income tax using brackets
-  const calculateIncomeTax = (taxableIncome, status) => {
-    const brackets = TAX_BRACKETS_2024[status];
-    let tax = 0;
-
-    for (const bracket of brackets) {
-      if (taxableIncome > bracket.min) {
-        const taxableInBracket = Math.min(taxableIncome - bracket.min, bracket.max - bracket.min);
-        tax += taxableInBracket * bracket.rate;
-      }
-    }
-
-    return tax;
-  };
-
-  // Calculate Self-Employment Tax
-  const calculateSelfEmploymentTax = (seIncome) => {
-    if (seIncome <= 0) return 0;
-    const seIncome92_35 = seIncome * 0.9235; // SE income subject to SE tax
-    const socialSecurityBase = Math.min(seIncome92_35, 168600); // 2024 SS wage base
-    const socialSecurityTax = socialSecurityBase * 0.124; // 12.4%
-    const medicareTax = seIncome92_35 * 0.029; // 2.9%
-
-    // Additional Medicare tax for high earners
-    const additionalMedicareTax = seIncome > 200000 ? (seIncome - 200000) * 0.009 : 0;
-
-    return socialSecurityTax + medicareTax + additionalMedicareTax;
+    return {
+      total,
+      categoryTotals,
+      expenses: deductibleExpenses
+    };
   };
 
   // Calculate Child Tax Credit
-  const calculateChildTaxCredit = (agi, children, status) => {
-    if (children <= 0) return 0;
+  const calculateChildTaxCredit = (agi, numChildren, filingStatus) => {
+    const children = Number(numChildren) || 0;
+    if (children === 0) return 0;
 
+    const creditPerChild = 2000;
+    const maxCredit = children * creditPerChild;
+
+    // Phase-out thresholds for 2024
     const phaseoutThresholds = {
       marriedJoint: 400000,
-      qualifyingWidow: 400000,
       single: 200000,
+      marriedSeparate: 200000,
       headOfHousehold: 200000,
-      marriedSeparate: 200000
+      qualifyingWidow: 400000
     };
 
-    const maxCredit = children * 2000; // $2000 per child under 17
-    const threshold = phaseoutThresholds[status];
-
+    const threshold = phaseoutThresholds[filingStatus];
     if (agi <= threshold) return maxCredit;
 
-    const phaseout = Math.floor((agi - threshold) / 1000) * 50;
-    return Math.max(0, maxCredit - phaseout);
+    // Phase out $50 for every $1,000 over threshold
+    const excess = Math.max(0, agi - threshold);
+    const reduction = Math.ceil(excess / 1000) * 50;
+
+    return Math.max(0, maxCredit - reduction);
   };
 
-  // Calculate EITC
-  const calculateEITC = (agi, children, status) => {
-    const isMarried = status === 'marriedJoint' || status === 'qualifyingWidow';
-    const childrenForEITC = Math.min(children, 3);
-    const limit = EITC_LIMITS_2024[childrenForEITC][isMarried ? 'married' : 'single'];
+  // Calculate Earned Income Tax Credit (EITC)
+  const calculateEITC = (agi, numChildren, filingStatus) => {
+    const children = Number(numChildren) || 0;
 
-    if (agi > limit) return 0;
-
-    const maxCredit = EITC_AMOUNTS_2024[childrenForEITC];
-
-    // Simplified EITC calculation (actual calculation is more complex)
-    if (childrenForEITC === 0) {
-      if (agi <= 8260) return Math.min(agi * 0.0765, maxCredit);
-      return Math.max(0, maxCredit - (agi - 8260) * 0.0765);
-    } else {
-      const phaseInLimit = childrenForEITC === 1 ? 11750 : 16510;
-      const phaseInRate = childrenForEITC === 1 ? 0.34 : childrenForEITC === 2 ? 0.40 : 0.45;
-      const phaseOutStart = childrenForEITC === 1 ? 20130 : 20130;
-      const phaseOutRate = childrenForEITC === 1 ? 0.1598 : childrenForEITC === 2 ? 0.2106 : 0.2106;
-
-      if (agi <= phaseInLimit) {
-        return Math.min(agi * phaseInRate, maxCredit);
-      } else if (agi <= phaseOutStart) {
-        return maxCredit;
-      } else {
-        return Math.max(0, maxCredit - (agi - phaseOutStart) * phaseOutRate);
-      }
-    }
-  };
-
-  // Calculate American Opportunity Tax Credit
-  const calculateEducationCredit = (expenses, agi, status) => {
-    const eduExp = Number(expenses) || 0;
-    if (eduExp <= 0) return 0;
-
-    const phaseoutThresholds = {
-      marriedJoint: 160000,
-      qualifyingWidow: 80000,
-      single: 80000,
-      headOfHousehold: 80000,
-      marriedSeparate: 80000
+    // 2024 EITC parameters
+    const eitcParams = {
+      0: { max: 600, phaseInRate: 0.0765, phaseOutStart: 9800, phaseOutRate: 0.0765 },
+      1: { max: 3995, phaseInRate: 0.34, phaseOutStart: 20330, phaseOutRate: 0.1598 },
+      2: { max: 6604, phaseInRate: 0.40, phaseOutStart: 20330, phaseOutRate: 0.2106 },
+      3: { max: 7430, phaseInRate: 0.45, phaseOutStart: 20330, phaseOutRate: 0.2106 }
     };
 
-    const maxCredit = Math.min(2500, eduExp * 1); // 100% of first $2000, 25% of next $2000
-    const actualCredit = eduExp <= 2000 ? eduExp : 2000 + (eduExp - 2000) * 0.25;
+    const childKey = Math.min(children, 3);
+    const params = eitcParams[childKey];
+
+    if (!params) return 0;
+
+    // Married filing joint gets higher phase-out thresholds
+    const marriedBonus = filingStatus === 'marriedJoint' ? 6900 : 0;
+    const phaseOutStart = params.phaseOutStart + marriedBonus;
+
+    if (agi <= phaseOutStart) {
+      return Math.min(params.max, agi * params.phaseInRate);
+    }
+
+    const phaseOutAmount = (agi - phaseOutStart) * params.phaseOutRate;
+    return Math.max(0, params.max - phaseOutAmount);
+  };
+
+  // Calculate Education Credit (American Opportunity Tax Credit)
+  const calculateEducationCredit = (expenses, agi, filingStatus) => {
+    const educationExp = Number(expenses) || 0;
+    if (educationExp <= 0) return 0;
+
+    // Phase-out ranges for AOTC
+    const phaseoutThresholds = {
+      marriedJoint: 160000,
+      single: 80000,
+      marriedSeparate: 80000,
+      headOfHousehold: 80000,
+      qualifyingWidow: 160000
+    };
+
+    const maxCredit = 2500; // 100% of first $2000, 25% of next $2000
+    const actualCredit = Math.min(2000, educationExp) + Math.min(2000, Math.max(0, educationExp - 2000)) * 0.25;
     const credit = Math.min(maxCredit, actualCredit);
 
-    const threshold = phaseoutThresholds[status];
-    const phaseoutRange = status === 'marriedJoint' ? 20000 : 10000;
+    const threshold = phaseoutThresholds[filingStatus];
+    const phaseoutRange = filingStatus === 'marriedJoint' ? 20000 : 10000;
 
     if (agi <= threshold) return credit;
     if (agi >= threshold + phaseoutRange) return 0;
@@ -423,6 +409,56 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
     }
 
     return qualifyingExpenses * creditRate;
+  };
+
+  // Modern input helper functions
+  const selectAllOnFocus = (e) => {
+    e.target.select();
+    // Clear out zeros when focusing
+    if (e.target.value === '0' || e.target.value === 0) {
+      e.target.value = '';
+    }
+  };
+
+  // Ultra-modern input styling for mobile-first design
+  const getModernInputStyle = (isDisabled = false, isSuccess = false) => ({
+    width: '100%',
+    padding: isMobile ? '1.25rem' : '0.875rem',
+    border: 'none',
+    borderRadius: isMobile ? '20px' : '16px',
+    fontSize: isMobile ? '1.1rem' : '0.9rem',
+    fontWeight: '500',
+    background: isSuccess
+      ? 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)'
+      : 'rgba(255, 255, 255, 0.95)',
+    boxShadow: isSuccess
+      ? '0 8px 20px rgba(34, 197, 94, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+      : '0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    // Remove input arrows on all number inputs - works across browsers
+    WebkitAppearance: 'none',
+    MozAppearance: 'textfield',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    color: isDisabled ? '#6b7280' : '#1f2937'
+  });
+
+  const handleInputFocus = (e) => {
+    selectAllOnFocus(e);
+    if (!e.target.disabled) {
+      e.target.style.background = 'linear-gradient(135deg, #faf5ff 0%, #f3f4f6 100%)';
+      e.target.style.boxShadow = '0 8px 25px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9)';
+      e.target.style.transform = 'translateY(-1px)';
+    }
+  };
+
+  const handleInputBlur = (e) => {
+    if (!e.target.disabled) {
+      e.target.style.background = 'rgba(255, 255, 255, 0.95)';
+      e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+      e.target.style.transform = 'translateY(0)';
+    }
   };
 
   // Main tax calculation
@@ -496,222 +532,138 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
   };
 
   const taxCalc = calculateTax();
-  const transactionIncome = calculateIncomeFromTransactions();
-  const selectAllOnFocus = (e) => e.target.select();
-
-  // Modern input styling helper
-  const getModernInputStyle = (isDisabled = false, isSuccess = false) => ({
-    width: '100%',
-    padding: '0.75rem',
-    border: isSuccess ? '2px solid #10b981' : '2px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    background: isSuccess ? '#f0fdf4' : 'white',
-    boxShadow: isSuccess ? '0 0 0 3px rgba(16, 185, 129, 0.1)' : '0 2px 4px rgba(0, 0, 0, 0.05)',
-    transition: 'all 0.3s ease',
-    outline: 'none'
-  });
-
-  const handleInputFocus = (e) => {
-    selectAllOnFocus(e);
-    if (!e.target.disabled) {
-      e.target.style.borderColor = '#8b5cf6';
-      e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
-    }
-  };
-
-  const handleInputBlur = (e) => {
-    if (!e.target.disabled) {
-      e.target.style.borderColor = '#e5e7eb';
-      e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
-    }
-  };
-
-  // Advanced tax analysis
-  React.useEffect(() => {
-    if (taxProfile.annualIncome || transactionIncome.totalIncome > 0) {
-      const income = Number(taxProfile.annualIncome) || transactionIncome.totalIncome;
-      const adjustedIncome = income * TAX_SCENARIOS[taxScenario].factor;
-
-      const analysis = performComprehensiveTaxAnalysis(adjustedIncome);
-      setTaxAnalysis(analysis);
-
-      const tips = TAX_OPTIMIZER.getOptimizationTips(adjustedIncome, analysis.deductions, taxProfile.filingStatus);
-      setOptimizationTips(tips);
-
-      const quarterly = TAX_OPTIMIZER.calculateQuarterlyPayments(adjustedIncome, analysis.federalTax, analysis.stateTax);
-      setQuarterlyPayments(quarterly);
-    }
-  }, [taxProfile, taxScenario, transactionIncome, bills, oneTimeCosts]);
-
-  const performComprehensiveTaxAnalysis = (income) => {
-    const expenses = [...bills, ...oneTimeCosts];
-    const deductionAnalysis = TAX_OPTIMIZER.analyzeDeductions(expenses, taxProfile.filingStatus, income);
-
-    const standardDeduction = STANDARD_DEDUCTIONS_2024[taxProfile.filingStatus] || 14600;
-    const deduction = deductionAnalysis.recommended === 'itemized' ? deductionAnalysis.itemized : standardDeduction;
-
-    const taxableIncome = Math.max(0, income - deduction);
-    const federalTax = calculateIncomeTax(taxableIncome, taxProfile.filingStatus);
-    const selfEmploymentTax = calculateSelfEmploymentTax(Number(taxProfile.selfEmploymentIncome) || 0);
-    const childTaxCredit = calculateChildTaxCredit(income, taxProfile.numChildren, taxProfile.filingStatus);
-
-    const totalTax = federalTax + selfEmploymentTax - childTaxCredit;
-    const effectiveRate = income > 0 ? (totalTax / income) * 100 : 0;
-    const marginalRate = getMarginalRate(taxableIncome, taxProfile.filingStatus);
-
-    return {
-      income,
-      taxableIncome,
-      standardDeduction,
-      federalTax,
-      selfEmploymentTax,
-      childTaxCredit,
-      totalTax,
-      effectiveRate,
-      marginalRate,
-      stateTax: totalTax * 0.06, // Estimated 6% state tax
-      deductions: deductionAnalysis,
-      refund: (Number(taxProfile.totalWithholdings) || 0) - totalTax
-    };
-  };
-
-  const getMarginalRate = (taxableIncome, status) => {
-    const brackets = TAX_BRACKETS_2024[status];
-    for (const bracket of brackets) {
-      if (taxableIncome > bracket.min && taxableIncome <= bracket.max) {
-        return bracket.rate * 100;
-      }
-    }
-    return 37; // Top rate
-  };
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #ffffff 0%, #fafbff 100%)',
-      padding: isMobile ? '1rem' : '1.5rem',
-      borderRadius: isMobile ? '1rem' : '1.5rem',
+      background: isMobile
+        ? 'linear-gradient(145deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%)'
+        : 'linear-gradient(135deg, #ffffff 0%, #fafbff 100%)',
+      padding: isMobile ? '1.5rem' : '2rem',
+      borderRadius: isMobile ? '24px' : '20px',
       boxShadow: isMobile
-        ? '0 8px 25px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.05)'
-        : '0 20px 40px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08)',
-      border: '1px solid rgba(139, 92, 246, 0.1)',
+        ? '0 12px 40px rgba(139, 92, 246, 0.15), 0 4px 16px rgba(0, 0, 0, 0.05)'
+        : '0 20px 60px rgba(139, 92, 246, 0.12), 0 8px 20px rgba(0, 0, 0, 0.06)',
+      border: '1px solid rgba(139, 92, 246, 0.08)',
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Modern gradient overlay */}
+      {/* Ultra-modern gradient overlay */}
       <div style={{
         position: 'absolute',
         top: 0,
         right: 0,
-        width: '150px',
-        height: '150px',
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(99, 102, 241, 0.03) 100%)',
+        width: isMobile ? '200px' : '250px',
+        height: isMobile ? '200px' : '250px',
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, rgba(99, 102, 241, 0.04) 100%)',
         borderRadius: '50%',
-        transform: 'translate(75px, -75px)',
-        pointerEvents: 'none'
+        transform: isMobile ? 'translate(100px, -100px)' : 'translate(125px, -125px)',
+        pointerEvents: 'none',
+        filter: 'blur(60px)'
       }} />
 
-      {/* Header with modern styling */}
+      {/* Modern mobile-first header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.75rem',
-        marginBottom: '1.5rem',
+        gap: isMobile ? '1rem' : '0.75rem',
+        marginBottom: isMobile ? '2rem' : '1.5rem',
         position: 'relative',
         zIndex: 1
       }}>
         <div style={{
-          width: isMobile ? '40px' : '48px',
-          height: isMobile ? '40px' : '48px',
+          width: isMobile ? '56px' : '48px',
+          height: isMobile ? '56px' : '48px',
           background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
-          borderRadius: '12px',
+          borderRadius: isMobile ? '18px' : '14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 16px rgba(139, 92, 246, 0.3)',
-          fontSize: isMobile ? '18px' : '22px'
+          boxShadow: '0 12px 24px rgba(139, 92, 246, 0.25)',
+          fontSize: isMobile ? '24px' : '20px'
         }}>
-          📊
+          💰
         </div>
         <div>
           <h3 style={{
-            fontSize: isMobile ? '1.25rem' : '1.5rem',
-            fontWeight: '700',
+            fontSize: isMobile ? '1.75rem' : '1.5rem',
+            fontWeight: '800',
             background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             margin: 0,
-            lineHeight: 1.2
+            lineHeight: 1.1,
+            letterSpacing: '-0.02em'
           }}>
-            Tax Calculator
+            Smart Tax Calculator
           </h3>
           <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            margin: '0.25rem 0 0 0',
+            fontSize: isMobile ? '1rem' : '0.875rem',
+            color: '#64748b',
+            margin: '0.5rem 0 0 0',
             fontWeight: '500'
           }}>
-            Smart tax estimation & planning
+            AI-powered tax estimation & planning
           </p>
         </div>
       </div>
 
-      {/* Modern Tab Navigation */}
+      {/* Ultra-modern tab navigation optimized for mobile */}
       <div style={{
         display: 'flex',
-        gap: isMobile ? '0.5rem' : '0.75rem',
-        marginBottom: '2rem',
+        gap: isMobile ? '0.75rem' : '0.5rem',
+        marginBottom: isMobile ? '2.5rem' : '2rem',
         overflowX: 'auto',
         scrollbarWidth: 'none',
         msOverflowStyle: 'none',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        WebkitOverflowScrolling: 'touch'
       }}>
         {[
-          { id: 'calculator', label: isMobile ? 'Calculator' : '📊 Calculator', icon: '📊' },
-          { id: 'planning', label: isMobile ? 'Planning' : '📈 Planning', icon: '📈' },
-          { id: 'quarterly', label: isMobile ? 'Quarterly' : '📅 Quarterly', icon: '📅' },
-          { id: 'optimization', label: isMobile ? 'Tips' : '🎯 Tips', icon: '🎯' },
-          { id: 'scenarios', label: isMobile ? 'Scenarios' : '🔮 Scenarios', icon: '🔮' }
+          { id: 'calculator', label: isMobile ? '📊 Calculate' : '📊 Calculator', icon: '📊' },
+          { id: 'planning', label: isMobile ? '📈 Plan' : '📈 Planning', icon: '📈' },
+          { id: 'quarterly', label: isMobile ? '📅 Quarterly' : '📅 Quarterly', icon: '📅' },
+          { id: 'optimization', label: isMobile ? '🎯 Tips' : '🎯 Tips', icon: '🎯' },
+          { id: 'scenarios', label: isMobile ? '🔮 Scenarios' : '🔮 Scenarios', icon: '🔮' }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1.25rem',
+              padding: isMobile ? '0.875rem 1.25rem' : '0.75rem 1rem',
               background: activeTab === tab.id
                 ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'
-                : 'rgba(255, 255, 255, 0.7)',
-              color: activeTab === tab.id ? 'white' : '#6b7280',
-              border: activeTab === tab.id
-                ? '1px solid rgba(139, 92, 246, 0.3)'
-                : '1px solid rgba(0, 0, 0, 0.1)',
-              borderRadius: '12px',
-              fontWeight: activeTab === tab.id ? '600' : '500',
-              fontSize: isMobile ? '0.75rem' : '0.875rem',
+                : 'rgba(255, 255, 255, 0.8)',
+              color: activeTab === tab.id ? 'white' : '#64748b',
+              border: 'none',
+              borderRadius: isMobile ? '16px' : '12px',
+              fontWeight: activeTab === tab.id ? '700' : '500',
+              fontSize: isMobile ? '0.875rem' : '0.8rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              transition: 'all 0.3s ease',
+              flexShrink: 0,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               boxShadow: activeTab === tab.id
-                ? '0 4px 12px rgba(139, 92, 246, 0.25)'
-                : '0 2px 4px rgba(0, 0, 0, 0.05)',
+                ? '0 8px 16px rgba(139, 92, 246, 0.25)'
+                : '0 2px 8px rgba(0, 0, 0, 0.06)',
               backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)'
+              WebkitBackdropFilter: 'blur(10px)',
+              transform: 'translateY(0)',
+              letterSpacing: '-0.01em'
             }}
             onMouseEnter={(e) => {
               if (activeTab !== tab.id) {
-                e.target.style.background = 'rgba(139, 92, 246, 0.1)';
-                e.target.style.transform = 'translateY(-1px)';
-                e.target.style.boxShadow = '0 4px 8px rgba(139, 92, 246, 0.15)';
+                e.target.style.background = 'rgba(139, 92, 246, 0.08)';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.15)';
               }
             }}
             onMouseLeave={(e) => {
               if (activeTab !== tab.id) {
-                e.target.style.background = 'rgba(255, 255, 255, 0.7)';
+                e.target.style.background = 'rgba(255, 255, 255, 0.8)';
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
               }
             }}
           >
@@ -720,78 +672,77 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
         ))}
       </div>
 
+      {/* Modern card-based layout */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: isMobile ? '1rem' : '2rem',
+        gap: isMobile ? '1.5rem' : '2rem',
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Modern Input Card */}
+        {/* Ultra-modern input card */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '16px',
-          padding: isMobile ? '1rem' : '1.5rem',
-          boxShadow: '0 8px 25px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-          border: '1px solid rgba(139, 92, 246, 0.08)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)'
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: isMobile ? '24px' : '20px',
+          padding: isMobile ? '1.75rem' : '2rem',
+          boxShadow: '0 12px 32px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          border: '1px solid rgba(139, 92, 246, 0.06)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
+          {/* Card header */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '1.25rem'
+            gap: isMobile ? '0.75rem' : '0.5rem',
+            marginBottom: isMobile ? '2rem' : '1.5rem'
           }}>
             <div style={{
-              width: '32px',
-              height: '32px',
+              width: isMobile ? '40px' : '32px',
+              height: isMobile ? '40px' : '32px',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              borderRadius: '8px',
+              borderRadius: isMobile ? '12px' : '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px'
+              fontSize: isMobile ? '20px' : '16px',
+              boxShadow: '0 6px 12px rgba(16, 185, 129, 0.25)'
             }}>
               💰
             </div>
             <h4 style={{
-              fontSize: isMobile ? '1rem' : '1.125rem',
+              fontSize: isMobile ? '1.25rem' : '1.1rem',
               fontWeight: '700',
               color: '#1f2937',
-              margin: 0
+              margin: 0,
+              letterSpacing: '-0.01em'
             }}>
               Income & Filing Info
             </h4>
           </div>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+          {/* Filing status */}
+          <div style={{ marginBottom: isMobile ? '1.5rem' : '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: isMobile ? '0.95rem' : '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: isMobile ? '0.75rem' : '0.5rem'
+            }}>
               Filing Status:
             </label>
             <select
               value={taxProfile.filingStatus}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, filingStatus: e.target.value }))}
               style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                background: 'white',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                transition: 'all 0.3s ease',
-                outline: 'none'
+                ...getModernInputStyle(),
+                cursor: 'pointer'
               }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#8b5cf6';
-                e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
-              }}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
             >
               <option value="single">Single</option>
               <option value="marriedJoint">Married Filing Jointly</option>
@@ -801,12 +752,26 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </select>
           </div>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+          {/* Annual income */}
+          <div style={{ marginBottom: isMobile ? '1.5rem' : '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: isMobile ? '0.95rem' : '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: isMobile ? '0.75rem' : '0.5rem'
+            }}>
               Annual W-2/1099 Income:
               {transactionIncome.w2Income > 0 && (
-                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '400', marginLeft: '0.5rem' }}>
-                  (Auto-calculated from transactions: {fmt(transactionIncome.w2Income)})
+                <span style={{
+                  fontSize: isMobile ? '0.8rem' : '0.75rem',
+                  color: '#059669',
+                  fontWeight: '500',
+                  marginLeft: '0.5rem',
+                  display: isMobile ? 'block' : 'inline',
+                  marginTop: isMobile ? '0.25rem' : '0'
+                }}>
+                  Auto-calculated from transactions: {fmt(transactionIncome.w2Income)}
                 </span>
               )}
             </label>
@@ -822,12 +787,26 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             />
           </div>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+          {/* Self-employment income */}
+          <div style={{ marginBottom: isMobile ? '1.5rem' : '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: isMobile ? '0.95rem' : '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: isMobile ? '0.75rem' : '0.5rem'
+            }}>
               Self-Employment Income:
               {transactionIncome.selfEmploymentIncome > 0 && (
-                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '400', marginLeft: '0.5rem' }}>
-                  (Auto-calculated: {fmt(transactionIncome.selfEmploymentIncome)})
+                <span style={{
+                  fontSize: isMobile ? '0.8rem' : '0.75rem',
+                  color: '#059669',
+                  fontWeight: '500',
+                  marginLeft: '0.5rem',
+                  display: isMobile ? 'block' : 'inline',
+                  marginTop: isMobile ? '0.25rem' : '0'
+                }}>
+                  Auto-calculated: {fmt(transactionIncome.selfEmploymentIncome)}
                 </span>
               )}
             </label>
@@ -835,28 +814,42 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
               type="number"
               value={transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : taxProfile.selfEmploymentIncome}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, selfEmploymentIncome: e.target.value }))}
-              onFocus={selectAllOnFocus}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder={transactionIncome.selfEmploymentIncome > 0 ? "Auto-calculated from transactions" : "1099 income, business profits"}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: `1px solid ${transactionIncome.selfEmploymentIncome > 0 ? '#059669' : '#d1d5db'}`,
-                borderRadius: '0.375rem',
-                background: transactionIncome.selfEmploymentIncome > 0 ? '#f0fdf4' : 'white'
-              }}
+              style={getModernInputStyle(transactionIncome.selfEmploymentIncome > 0, transactionIncome.selfEmploymentIncome > 0)}
               disabled={transactionIncome.selfEmploymentIncome > 0}
             />
           </div>
 
-          {(transactionIncome.totalIncome > 0) && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #d1fae5', borderRadius: '0.375rem', padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#059669', marginBottom: '0.25rem' }}>
-                📊 Income Auto-Detected from Transactions
+          {/* Auto-detected income alert */}
+          {transactionIncome.totalIncome > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+              border: '1px solid #bbf7d0',
+              borderRadius: isMobile ? '16px' : '12px',
+              padding: isMobile ? '1.25rem' : '1rem',
+              marginBottom: isMobile ? '1.5rem' : '1rem'
+            }}>
+              <div style={{
+                fontSize: isMobile ? '0.95rem' : '0.875rem',
+                fontWeight: '700',
+                color: '#059669',
+                marginBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                🎯 Income Auto-Detected
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#065f46' }}>
+              <div style={{
+                fontSize: isMobile ? '0.85rem' : '0.75rem',
+                color: '#065f46',
+                lineHeight: 1.5
+              }}>
                 Found {transactionIncome.incomeTransactions.length} income transactions for {new Date().getFullYear()}
                 <br />
-                Total Income: {fmt(transactionIncome.totalIncome)}
+                <strong>Total Income: {fmt(transactionIncome.totalIncome)}</strong>
                 {transactionIncome.selfEmploymentIncome > 0 && (
                   <span> (W-2: {fmt(transactionIncome.w2Income)}, Self-Employment: {fmt(transactionIncome.selfEmploymentIncome)})</span>
                 )}
@@ -864,348 +857,371 @@ export default function TaxSection({ isMobile, transactions, bills, oneTimeCosts
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          {/* Children and dependents - mobile-optimized grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: isMobile ? '1.25rem' : '1rem',
+            marginBottom: isMobile ? '1.5rem' : '1rem'
+          }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+              <label style={{
+                display: 'block',
+                fontSize: isMobile ? '0.95rem' : '0.875rem',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: isMobile ? '0.75rem' : '0.5rem'
+              }}>
                 Children Under 17:
               </label>
               <input
                 type="number"
                 value={taxProfile.numChildren}
                 onChange={(e) => setTaxProfile(prev => ({ ...prev, numChildren: Math.max(0, Number(e.target.value)) }))}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+                style={getModernInputStyle()}
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+              <label style={{
+                display: 'block',
+                fontSize: isMobile ? '0.95rem' : '0.875rem',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: isMobile ? '0.75rem' : '0.5rem'
+              }}>
                 Other Dependents:
               </label>
               <input
                 type="number"
                 value={taxProfile.numOtherDependents}
                 onChange={(e) => setTaxProfile(prev => ({ ...prev, numOtherDependents: Math.max(0, Number(e.target.value)) }))}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+                style={getModernInputStyle()}
               />
             </div>
           </div>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+          {/* Withholdings */}
+          <div style={{ marginBottom: isMobile ? '1.5rem' : '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: isMobile ? '0.95rem' : '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: isMobile ? '0.75rem' : '0.5rem'
+            }}>
               Total Tax Withholdings:
             </label>
             <input
               type="number"
               value={taxProfile.totalWithholdings}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, totalWithholdings: e.target.value }))}
-              onFocus={selectAllOnFocus}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder="Federal tax withheld from paychecks"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              style={getModernInputStyle()}
             />
           </div>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+          {/* Quarterly payments */}
+          <div style={{ marginBottom: isMobile ? '1.5rem' : '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: isMobile ? '0.95rem' : '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: isMobile ? '0.75rem' : '0.5rem'
+            }}>
               Estimated Quarterly Payments:
             </label>
             <input
               type="number"
               value={taxProfile.estimatedQuarterlyPaid}
               onChange={(e) => setTaxProfile(prev => ({ ...prev, estimatedQuarterlyPaid: e.target.value }))}
-              onFocus={selectAllOnFocus}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder="Self-employment quarterly payments"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              style={getModernInputStyle()}
             />
           </div>
 
-          {/* Collapsible sections for other deductions */}
-          <details style={{ marginBottom: '0.75rem' }}>
-            <summary style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              🏦 Retirement Contributions
-            </summary>
-            <div style={{ paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Traditional 401(k)/403(b):
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.traditional401k}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, traditional401k: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Traditional IRA:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.traditionalIRA}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, traditionalIRA: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  HSA Contributions:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.hsaContributions}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, hsaContributions: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-            </div>
-          </details>
-
-          <details style={{ marginBottom: '0.75rem' }}>
-            <summary style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              🎓 Education & Childcare
-            </summary>
-            <div style={{ paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Qualified Education Expenses:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.educationExpenses}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, educationExpenses: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Student Loan Interest:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.studentLoanInterest}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, studentLoanInterest: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Dependent Care Expenses:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.dependentCareExpenses}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, dependentCareExpenses: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-            </div>
-          </details>
-
-          <details style={{ marginBottom: '0.75rem' }}>
-            <summary style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              🏠 Itemized Deductions
-            </summary>
-            <div style={{ paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  State & Local Taxes (SALT):
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.stateLocalTaxes}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, stateLocalTaxes: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  placeholder="Max $10,000"
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Mortgage Interest:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.mortgageInterest}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, mortgageInterest: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Charitable Donations:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.charitableDonations}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, charitableDonations: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  Medical Expenses:
-                </label>
-                <input
-                  type="number"
-                  value={taxProfile.medicalExpenses}
-                  onChange={(e) => setTaxProfile(prev => ({ ...prev, medicalExpenses: e.target.value }))}
-                  onFocus={selectAllOnFocus}
-                  placeholder="Only amount over 7.5% AGI counts"
-                  style={{ width: '100%', padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                />
-              </div>
-            </div>
-          </details>
         </div>
 
-        {/* Results Section */}
-        <div>
-          <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '0.75rem' }}>
-            Tax Calculation Results
+        {/* Modern results section */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: isMobile ? '24px' : '20px',
+          padding: isMobile ? '1.75rem' : '2rem',
+          boxShadow: '0 12px 32px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          border: '1px solid rgba(139, 92, 246, 0.06)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)'
+        }}>
+          <h4 style={{
+            fontSize: isMobile ? '1.25rem' : '1.1rem',
+            fontWeight: '700',
+            color: '#374151',
+            marginBottom: isMobile ? '1.5rem' : '1rem',
+            letterSpacing: '-0.01em'
+          }}>
+            💡 Tax Calculation Results
           </h4>
 
-          <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', marginBottom: '1rem' }}>
-            <h5 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>Income & AGI</h5>
+          {/* Income summary card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+            padding: isMobile ? '1.5rem' : '1.25rem',
+            borderRadius: isMobile ? '16px' : '12px',
+            border: '1px solid #e5e7eb',
+            marginBottom: isMobile ? '1.5rem' : '1rem'
+          }}>
+            <h5 style={{
+              fontSize: isMobile ? '1rem' : '0.875rem',
+              fontWeight: '700',
+              color: '#374151',
+              marginBottom: isMobile ? '1rem' : '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              💰 Income & AGI
+            </h5>
 
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div style={{
+              marginBottom: isMobile ? '0.75rem' : '0.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: isMobile ? '0.875rem' : '0.8rem'
+            }}>
               <span style={{ color: '#6b7280' }}>Total Income:</span>
-              <span style={{ fontWeight: '600' }}>{fmt((Number(taxProfile.annualIncome) || 0) + (Number(taxProfile.selfEmploymentIncome) || 0))}</span>
+              <span style={{ fontWeight: '700', color: '#1f2937' }}>{fmt((Number(taxProfile.annualIncome) || 0) + (Number(taxProfile.selfEmploymentIncome) || 0))}</span>
             </div>
 
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div style={{
+              marginBottom: 0,
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: isMobile ? '0.875rem' : '0.8rem'
+            }}>
               <span style={{ color: '#6b7280' }}>Adjusted Gross Income:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.agi)}</span>
+              <span style={{ fontWeight: '700', color: '#059669' }}>{fmt(taxCalc.agi)}</span>
             </div>
           </div>
 
-          <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', marginBottom: '1rem' }}>
-            <h5 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>Deductions</h5>
+          {/* Tax calculation card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)',
+            padding: isMobile ? '1.5rem' : '1.25rem',
+            borderRadius: isMobile ? '16px' : '12px',
+            border: '1px solid #fcd34d',
+            marginBottom: isMobile ? '1.5rem' : '1rem'
+          }}>
+            <h5 style={{
+              fontSize: isMobile ? '1rem' : '0.875rem',
+              fontWeight: '700',
+              color: '#374151',
+              marginBottom: isMobile ? '1rem' : '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              🧮 Tax Calculation
+            </h5>
 
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-              <span style={{ color: '#6b7280' }}>Standard Deduction:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.standardDeduction)}</span>
-            </div>
-
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-              <span style={{ color: '#6b7280' }}>Itemized Deductions:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.itemizedDeductions)}</span>
-            </div>
-
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-              <span style={{ color: '#6b7280' }}>Using:</span>
-              <span style={{ fontWeight: '600', color: taxCalc.usingItemized ? '#059669' : '#6b7280' }}>
-                {taxCalc.usingItemized ? 'Itemized' : 'Standard'}
-              </span>
-            </div>
-
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-              <span style={{ color: '#6b7280' }}>Tracked Deductible Expenses:</span>
-              <span style={{ fontWeight: '600', color: '#059669' }}>{fmt(taxCalc.trackedExpenses.total)}</span>
-            </div>
-          </div>
-
-          <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', marginBottom: '1rem' }}>
-            <h5 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>Tax Calculation</h5>
-
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div style={{
+              marginBottom: isMobile ? '0.75rem' : '0.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: isMobile ? '0.875rem' : '0.8rem'
+            }}>
               <span style={{ color: '#6b7280' }}>Taxable Income:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.taxableIncome)}</span>
+              <span style={{ fontWeight: '700' }}>{fmt(taxCalc.taxableIncome)}</span>
             </div>
 
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div style={{
+              marginBottom: isMobile ? '0.75rem' : '0.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: isMobile ? '0.875rem' : '0.8rem'
+            }}>
               <span style={{ color: '#6b7280' }}>Income Tax:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.incomeTax)}</span>
+              <span style={{ fontWeight: '700' }}>{fmt(taxCalc.incomeTax)}</span>
             </div>
 
             {taxCalc.seTax > 0 && (
-              <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+              <div style={{
+                marginBottom: isMobile ? '0.75rem' : '0.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: isMobile ? '0.875rem' : '0.8rem'
+              }}>
                 <span style={{ color: '#6b7280' }}>Self-Employment Tax:</span>
-                <span style={{ fontWeight: '600' }}>{fmt(taxCalc.seTax)}</span>
+                <span style={{ fontWeight: '700' }}>{fmt(taxCalc.seTax)}</span>
               </div>
             )}
 
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-              <span style={{ color: '#6b7280' }}>Total Tax Before Credits:</span>
-              <span style={{ fontWeight: '600' }}>{fmt(taxCalc.grossTax)}</span>
+            <div style={{
+              marginBottom: 0,
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: isMobile ? '0.875rem' : '0.8rem',
+              paddingTop: isMobile ? '0.75rem' : '0.5rem',
+              borderTop: '1px solid #fbbf24'
+            }}>
+              <span style={{ color: '#374151', fontWeight: '700' }}>Total Tax Before Credits:</span>
+              <span style={{ fontWeight: '700', color: '#d97706' }}>{fmt(taxCalc.grossTax)}</span>
             </div>
           </div>
 
-          <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #d1fae5', marginBottom: '1rem' }}>
-            <h5 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>Tax Credits</h5>
+          {/* Credits card */}
+          {taxCalc.totalCredits > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+              padding: isMobile ? '1.5rem' : '1.25rem',
+              borderRadius: isMobile ? '16px' : '12px',
+              border: '1px solid #bbf7d0',
+              marginBottom: isMobile ? '1.5rem' : '1rem'
+            }}>
+              <h5 style={{
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                fontWeight: '700',
+                color: '#374151',
+                marginBottom: isMobile ? '1rem' : '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                🎁 Tax Credits
+              </h5>
 
-            {taxCalc.childTaxCredit > 0 && (
-              <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: '#6b7280' }}>Child Tax Credit:</span>
-                <span style={{ fontWeight: '600', color: '#059669' }}>-{fmt(taxCalc.childTaxCredit)}</span>
+              {taxCalc.childTaxCredit > 0 && (
+                <div style={{
+                  marginBottom: isMobile ? '0.75rem' : '0.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: isMobile ? '0.875rem' : '0.8rem'
+                }}>
+                  <span style={{ color: '#6b7280' }}>Child Tax Credit:</span>
+                  <span style={{ fontWeight: '700', color: '#059669' }}>-{fmt(taxCalc.childTaxCredit)}</span>
+                </div>
+              )}
+
+              {taxCalc.eitc > 0 && (
+                <div style={{
+                  marginBottom: isMobile ? '0.75rem' : '0.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: isMobile ? '0.875rem' : '0.8rem'
+                }}>
+                  <span style={{ color: '#6b7280' }}>Earned Income Credit:</span>
+                  <span style={{ fontWeight: '700', color: '#059669' }}>-{fmt(taxCalc.eitc)}</span>
+                </div>
+              )}
+
+              <div style={{
+                marginBottom: 0,
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: isMobile ? '0.875rem' : '0.8rem',
+                paddingTop: isMobile ? '0.75rem' : '0.5rem',
+                borderTop: '1px solid #bbf7d0'
+              }}>
+                <span style={{ color: '#374151', fontWeight: '700' }}>Total Credits:</span>
+                <span style={{ fontWeight: '700', color: '#059669' }}>-{fmt(taxCalc.totalCredits)}</span>
               </div>
-            )}
-
-            {taxCalc.eitc > 0 && (
-              <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: '#6b7280' }}>Earned Income Credit:</span>
-                <span style={{ fontWeight: '600', color: '#059669' }}>-{fmt(taxCalc.eitc)}</span>
-              </div>
-            )}
-
-            {taxCalc.educationCredit > 0 && (
-              <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: '#6b7280' }}>Education Credit:</span>
-                <span style={{ fontWeight: '600', color: '#059669' }}>-{fmt(taxCalc.educationCredit)}</span>
-              </div>
-            )}
-
-            {taxCalc.dependentCareCredit > 0 && (
-              <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: '#6b7280' }}>Dependent Care Credit:</span>
-                <span style={{ fontWeight: '600', color: '#059669' }}>-{fmt(taxCalc.dependentCareCredit)}</span>
-              </div>
-            )}
-
-            <div style={{ marginBottom: '0.375rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', paddingTop: '0.375rem', borderTop: '1px solid #d1fae5' }}>
-              <span style={{ color: '#374151', fontWeight: '600' }}>Total Credits:</span>
-              <span style={{ fontWeight: '600', color: '#059669' }}>-{fmt(taxCalc.totalCredits)}</span>
             </div>
-          </div>
+          )}
 
-          <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Net Tax Owed:</span>
-              <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(taxCalc.netTax)}</span>
+          {/* Final result card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            padding: isMobile ? '1.75rem' : '1.5rem',
+            borderRadius: isMobile ? '18px' : '14px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{
+              marginBottom: isMobile ? '1rem' : '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                color: '#6b7280',
+                fontWeight: '600'
+              }}>Net Tax Owed:</span>
+              <span style={{
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                fontWeight: '700'
+              }}>{fmt(taxCalc.netTax)}</span>
             </div>
 
-            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Total Payments:</span>
-              <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{fmt(taxCalc.totalPaid)}</span>
+            <div style={{
+              marginBottom: isMobile ? '1rem' : '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                color: '#6b7280',
+                fontWeight: '600'
+              }}>Total Payments:</span>
+              <span style={{
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                fontWeight: '700'
+              }}>{fmt(taxCalc.totalPaid)}</span>
             </div>
 
-            <hr style={{ margin: '0.75rem 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+            <hr style={{
+              margin: isMobile ? '1.25rem 0' : '1rem 0',
+              border: 'none',
+              borderTop: '2px solid #e2e8f0'
+            }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '1rem', fontWeight: '600', color: '#374151' }}>
-                {taxCalc.refundOrOwed >= 0 ? 'Estimated Refund:' : 'Estimated Amount Owed:'}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{
+                fontSize: isMobile ? '1.25rem' : '1.1rem',
+                fontWeight: '700',
+                color: '#374151'
+              }}>
+                {taxCalc.refundOrOwed >= 0 ? '🎉 Estimated Refund:' : '💸 Estimated Amount Owed:'}
               </span>
               <span style={{
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                color: taxCalc.refundOrOwed >= 0 ? '#059669' : '#dc2626'
+                fontSize: isMobile ? '1.5rem' : '1.25rem',
+                fontWeight: '800',
+                color: taxCalc.refundOrOwed >= 0 ? '#059669' : '#dc2626',
+                textShadow: taxCalc.refundOrOwed >= 0
+                  ? '0 1px 3px rgba(5, 150, 105, 0.3)'
+                  : '0 1px 3px rgba(220, 38, 38, 0.3)'
               }}>
                 {fmt(Math.abs(taxCalc.refundOrOwed))}
               </span>
             </div>
           </div>
 
-          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.75rem', fontStyle: 'italic' }}>
+          {/* Disclaimer */}
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.75rem',
+            color: '#6b7280',
+            marginTop: isMobile ? '1.25rem' : '1rem',
+            fontStyle: 'italic',
+            lineHeight: 1.4
+          }}>
             * This is a comprehensive estimate using 2024 tax law. Results may vary based on specific circumstances. Consult a tax professional for complete accuracy.
             {taxCalc.usingItemized && (
-              <div style={{ marginTop: '0.25rem', color: '#059669' }}>
-                💡 You benefit from itemizing deductions! Itemized deductions save you {fmt(taxCalc.itemizedDeductions - taxCalc.standardDeduction)} over the standard deduction.
+              <div style={{
+                marginTop: isMobile ? '0.75rem' : '0.5rem',
+                color: '#059669',
+                fontWeight: '600'
+              }}>
+                💡 You benefit from itemizing deductions! You save {fmt(taxCalc.itemizedDeductions - taxCalc.standardDeduction)} over the standard deduction.
               </div>
             )}
           </div>

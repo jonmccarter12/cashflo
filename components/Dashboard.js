@@ -3791,7 +3791,7 @@ function DashboardContent() {
         {/* Income & Credits */}
         <div style={{
           background: 'white',
-          padding: isMobile ? '0.25rem' : '0.75rem',
+          padding: isMobile ? '0.25rem' : '1.5rem',
           borderRadius: isMobile ? '0.25rem' : '1rem',
           boxShadow: isMobile ? '0 1px 2px rgba(0, 0, 0, 0.05)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb',
@@ -3948,7 +3948,7 @@ function DashboardContent() {
         {/* Due This Week */}
         <div style={{
           background: 'white',
-          padding: isMobile ? '0.25rem' : '0.75rem',
+          padding: isMobile ? '0.25rem' : '1.5rem',
           borderRadius: isMobile ? '0.25rem' : '1rem',
           boxShadow: isMobile ? '0 1px 2px rgba(0, 0, 0, 0.05)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           border: '1px solid #e5e7eb',
@@ -3959,7 +3959,7 @@ function DashboardContent() {
           margin: '0',
           boxSizing: 'border-box'
         }}>
-          <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: 0 }}>Due This Week</h3>
+          <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: '0 0 1rem 0' }}>Due This Week</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '500px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));

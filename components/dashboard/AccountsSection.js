@@ -286,6 +286,127 @@ export default function AccountsSection({
                   </div>
                 </div>
 
+                {/* Smart Payment Strategy - Positioned under balance, left-aligned */}
+                {account.balance > 0 && account.apr > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                    border: '1px solid rgba(79, 70, 229, 0.3)',
+                    borderRadius: '0.5rem',
+                    padding: isMobile ? '0.5rem' : '0.75rem',
+                    marginBottom: '0.5rem',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    <div style={{
+                      fontSize: isMobile ? '0.6rem' : '0.7rem',
+                      color: '#a5b4fc',
+                      marginBottom: isMobile ? '0.5rem' : '0.75rem',
+                      fontWeight: '700',
+                      textAlign: 'left'
+                    }}>
+                      💡 Smart Payment Strategy
+                    </div>
+
+                    {/* Always horizontal layout for both mobile and desktop */}
+                    <div style={{
+                      display: 'flex',
+                      gap: isMobile ? '0.375rem' : '0.5rem',
+                      justifyContent: 'flex-start',
+                      alignItems: 'stretch',
+                      flexWrap: 'wrap'
+                    }}>
+                      {/* Minimum Payment */}
+                      <div style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        padding: isMobile ? '0.375rem' : '0.5rem',
+                        borderRadius: '0.375rem',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        flex: isMobile ? '1' : '0 0 auto',
+                        minWidth: isMobile ? '80px' : '120px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontSize: isMobile ? '0.55rem' : '0.65rem',
+                          color: '#fca5a5',
+                          fontWeight: '600',
+                          marginBottom: '0.25rem'
+                        }}>
+                          Min (4%)
+                        </div>
+                        <div style={{
+                          fontSize: isMobile ? '0.75rem' : '0.85rem',
+                          color: '#ef4444',
+                          fontWeight: '700'
+                        }}>
+                          ${(account.balance * 0.04).toFixed(0)}
+                        </div>
+                      </div>
+
+                      {/* Smart Payment */}
+                      <div style={{
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        padding: isMobile ? '0.375rem' : '0.5rem',
+                        borderRadius: '0.375rem',
+                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                        flex: isMobile ? '1' : '0 0 auto',
+                        minWidth: isMobile ? '80px' : '120px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontSize: isMobile ? '0.55rem' : '0.65rem',
+                          color: '#86efac',
+                          fontWeight: '600',
+                          marginBottom: '0.25rem'
+                        }}>
+                          Smart
+                        </div>
+                        <div style={{
+                          fontSize: isMobile ? '0.75rem' : '0.85rem',
+                          color: '#22c55e',
+                          fontWeight: '700'
+                        }}>
+                          ${Math.max(account.balance * 0.04, account.balance / 24).toFixed(0)}
+                        </div>
+                      </div>
+
+                      {/* Savings */}
+                      <div style={{
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        borderRadius: '0.375rem',
+                        padding: isMobile ? '0.375rem' : '0.5rem',
+                        flex: isMobile ? '1' : '0 0 auto',
+                        minWidth: isMobile ? '80px' : '120px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontSize: isMobile ? '0.5rem' : '0.6rem',
+                          color: '#a5b4fc',
+                          fontWeight: '600',
+                          marginBottom: '0.25rem'
+                        }}>
+                          Save
+                        </div>
+                        <div style={{
+                          fontSize: isMobile ? '0.7rem' : '0.8rem',
+                          color: '#6366f1',
+                          fontWeight: '700'
+                        }}>
+                          ${(() => {
+                            const monthlyRate = account.apr / 100 / 12;
+                            const minPayment = account.balance * 0.04;
+                            const minMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
+                            const minTotalInterest = (minPayment * minMonths) - account.balance;
+                            const smartTotalInterest = Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance;
+                            const savings = Math.max(0, minTotalInterest - smartTotalInterest);
+                            return savings.toFixed(0);
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Credit utilization bar */}
                 {account.creditLimit > 0 && (
                   <div style={{ marginBottom: '0.5rem' }}>
@@ -330,189 +451,6 @@ export default function AccountsSection({
                   </div>
                 </div>
 
-                {/* Smart Payment Analysis - Completely Redesigned */}
-                {account.balance > 0 && account.apr > 0 && (
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
-                    border: '1px solid rgba(79, 70, 229, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: isMobile ? '0.375rem' : '0.5rem',
-                    width: '100%',
-                    maxWidth: '100%',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      fontSize: isMobile ? '0.55rem' : '0.65rem',
-                      color: '#a5b4fc',
-                      marginBottom: isMobile ? '0.125rem' : '0.25rem',
-                      fontWeight: '600',
-                      textAlign: 'center'
-                    }}>
-                      💡 Smart Payment Strategy
-                    </div>
-
-                    {isMobile ? (
-                      /* Mobile: Compact single-row layout */
-                      <div style={{
-                        display: 'flex',
-                        gap: '0.25rem',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        width: '100%',
-                        maxWidth: '100%',
-                        boxSizing: 'border-box'
-                      }}>
-                        <div style={{
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          padding: '0.25rem',
-                          borderRadius: '0.25rem',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          flex: '1',
-                          textAlign: 'center',
-                          minWidth: 0
-                        }}>
-                          <div style={{ fontSize: '0.45rem', color: '#fca5a5', fontWeight: '500' }}>Min</div>
-                          <div style={{ fontSize: '0.5rem', color: '#ef4444', fontWeight: '700' }}>
-                            ${(account.balance * 0.04).toFixed(0)}
-                          </div>
-                        </div>
-
-                        <div style={{
-                          background: 'rgba(34, 197, 94, 0.1)',
-                          padding: '0.25rem',
-                          borderRadius: '0.25rem',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          flex: '1',
-                          textAlign: 'center',
-                          minWidth: 0
-                        }}>
-                          <div style={{ fontSize: '0.45rem', color: '#86efac', fontWeight: '500' }}>Smart</div>
-                          <div style={{ fontSize: '0.5rem', color: '#22c55e', fontWeight: '700' }}>
-                            ${Math.max(account.balance * 0.04, account.balance / 24).toFixed(0)}
-                          </div>
-                        </div>
-
-                        <div style={{
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
-                          borderRadius: '0.25rem',
-                          padding: '0.25rem',
-                          flex: '1',
-                          textAlign: 'center',
-                          minWidth: 0
-                        }}>
-                          <div style={{ fontSize: '0.4rem', color: '#a5b4fc', fontWeight: '600' }}>Save</div>
-                          <div style={{ fontSize: '0.45rem', color: '#6366f1', fontWeight: '700' }}>
-                            ${(() => {
-                              const monthlyRate = account.apr / 100 / 12;
-                              const minPayment = account.balance * 0.04;
-                              const minMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                              const minTotalInterest = (minPayment * minMonths) - account.balance;
-                              const smartTotalInterest = Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance;
-                              const savings = Math.max(0, minTotalInterest - smartTotalInterest);
-                              return savings.toFixed(0);
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Desktop: Horizontal layout with more details */
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                        gap: '0.5rem',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          padding: '0.5rem',
-                          borderRadius: '0.375rem',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '0.6rem', color: '#fca5a5', fontWeight: '500', marginBottom: '0.125rem' }}>
-                            Minimum Payment
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '700', marginBottom: '0.125rem' }}>
-                            ${(account.balance * 0.04).toFixed(0)}
-                          </div>
-                          <div style={{ fontSize: '0.55rem', color: '#f87171' }}>
-                            {(() => {
-                              const monthlyRate = account.apr / 100 / 12;
-                              const minPayment = account.balance * 0.04;
-                              if (minPayment <= account.balance * monthlyRate) return '∞ months';
-                              return `${Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate))} months`;
-                            })()}
-                          </div>
-                        </div>
-
-                        <div style={{
-                          background: 'rgba(34, 197, 94, 0.1)',
-                          padding: '0.5rem',
-                          borderRadius: '0.375rem',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '0.6rem', color: '#86efac', fontWeight: '500', marginBottom: '0.125rem' }}>
-                            Smart Payment
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: '700', marginBottom: '0.125rem' }}>
-                            ${Math.max(account.balance * 0.04, account.balance / 24).toFixed(0)}
-                          </div>
-                          <div style={{ fontSize: '0.55rem', color: '#4ade80' }}>24 months</div>
-                        </div>
-
-                        <div style={{
-                          background: 'rgba(245, 158, 11, 0.1)',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          borderRadius: '0.375rem',
-                          padding: '0.5rem',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '0.55rem', color: '#fbbf24', fontWeight: '600', marginBottom: '0.125rem' }}>
-                            Interest Cost
-                          </div>
-                          <div style={{ fontSize: '0.5rem', color: '#f59e0b', lineHeight: '1.2' }}>
-                            Min: ${(() => {
-                              const monthlyRate = account.apr / 100 / 12;
-                              const minPayment = account.balance * 0.04;
-                              const months = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                              return ((minPayment * months) - account.balance).toFixed(0);
-                            })()}
-                          </div>
-                          <div style={{ fontSize: '0.5rem', color: '#f59e0b', lineHeight: '1.2' }}>
-                            Smart: ${(Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance).toFixed(0)}
-                          </div>
-                        </div>
-
-                        <div style={{
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
-                          borderRadius: '0.375rem',
-                          padding: '0.5rem',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '0.6rem', color: '#a5b4fc', fontWeight: '600', marginBottom: '0.125rem' }}>
-                            💰 Total Savings
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: '700' }}>
-                            ${(() => {
-                              const monthlyRate = account.apr / 100 / 12;
-                              const minPayment = account.balance * 0.04;
-                              const minMonths = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                              const minTotalInterest = (minPayment * minMonths) - account.balance;
-                              const smartTotalInterest = Math.max(account.balance * 0.04, account.balance / 24) * 24 - account.balance;
-                              const savings = Math.max(0, minTotalInterest - smartTotalInterest);
-                              return savings.toFixed(0);
-                            })()}
-                          </div>
-                          <div style={{ fontSize: '0.5rem', color: '#a5b4fc' }}>with smart plan</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             );
           }

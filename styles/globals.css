@@ -3,3 +3,35 @@ body {
   padding: 0;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* Global modern input styling - removes arrows and improves mobile UX */
+input[type="number"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Auto-select text on focus for better UX */
+input[type="number"]:focus,
+input[type="text"]:focus {
+  user-select: all;
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  -ms-user-select: all;
+}
+
+/* Improved mobile input styling */
+@media (max-width: 768px) {
+  input[type="number"],
+  input[type="text"],
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    border-radius: 12px;
+    padding: 12px;
+  }
+}
