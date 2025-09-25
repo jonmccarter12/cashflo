@@ -23,7 +23,8 @@
       "WebSearch",
       "Bash(tasklist:*)",
       "Bash(cmd /c:*)",
-      "WebFetch(domain:dribbble.com)"
+      "WebFetch(domain:dribbble.com)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

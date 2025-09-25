@@ -2764,10 +2764,13 @@ const TransactionAnalysis = ({
                 <button
                   onClick={() => {
                     // Save category settings
-                    console.log('Saving category settings:', {
-                      category: editingCategory,
-                      settings: categorySettings[editingCategory]
-                    });
+                    // Development only logging
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Saving category settings:', {
+                        category: editingCategory,
+                        settings: categorySettings[editingCategory]
+                      });
+                    }
                     setEditingCategory(null);
                   }}
                   style={{

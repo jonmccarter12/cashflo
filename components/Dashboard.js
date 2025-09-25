@@ -4626,7 +4626,8 @@ function DashboardContent() {
 
       {/* Ultimate Transaction Analysis Tab */}
       {currentView === 'history' && featuresLoaded.advanced && (
-        <TransactionAnalysis
+        <ErrorBoundary>
+          <TransactionAnalysis
           transactions={transactions}
           bills={bills}
           oneTimeCosts={oneTimeCosts}
@@ -4637,6 +4638,7 @@ function DashboardContent() {
             console.log('Updating transaction category:', transactionId, category);
           }}
         />
+        </ErrorBoundary>
       )}
 
       {/* Legacy Transaction History Tab - Keep as fallback */}
@@ -4995,7 +4997,8 @@ function DashboardContent() {
 
       {/* Tax Estimator Tab */}
       {currentView === 'tax' && (
-        <TransactionAnalysis
+        <ErrorBoundary>
+          <TransactionAnalysis
           transactions={transactions}
           bills={bills}
           oneTimeCosts={oneTimeCosts}
@@ -5005,6 +5008,7 @@ function DashboardContent() {
             console.log('Updating transaction category:', transactionId, category);
           }}
         />
+        </ErrorBoundary>
       )}
 
       {/* Credit Accounts Tab */}
