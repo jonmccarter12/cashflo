@@ -427,7 +427,7 @@ const TransactionAnalysis = ({
           businessId: assignedBusinessId,
           businessName: businessEntities.find(b => b.id === assignedBusinessId)?.name || 'Personal',
           autoDetected: maxMatches > 0,
-          confidence: maxMatches / Math.max((TAX_CATEGORIES[bestMatch]?.keywords || []).length, 1)
+          confidence: maxMatches / Math.max((bestMatch && TAX_CATEGORIES[bestMatch]?.keywords || []).length, 1)
         };
       });
   }, [allFinancialData, businessEntities, transactionBusinessAssignments]);
@@ -2684,7 +2684,7 @@ const TransactionAnalysis = ({
                     <input
                       type="text"
                       placeholder="e.g., adobe, photoshop, design, studio"
-                      value={categorySettings[editingCategory]?.keywords || ''}
+                      value={(editingCategory && categorySettings[editingCategory]?.keywords) || ''}
                       onChange={(e) => setCategorySettings(prev => ({
                         ...prev,
                         [editingCategory]: {
