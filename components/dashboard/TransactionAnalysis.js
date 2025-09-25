@@ -528,7 +528,7 @@ const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory })
         marginBottom: '2rem',
         justifyContent: 'center'
       }}>
-        {['overview', 'categories', ...(hasBusinessTransactions ? ['businesses'] : []), 'optimization'].map(mode => (
+        {['overview', 'transactions', 'categories', ...(hasBusinessTransactions ? ['businesses'] : []), 'optimization'].map(mode => (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
@@ -1159,6 +1159,424 @@ const TransactionAnalysis = ({ transactions = [], onUpdateTransactionCategory })
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRANSACTIONS VIEW - Wave/QuickBooks-style Transaction Management */}
+      {viewMode === 'transactions' && (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '24px',
+          padding: '2rem',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '2rem',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '800',
+                color: '#1f2937',
+                margin: 0,
+                marginBottom: '0.25rem'
+              }}>
+                📊 Advanced Transaction Management
+              </h3>
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#6b7280',
+                margin: 0
+              }}>
+                Wave & QuickBooks-style transaction management with AI categorization
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {/* Add import functionality */}}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                📥 Import
+              </button>
+              <button
+                onClick={() => {/* Add export functionality */}}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+              >
+                📤 Export
+              </button>
+              <button
+                onClick={() => {/* Add new transaction */}}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                }}
+              >
+                ➕ Add Transaction
+              </button>
+            </div>
+          </div>
+
+          {/* Advanced Filters & Search - Wave/QuickBooks Style */}
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+              gap: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Search transactions..."
+                style={{
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color 0.3s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              />
+
+              <select
+                style={{
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option>All Categories</option>
+                {Object.keys(TAX_CATEGORIES).map(category => (
+                  <option key={category}>{category}</option>
+                ))}
+              </select>
+
+              <select
+                style={{
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option>All Businesses</option>
+                {businessEntities.map(business => (
+                  <option key={business.id}>{business.name}</option>
+                ))}
+              </select>
+
+              <select
+                style={{
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option>All Time</option>
+                <option>This Month</option>
+                <option>Last Month</option>
+                <option>This Quarter</option>
+                <option>This Year</option>
+              </select>
+            </div>
+
+            {/* Quick Filter Buttons */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {[
+                { label: 'All', color: '#6b7280' },
+                { label: 'Income', color: '#10b981' },
+                { label: 'Expenses', color: '#ef4444' },
+                { label: 'Business', color: '#3b82f6' },
+                { label: 'Personal', color: '#8b5cf6' },
+                { label: 'Uncategorized', color: '#f59e0b' }
+              ].map(filter => (
+                <button
+                  key={filter.label}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: filter.color,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    opacity: 0.8,
+                    transition: 'opacity 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.opacity = '1'}
+                  onMouseLeave={(e) => e.target.style.opacity = '0.8'}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Enhanced Transaction Table - Wave/QuickBooks Style */}
+          <div style={{
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            backgroundColor: 'white'
+          }}>
+            {/* Table Header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile
+                ? '2fr 1fr 1fr'
+                : '2fr 1fr 1fr 1.5fr 1fr 1fr 0.5fr',
+              padding: '1rem',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              borderBottom: '1px solid #e2e8f0',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              color: '#374151'
+            }}>
+              <div>Description</div>
+              <div style={{ textAlign: 'center' }}>Amount</div>
+              <div style={{ textAlign: 'center' }}>Date</div>
+              {!isMobile && <div style={{ textAlign: 'center' }}>Category</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Business</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Tax Impact</div>}
+              {!isMobile && <div style={{ textAlign: 'center' }}>Actions</div>}
+            </div>
+
+            {/* Transaction Rows */}
+            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              {categorizedTransactions.slice(0, 20).map((transaction, index) => (
+                <div
+                  key={transaction.id || index}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile
+                      ? '2fr 1fr 1fr'
+                      : '2fr 1fr 1fr 1.5fr 1fr 1fr 0.5fr',
+                    padding: '1rem',
+                    borderBottom: index < 19 ? '1px solid #f1f5f9' : 'none',
+                    alignItems: 'center',
+                    fontSize: '0.9rem',
+                    transition: 'background-color 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fafbff'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {/* Description */}
+                  <div style={{
+                    fontWeight: '500',
+                    color: '#1f2937'
+                  }}>
+                    <div>{transaction.description}</div>
+                    {isMobile && (
+                      <div style={{
+                        fontSize: '0.8rem',
+                        color: '#6b7280',
+                        marginTop: '0.25rem'
+                      }}>
+                        {transaction.taxCategory} • {transaction.businessName}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: transaction.amount > 0 ? '#059669' : '#dc2626'
+                  }}>
+                    {transaction.amount > 0 ? '+' : ''}${fmt(Math.abs(transaction.amount))}
+                  </div>
+
+                  {/* Date */}
+                  <div style={{
+                    textAlign: 'center',
+                    color: '#6b7280'
+                  }}>
+                    {new Date(transaction.date).toLocaleDateString()}
+                  </div>
+
+                  {/* Category - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center'
+                    }}>
+                      <span style={{
+                        background: TAX_CATEGORIES[transaction.taxCategory]?.color || '#6b7280',
+                        color: 'white',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '12px',
+                        fontSize: '0.8rem',
+                        fontWeight: '500'
+                      }}>
+                        {transaction.taxCategory}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Business - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center',
+                      color: '#6b7280'
+                    }}>
+                      {transaction.businessName}
+                    </div>
+                  )}
+
+                  {/* Tax Impact - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center',
+                      fontWeight: '500',
+                      color: transaction.amount < 0 ? '#059669' : '#6b7280'
+                    }}>
+                      {transaction.amount < 0 ? 'Deductible' : 'Taxable'}
+                    </div>
+                  )}
+
+                  {/* Actions - Desktop Only */}
+                  {!isMobile && (
+                    <div style={{
+                      textAlign: 'center'
+                    }}>
+                      <button
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '1.2rem',
+                          cursor: 'pointer',
+                          opacity: 0.6,
+                          transition: 'opacity 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => e.target.style.opacity = '1'}
+                        onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                        title="Edit Transaction"
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Transaction Summary Stats - Wave Style */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+            gap: '1rem',
+            marginTop: '2rem'
+          }}>
+            {[
+              {
+                label: 'Total Income',
+                value: categorizedTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
+                color: '#10b981',
+                icon: '📈'
+              },
+              {
+                label: 'Total Expenses',
+                value: Math.abs(categorizedTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
+                color: '#ef4444',
+                icon: '📉'
+              },
+              {
+                label: 'Net Income',
+                value: categorizedTransactions.reduce((sum, t) => sum + t.amount, 0),
+                color: '#3b82f6',
+                icon: '💰'
+              },
+              {
+                label: 'Tax Deductions',
+                value: Math.abs(categorizedTransactions.filter(t => t.amount < 0 && TAX_CATEGORIES[t.taxCategory]?.businessType === 'business').reduce((sum, t) => sum + t.amount, 0)),
+                color: '#8b5cf6',
+                icon: '🎯'
+              }
+            ].map((stat, index) => (
+              <div
+                key={index}
+                style={{
+                  background: `${stat.color}08`,
+                  border: `2px solid ${stat.color}20`,
+                  borderRadius: '16px',
+                  padding: '1.5rem',
+                  textAlign: 'center'
+                }}
+              >
+                <div style={{
+                  fontSize: '1.5rem',
+                  marginBottom: '0.5rem'
+                }}>
+                  {stat.icon}
+                </div>
+                <div style={{
+                  fontSize: '0.8rem',
+                  color: '#6b7280',
+                  marginBottom: '0.5rem',
+                  fontWeight: '500'
+                }}>
+                  {stat.label}
+                </div>
+                <div style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '700',
+                  color: stat.color
+                }}>
+                  ${fmt(stat.value)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
