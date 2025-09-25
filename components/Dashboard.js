@@ -18,7 +18,7 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
-import TaxSection from './dashboard/TaxSection';
+import TaxSection from './dashboard/TaxSectionV2';
 import CreditRepairSection from './dashboard/CreditRepairSection';
 import BudgetingSection from './dashboard/BudgetingSection';
 import FinancialHealthSection from './dashboard/FinancialHealthSection';
