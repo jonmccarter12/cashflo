@@ -202,7 +202,8 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             top: '50%',
             transform: 'translateY(-50%)',
             fontSize: '1.1rem',
-            zIndex: 1
+            zIndex: 1,
+            pointerEvents: 'none'
           }}>
             {icon}
           </div>
@@ -216,7 +217,8 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             fontSize: '1rem',
             fontWeight: '600',
             color: '#6b7280',
-            zIndex: 1
+            zIndex: 1,
+            pointerEvents: 'none'
           }}>
             {prefix}
           </div>
@@ -231,6 +233,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             padding: isMobile ? '1rem' : '0.875rem',
             paddingLeft: prefix ? (icon ? '4rem' : '2.5rem') : (icon ? '2.5rem' : '1rem'),
             paddingRight: suffix ? '3rem' : '1rem',
+            minHeight: isMobile ? '48px' : '44px',
             border: '2px solid #f3f4f6',
             borderRadius: isMobile ? '16px' : '12px',
             fontSize: isMobile ? '1rem' : '0.9rem',
@@ -241,7 +244,8 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             outline: 'none',
             boxSizing: 'border-box',
             WebkitAppearance: 'none',
-            MozAppearance: 'textfield'
+            MozAppearance: 'textfield',
+            touchAction: 'manipulation'
           }}
           onFocus={(e) => {
             e.target.style.borderColor = '#3b82f6';
@@ -499,7 +503,11 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
               prefix="$"
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+              gap: isMobile ? '0.75rem' : '1rem'
+            }}>
               <AppInput
                 key="children-input"
                 label="Children Under 17"
