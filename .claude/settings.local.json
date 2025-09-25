@@ -22,7 +22,8 @@
       "Bash(npx next lint:*)",
       "WebSearch",
       "Bash(tasklist:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "WebFetch(domain:dribbble.com)"
     ],
     "deny": [],
     "ask": []

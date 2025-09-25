@@ -25,6 +25,7 @@ import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
 import DebtManagementSection from './dashboard/DebtManagementSection';
 import TransactionImport from './TransactionImport';
+import TransactionAnalysis from './dashboard/TransactionAnalysis';
 import MobileAppShell from './MobileAppShell';
 // Lazy load for performance
 
@@ -3132,7 +3133,7 @@ function DashboardContent() {
               transition: 'all 0.2s ease'
             }}
           >
-            📋 Transaction History
+🧠 Tax Intelligence
           </button>
           <button
             onClick={() => setCurrentView('tax')}
@@ -3148,7 +3149,7 @@ function DashboardContent() {
               transition: 'all 0.2s ease'
             }}
           >
-            💰 Tax Estimator
+            🏆 Ultimate Tax Intelligence
           </button>
           <button
             onClick={() => setCurrentView('credit')}
@@ -4623,8 +4624,19 @@ function DashboardContent() {
         </>
       )}
 
-      {/* Transaction History Tab */}
+      {/* Ultimate Transaction Analysis Tab */}
       {currentView === 'history' && featuresLoaded.advanced && (
+        <TransactionAnalysis
+          transactions={transactions}
+          onUpdateTransactionCategory={(transactionId, category) => {
+            // Handle transaction category updates
+            console.log('Updating transaction category:', transactionId, category);
+          }}
+        />
+      )}
+
+      {/* Legacy Transaction History Tab - Keep as fallback */}
+      {currentView === 'legacy-history' && featuresLoaded.advanced && (
         <div style={{ background: 'white', padding: '0.75rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>Transaction History</h3>
@@ -4979,11 +4991,11 @@ function DashboardContent() {
 
       {/* Tax Estimator Tab */}
       {currentView === 'tax' && (
-        <TaxSection
-          isMobile={isMobile}
+        <TransactionAnalysis
           transactions={transactions}
-          bills={bills}
-          oneTimeCosts={oneTimeCosts}
+          onUpdateTransactionCategory={(transactionId, category) => {
+            console.log('Updating transaction category:', transactionId, category);
+          }}
         />
       )}
 
