@@ -445,10 +445,11 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             />
 
             <AppInput
+              key="w2-income-input"
               label="Annual W-2 Income"
-              value={transactionIncome.w2Income > 0 ? transactionIncome.w2Income : taxData.annualIncome}
+              value={taxData.annualIncome || ''}
               onChange={(value) => setTaxData({...taxData, annualIncome: value})}
-              placeholder="Enter your total W-2 income"
+              placeholder={transactionIncome.w2Income > 0 ? `Auto-detected: $${transactionIncome.w2Income}` : "Enter your total W-2 income"}
               type="number"
               icon="💼"
               prefix="$"
@@ -488,10 +489,11 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
             )}
 
             <AppInput
+              key="self-employment-input"
               label="Self-Employment Income (1099, business)"
-              value={transactionIncome.selfEmploymentIncome > 0 ? transactionIncome.selfEmploymentIncome : taxData.selfEmploymentIncome}
+              value={taxData.selfEmploymentIncome || ''}
               onChange={(value) => setTaxData({...taxData, selfEmploymentIncome: value})}
-              placeholder="Enter your 1099 or business income"
+              placeholder={transactionIncome.selfEmploymentIncome > 0 ? `Auto-detected: $${transactionIncome.selfEmploymentIncome}` : "Enter your 1099 or business income"}
               type="number"
               icon="🚀"
               prefix="$"
@@ -499,6 +501,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <AppInput
+                key="children-input"
                 label="Children Under 17"
                 value={taxData.numChildren}
                 onChange={(value) => setTaxData({...taxData, numChildren: Math.max(0, Number(value))})}
@@ -507,6 +510,7 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
                 icon="👶"
               />
               <AppInput
+                key="other-dependents-input"
                 label="Other Dependents"
                 value={taxData.numOtherDependents}
                 onChange={(value) => setTaxData({...taxData, numOtherDependents: Math.max(0, Number(value))})}
