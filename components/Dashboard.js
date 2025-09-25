@@ -673,6 +673,7 @@ function DashboardContent() {
   const [editingCategoryName, setEditingCategoryName] = React.useState(null);
   const [tempCategoryName, setTempCategoryName] = React.useState('');
   const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
+  const [autoDeductPopup, setAutoDeductPopup] = React.useState(null); // { amount, accountName, newBalance, billName }
   const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
   const [accountsView, setAccountsView] = React.useState('debit'); // 'debit' or 'credit'
 
@@ -1976,6 +1977,48 @@ function DashboardContent() {
         );
 
         if (transaction) {
+          // Handle auto-deduct when marking as paid
+          if (!isPaid && (autoDeductCash || autoDeductBank)) {
+            const deductAccount = getDefaultAutoDeductAccount();
+            const account = accounts.find(a => a.id === deductAccount);
+
+            if (account) {
+              const newBalance = account.balance - b.amount;
+
+              // Create account balance adjustment transaction
+              const balanceTransaction = await logTransaction(
+                supabase,
+                user.id,
+                'account_balance_adjusted',
+                account.id,
+                {
+                  old_balance: account.balance,
+                  new_balance: newBalance,
+                  reason: `Auto-deduct for ${b.name}`
+                },
+                `Auto-deducted ${fmt(b.amount)} for ${b.name} from ${account.name}`
+              );
+
+              if (balanceTransaction) {
+                // Show auto-deduct popup
+                setAutoDeductPopup({
+                  amount: b.amount,
+                  accountName: account.name,
+                  newBalance: newBalance,
+                  billName: b.name
+                });
+
+                // Auto-fade popup after 3 seconds
+                setTimeout(() => {
+                  setAutoDeductPopup(null);
+                }, 3000);
+
+                // Optimistic update for balance transaction
+                setTransactions(prev => [...prev, balanceTransaction]);
+              }
+            }
+          }
+
           notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
           // Optimistic update - add transaction to local state immediately
           setTransactions(prev => [...prev, transaction]);
@@ -5552,6 +5595,88 @@ function DashboardContent() {
                 Confirm
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Deduct Popup */}
+      {autoDeductPopup && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white',
+          padding: '1.5rem',
+          borderRadius: '0.75rem',
+          boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
+          zIndex: 1100,
+          minWidth: '320px',
+          maxWidth: '400px',
+          transition: 'all 0.4s ease-out',
+          transform: 'translateX(0) scale(1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1rem'
+          }}>
+            <div style={{
+              fontSize: '1.5rem',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              💳
+            </div>
+            <div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.25rem' }}>
+                Auto-Deducted
+              </div>
+              <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                {autoDeductPopup.billName} payment processed
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: '0.9rem', lineHeight: '1.5', opacity: 0.95 }}>
+            <div style={{ marginBottom: '0.5rem' }}>
+              <strong>{fmt(autoDeductPopup.amount)}</strong> deducted from <strong>{autoDeductPopup.accountName}</strong>
+            </div>
+            <div>
+              New balance: <strong>{fmt(autoDeductPopup.newBalance)}</strong>
+            </div>
+          </div>
+
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px'
+          }}>
+            <button
+              onClick={() => setAutoDeductPopup(null)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                color: 'white',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

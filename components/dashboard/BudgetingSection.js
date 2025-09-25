@@ -187,6 +187,8 @@ export default function BudgetingSection({
   const [savingsGoals, setSavingsGoals] = React.useState([]);
   const [budgetSuggestions, setBudgetSuggestions] = React.useState({});
   const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const [editingCategory, setEditingCategory] = React.useState(null);
+  const [categoryBusinessTypes, setCategoryBusinessTypes] = React.useState({});
 
   // Calculate monthly income
   const monthlyIncome = React.useMemo(() => {
@@ -225,10 +227,11 @@ export default function BudgetingSection({
     }
   }, [transactions, monthlyIncome]);
 
-  // Load saved budgets and goals
+  // Load saved budgets, goals, and business types
   React.useEffect(() => {
     const savedBudgets = localStorage.getItem('cashflo_budgets');
     const savedGoals = localStorage.getItem('cashflo_savings_goals');
+    const savedBusinessTypes = localStorage.getItem('cashflo_category_business_types');
 
     if (savedBudgets) {
       try {
@@ -245,6 +248,14 @@ export default function BudgetingSection({
         console.error('Error loading savings goals:', error);
       }
     }
+
+    if (savedBusinessTypes) {
+      try {
+        setCategoryBusinessTypes(JSON.parse(savedBusinessTypes));
+      } catch (error) {
+        console.error('Error loading category business types:', error);
+      }
+    }
   }, []);
 
   // Save budgets to localStorage
@@ -259,8 +270,18 @@ export default function BudgetingSection({
     localStorage.setItem('cashflo_savings_goals', JSON.stringify(newGoals));
   };
 
+  // Save business types to localStorage
+  const saveBusinessTypes = (newBusinessTypes) => {
+    setCategoryBusinessTypes(newBusinessTypes);
+    localStorage.setItem('cashflo_category_business_types', JSON.stringify(newBusinessTypes));
+  };
+
   // Add or update budget for category
   const updateBudget = (category, amount) => {
+    if (!amount || isNaN(Number(amount))) {
+      notify('Please enter a valid budget amount', 'error');
+      return;
+    }
     const newBudgets = {
       ...budgets,
       [category]: {
@@ -272,6 +293,21 @@ export default function BudgetingSection({
     };
     saveBudgets(newBudgets);
     notify(`Budget updated for ${category}`, 'success');
+  };
+
+  // Update business classification for category
+  const updateCategoryBusiness = (category, businessType, entityType) => {
+    const newBusinessTypes = {
+      ...categoryBusinessTypes,
+      [category]: {
+        businessType: businessType || 'personal',
+        entityType: entityType || null,
+        updatedAt: new Date().toISOString()
+      }
+    };
+    saveBusinessTypes(newBusinessTypes);
+    notify(`Business classification updated for ${category}`, 'success');
+    setEditingCategory(null);
   };
 
   // Apply AI suggestions
@@ -556,14 +592,36 @@ export default function BudgetingSection({
                   borderRadius: '0.5rem',
                   background: isOverBudget ? '#fef2f2' : '#ffffff'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <h5 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{category}</h5>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <div>
+                      <h5 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' }}>{category}</h5>
+                      {categoryBusinessTypes[category] && (
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          {categoryBusinessTypes[category].businessType === 'business' ? (
+                            <span>🏢 Business {categoryBusinessTypes[category].entityType ? `(${categoryBusinessTypes[category].entityType})` : ''}</span>
+                          ) : (
+                            <span>👤 Personal</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <input
                         type="number"
                         placeholder="Budget"
                         value={budgetAmount || ''}
-                        onChange={(e) => updateBudget(category, e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(value) && Number(value) >= 0)) {
+                            updateBudget(category, value);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = e.target.value;
+                          if (value && !isNaN(value) && Number(value) > 0) {
+                            updateBudget(category, value);
+                          }
+                        }}
                         style={{
                           width: '100px',
                           padding: '0.375rem',
@@ -572,6 +630,21 @@ export default function BudgetingSection({
                           fontSize: '0.875rem'
                         }}
                       />
+                      <button
+                        onClick={() => setEditingCategory(category)}
+                        style={{
+                          background: '#f3f4f6',
+                          border: '1px solid #d1d5db',
+                          padding: '0.375rem 0.5rem',
+                          borderRadius: '0.375rem',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          color: '#6b7280'
+                        }}
+                        title="Edit business classification"
+                      >
+                        ⚙️
+                      </button>
                     </div>
                   </div>
 
@@ -603,6 +676,126 @@ export default function BudgetingSection({
                           background: isOverBudget ? '#dc2626' : percentage > 80 ? '#f59e0b' : '#10b981',
                           transition: 'width 0.3s ease'
                         }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Business Classification Modal */}
+                  {editingCategory === category && (
+                    <div style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1000
+                    }}>
+                      <div style={{
+                        background: 'white',
+                        padding: '2rem',
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        width: isMobile ? '90%' : '400px',
+                        maxWidth: '90vw'
+                      }}>
+                        <h4 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '1rem', color: '#1f2937' }}>
+                          🏷️ Classify "{category}"
+                        </h4>
+                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+                          Set business classification for tax purposes
+                        </p>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1f2937' }}>Type</label>
+                          <select
+                            defaultValue={categoryBusinessTypes[category]?.businessType || 'personal'}
+                            onChange={(e) => {
+                              const businessType = e.target.value;
+                              if (businessType === 'personal') {
+                                updateCategoryBusiness(category, 'personal', null);
+                              } else {
+                                // Let them select entity type for business
+                              }
+                            }}
+                            id={`businessType-${category}`}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '0.375rem',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            <option value="personal">👤 Personal</option>
+                            <option value="business">🏢 Business</option>
+                          </select>
+                        </div>
+
+                        {(categoryBusinessTypes[category]?.businessType === 'business' ||
+                          document.getElementById(`businessType-${category}`)?.value === 'business') && (
+                          <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1f2937' }}>Business Entity</label>
+                            <select
+                              defaultValue={categoryBusinessTypes[category]?.entityType || ''}
+                              id={`entityType-${category}`}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              <option value="">Select entity type...</option>
+                              <option value="Sole Proprietorship">Sole Proprietorship</option>
+                              <option value="LLC">LLC</option>
+                              <option value="Corporation">Corporation</option>
+                              <option value="S-Corp">S-Corp</option>
+                              <option value="Partnership">Partnership</option>
+                              <option value="Non-Profit">Non-Profit</option>
+                            </select>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => setEditingCategory(null)}
+                            style={{
+                              background: 'white',
+                              color: '#6b7280',
+                              border: '1px solid #d1d5db',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '0.375rem',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => {
+                              const businessType = document.getElementById(`businessType-${category}`).value;
+                              const entityType = document.getElementById(`entityType-${category}`)?.value || null;
+                              updateCategoryBusiness(category, businessType, entityType);
+                            }}
+                            style={{
+                              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '0.375rem',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            Save
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
