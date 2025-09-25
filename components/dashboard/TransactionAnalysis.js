@@ -276,6 +276,9 @@ const TransactionAnalysis = ({
   ]);
   const [showBusinessSetup, setShowBusinessSetup] = useState(false);
   const [transactionBusinessAssignments, setTransactionBusinessAssignments] = useState({});
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categorySettings, setCategorySettings] = useState({});
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState('all');
 
   // COMPREHENSIVE TRANSACTION + BILLS DATA INTEGRATION
   const allFinancialData = useMemo(() => {
@@ -410,20 +413,55 @@ const TransactionAnalysis = ({
     return totals;
   }, [categorizedTransactions]);
 
-  // REAL-TIME TAX ESTIMATION
+  // REAL-TIME TAX ESTIMATION (Enhanced with Business Settings)
   const taxEstimate = useMemo(() => {
     const income = categoryTotals['W-2 Income']?.total || 0;
-    const selfEmploymentIncome = categoryTotals['Self-Employment Income']?.total || 0;
-    const deductions = (categoryTotals['Medical Expenses']?.total || 0) +
-                     (categoryTotals['Charitable Donations']?.total || 0) +
-                     (categoryTotals['Mortgage Interest']?.total || 0) +
-                     (categoryTotals['State & Local Taxes']?.total || 0);
 
-    const totalIncome = income + selfEmploymentIncome;
+    // Calculate business income with entity type considerations
+    let businessIncome = 0;
+    let selfEmploymentIncome = 0;
+
+    // Check each category for business classification and entity type
+    Object.entries(categoryTotals).forEach(([category, data]) => {
+      const categoryBusinessType = categorySettings[category]?.businessType || TAX_CATEGORIES[category]?.businessType;
+      const entityType = categorySettings[category]?.entityType || 'sole_proprietorship';
+
+      if (categoryBusinessType === 'business' && data.total > 0) {
+        businessIncome += data.total;
+
+        // Only add to SE tax if entity type is subject to SE tax
+        if (['sole_proprietorship', 'llc'].includes(entityType)) {
+          selfEmploymentIncome += data.total;
+        }
+      }
+    });
+
+    // Add traditional SE income categories
+    const traditionalSEIncome = categoryTotals['Self-Employment Income']?.total || 0;
+    selfEmploymentIncome += traditionalSEIncome;
+
+    // Calculate deductions with business expense considerations
+    let personalDeductions = (categoryTotals['Medical Expenses']?.total || 0) +
+                           (categoryTotals['Charitable Donations']?.total || 0) +
+                           (categoryTotals['Mortgage Interest']?.total || 0) +
+                           (categoryTotals['State & Local Taxes']?.total || 0);
+
+    let businessExpenses = 0;
+    Object.entries(categoryTotals).forEach(([category, data]) => {
+      const categoryBusinessType = categorySettings[category]?.businessType || TAX_CATEGORIES[category]?.businessType;
+      if (categoryBusinessType === 'business' && data.total < 0) { // Expenses are negative
+        businessExpenses += Math.abs(data.total);
+      }
+    });
+
+    const totalIncome = income + businessIncome;
+    const netBusinessIncome = Math.max(0, businessIncome - businessExpenses);
+    const adjustedTotalIncome = income + netBusinessIncome;
+
     const standardDeduction = STANDARD_DEDUCTIONS_2024.single; // Default to single
-    const itemizedDeduction = deductions;
+    const itemizedDeduction = personalDeductions;
     const finalDeduction = Math.max(standardDeduction, itemizedDeduction);
-    const taxableIncome = Math.max(0, totalIncome - finalDeduction);
+    const taxableIncome = Math.max(0, adjustedTotalIncome - finalDeduction);
 
     // Calculate federal tax using 2024 brackets
     let federalTax = 0;
@@ -436,14 +474,19 @@ const TransactionAnalysis = ({
       }
     }
 
-    // Self-employment tax (15.3% on first $160,200)
-    const seTax = selfEmploymentIncome * 0.153;
+    // Self-employment tax (15.3% on first $160,200) - Only applies to SE entities
+    const netSEIncome = Math.max(0, selfEmploymentIncome - businessExpenses);
+    const seTax = netSEIncome * 0.153;
 
     const totalTax = federalTax + seTax;
     const estimatedQuarterly = totalTax / 4;
 
     return {
-      totalIncome,
+      totalIncome: adjustedTotalIncome,
+      businessIncome,
+      businessExpenses,
+      netBusinessIncome,
+      selfEmploymentIncome: netSEIncome,
       taxableIncome,
       federalTax,
       seTax,
@@ -451,9 +494,9 @@ const TransactionAnalysis = ({
       estimatedQuarterly,
       usingItemized: itemizedDeduction > standardDeduction,
       deductionsSaved: Math.max(0, itemizedDeduction - standardDeduction),
-      effectiveRate: totalIncome > 0 ? (totalTax / totalIncome) * 100 : 0
+      effectiveRate: adjustedTotalIncome > 0 ? (totalTax / adjustedTotalIncome) * 100 : 0
     };
-  }, [categoryTotals]);
+  }, [categoryTotals, categorySettings]);
 
   // PIE CHART DATA
   const pieChartData = useMemo(() => {
@@ -715,7 +758,26 @@ const TransactionAnalysis = ({
                         </p>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingCategory(category);
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                        }}
+                      >
+                        ⚙️ Edit
+                      </button>
                       <div style={{
                         fontSize: '1.25rem',
                         fontWeight: '800',
@@ -1219,7 +1281,7 @@ const TransactionAnalysis = ({
         </div>
       )}
 
-      {/* TRANSACTIONS VIEW - Wave/QuickBooks-style Transaction Management */}
+      {/* ENHANCED TRANSACTION HISTORY - Original Log Format + AI Features */}
       {viewMode === 'transactions' && (
         <div style={{
           background: 'rgba(255, 255, 255, 0.95)',
@@ -1243,34 +1305,45 @@ const TransactionAnalysis = ({
                 margin: 0,
                 marginBottom: '0.25rem'
               }}>
-                📊 Advanced Transaction Management
+                📋 Enhanced Transaction History
               </h3>
               <p style={{
                 fontSize: '0.9rem',
                 color: '#6b7280',
                 margin: 0
               }}>
-                Wave & QuickBooks-style transaction management with AI categorization
+                Complete transaction log with AI tax categorization & business classification
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => {/* Add import functionality */}}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-              >
-                📥 Import
-              </button>
+              <div style={{
+                display: 'flex',
+                gap: '0.5rem',
+                background: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.25rem'
+              }}>
+                {['all', 'credits', 'debits'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setTransactionTypeFilter(type)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: transactionTypeFilter === type ? '#3b82f6' : 'transparent',
+                      color: transactionTypeFilter === type ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {type === 'all' ? '💰 All' : type === 'credits' ? '💵 Credits' : '💸 Debits'}
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={() => {/* Add export functionality */}}
                 style={{
@@ -1286,22 +1359,6 @@ const TransactionAnalysis = ({
                 }}
               >
                 📤 Export
-              </button>
-              <button
-                onClick={() => {/* Add new transaction */}}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
-                }}
-              >
-                ➕ Add Transaction
               </button>
             </div>
           </div>
@@ -1447,9 +1504,28 @@ const TransactionAnalysis = ({
               {!isMobile && <div style={{ textAlign: 'center' }}>Actions</div>}
             </div>
 
-            {/* Transaction Rows */}
+            {/* Transaction Rows - Enhanced with Credit/Debit Logic */}
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-              {categorizedTransactions.slice(0, 20).map((transaction, index) => (
+              {categorizedTransactions
+                .filter(transaction => {
+                  // Filter by transaction type (credits/debits)
+                  if (transactionTypeFilter === 'all') return true;
+                  const isCredit = transaction.amount > 0 ||
+                    transaction.type === 'credit_received' ||
+                    transaction.type === 'recurring_income_received';
+                  const isDebit = transaction.amount < 0 ||
+                    transaction.type === 'bill_payment' ||
+                    transaction.type === 'one_time_cost_payment';
+
+                  return transactionTypeFilter === 'credits' ? isCredit : isDebit;
+                })
+                .slice(0, 50).map((transaction, index) => {
+                  // Determine transaction type and formatting
+                  const isCredit = transaction.amount > 0;
+                  const transactionLabel = isCredit ? '💵 CREDIT' : '💸 DEBIT';
+                  const amountColor = isCredit ? '#059669' : '#dc2626';
+
+                  return (
                 <div
                   key={transaction.id || index}
                   style={{
@@ -1467,12 +1543,24 @@ const TransactionAnalysis = ({
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fafbff'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  {/* Description */}
+                  {/* Description with Credit/Debit Label */}
                   <div style={{
                     fontWeight: '500',
                     color: '#1f2937'
                   }}>
-                    <div>{transaction.description}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                        background: isCredit ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)',
+                        color: amountColor
+                      }}>
+                        {transactionLabel}
+                      </span>
+                      <span>{transaction.description}</span>
+                    </div>
                     {isMobile && (
                       <div style={{
                         fontSize: '0.8rem',
@@ -1484,19 +1572,21 @@ const TransactionAnalysis = ({
                     )}
                   </div>
 
-                  {/* Amount */}
+                  {/* Amount with better formatting */}
                   <div style={{
                     textAlign: 'center',
-                    fontWeight: '600',
-                    color: transaction.amount > 0 ? '#059669' : '#dc2626'
+                    fontWeight: '700',
+                    fontSize: '1rem',
+                    color: amountColor
                   }}>
-                    {transaction.amount > 0 ? '+' : ''}${fmt(Math.abs(transaction.amount))}
+                    {isCredit ? '+' : '-'}${fmt(Math.abs(transaction.amount))}
                   </div>
 
                   {/* Date */}
                   <div style={{
                     textAlign: 'center',
-                    color: '#6b7280'
+                    color: '#6b7280',
+                    fontSize: '0.9rem'
                   }}>
                     {new Date(transaction.date).toLocaleDateString()}
                   </div>
@@ -1989,6 +2079,589 @@ const TransactionAnalysis = ({
                   💡 You're saving ${taxEstimate.deductionsSaved.toLocaleString()} by itemizing!
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Editing Modal */}
+      {editingCategory && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            padding: '2rem',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '800',
+              color: '#1f2937',
+              marginBottom: '1.5rem',
+              textAlign: 'center'
+            }}>
+              ⚙️ Configure Category: {editingCategory}
+            </h3>
+
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              {/* Business Type Selection */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  🏢 Category Type
+                </label>
+                <select
+                  value={categorySettings[editingCategory]?.businessType || TAX_CATEGORIES[editingCategory]?.businessType || 'personal'}
+                  onChange={(e) => setCategorySettings(prev => ({
+                    ...prev,
+                    [editingCategory]: {
+                      ...prev[editingCategory],
+                      businessType: e.target.value
+                    }
+                  }))}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e5e7eb',
+                    fontSize: '1rem',
+                    background: 'white',
+                    color: '#374151'
+                  }}
+                >
+                  <option value="personal">👤 Personal</option>
+                  <option value="business">🏢 Business</option>
+                </select>
+              </div>
+
+              {/* Business Entity Type - Only show if business type selected */}
+              {(categorySettings[editingCategory]?.businessType === 'business') && (
+                <>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem'
+                    }}>
+                      🏛️ Business Entity Type
+                    </label>
+                    <select
+                      value={categorySettings[editingCategory]?.entityType || 'sole_proprietorship'}
+                      onChange={(e) => setCategorySettings(prev => ({
+                        ...prev,
+                        [editingCategory]: {
+                          ...prev[editingCategory],
+                          entityType: e.target.value
+                        }
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        borderRadius: '12px',
+                        border: '2px solid #e5e7eb',
+                        fontSize: '1rem',
+                        background: 'white',
+                        color: '#374151'
+                      }}
+                    >
+                      <option value="sole_proprietorship">Sole Proprietorship</option>
+                      <option value="llc">LLC (Single Member)</option>
+                      <option value="llc_multi">LLC (Multi Member)</option>
+                      <option value="s_corp">S Corporation</option>
+                      <option value="c_corp">C Corporation</option>
+                      <option value="partnership">Partnership</option>
+                    </select>
+                  </div>
+
+                  {/* Business Details */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem'
+                  }}>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '0.5rem'
+                      }}>
+                        📛 Business Name (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., My Studio LLC"
+                        value={categorySettings[editingCategory]?.businessName || ''}
+                        onChange={(e) => setCategorySettings(prev => ({
+                          ...prev,
+                          [editingCategory]: {
+                            ...prev[editingCategory],
+                            businessName: e.target.value
+                          }
+                        }))}
+                        style={{
+                          width: '100%',
+                          padding: '1rem',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          fontSize: '1rem',
+                          background: 'white',
+                          color: '#374151'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '0.5rem'
+                      }}>
+                        🏢 EIN/Tax ID (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="XX-XXXXXXX"
+                        value={categorySettings[editingCategory]?.ein || ''}
+                        onChange={(e) => setCategorySettings(prev => ({
+                          ...prev,
+                          [editingCategory]: {
+                            ...prev[editingCategory],
+                            ein: e.target.value
+                          }
+                        }))}
+                        style={{
+                          width: '100%',
+                          padding: '1rem',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          fontSize: '1rem',
+                          background: 'white',
+                          color: '#374151'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quarterly Tax Settings */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem'
+                    }}>
+                      📅 Quarterly Tax Planning
+                    </label>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '1rem'
+                    }}>
+                      <div>
+                        <label style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+                          Estimated Tax Rate (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          step="0.5"
+                          placeholder="25"
+                          value={categorySettings[editingCategory]?.estimatedTaxRate || ''}
+                          onChange={(e) => setCategorySettings(prev => ({
+                            ...prev,
+                            [editingCategory]: {
+                              ...prev[editingCategory],
+                              estimatedTaxRate: e.target.value
+                            }
+                          }))}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '0.9rem'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+                          Set Aside % for Taxes
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          step="1"
+                          placeholder="30"
+                          value={categorySettings[editingCategory]?.taxSetAsidePercent || ''}
+                          onChange={(e) => setCategorySettings(prev => ({
+                            ...prev,
+                            [editingCategory]: {
+                              ...prev[editingCategory],
+                              taxSetAsidePercent: e.target.value
+                            }
+                          }))}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '0.9rem'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Tax Forms Information */}
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.05)',
+                borderRadius: '16px',
+                padding: '1.5rem'
+              }}>
+                <h4 style={{
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  color: '#1f2937',
+                  marginBottom: '1rem'
+                }}>
+                  📄 Tax Forms & Information
+                </h4>
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280' }}>Primary Form:</span>
+                    <span style={{ fontWeight: '600' }}>
+                      {TAX_CATEGORIES[editingCategory]?.taxForm || 'Form 1040'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280' }}>Deductible:</span>
+                    <span style={{ fontWeight: '600' }}>
+                      {TAX_CATEGORIES[editingCategory]?.deductible ? '✅ Yes' : '❌ No'}
+                    </span>
+                  </div>
+                  {(categorySettings[editingCategory]?.businessType === 'business') && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#6b7280' }}>Business Form:</span>
+                        <span style={{ fontWeight: '600' }}>
+                          {categorySettings[editingCategory]?.entityType === 's_corp' ? 'Form 1120S' :
+                           categorySettings[editingCategory]?.entityType === 'c_corp' ? 'Form 1120' :
+                           categorySettings[editingCategory]?.entityType === 'partnership' ? 'Form 1065' :
+                           categorySettings[editingCategory]?.entityType?.includes('llc') ? 'Schedule C/Form 1065' :
+                           'Schedule C'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#6b7280' }}>Self-Employment Tax:</span>
+                        <span style={{ fontWeight: '600' }}>
+                          {['sole_proprietorship', 'llc'].includes(categorySettings[editingCategory]?.entityType) ? '✅ Yes (15.3%)' : '❌ No'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Deduction & Expense Settings */}
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.05)',
+                borderRadius: '16px',
+                padding: '1.5rem'
+              }}>
+                <h4 style={{
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  color: '#1f2937',
+                  marginBottom: '1rem'
+                }}>
+                  💰 Tax Deduction Settings
+                </h4>
+
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {/* Deductible Percentage */}
+                  <div>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={categorySettings[editingCategory]?.isDeductible !== false}
+                        onChange={(e) => setCategorySettings(prev => ({
+                          ...prev,
+                          [editingCategory]: {
+                            ...prev[editingCategory],
+                            isDeductible: e.target.checked
+                          }
+                        }))}
+                        style={{ margin: 0 }}
+                      />
+                      Tax Deductible
+                    </label>
+
+                    {(categorySettings[editingCategory]?.isDeductible !== false) && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                          Deductible Percentage (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="5"
+                          placeholder="100"
+                          value={categorySettings[editingCategory]?.deductiblePercent || '100'}
+                          onChange={(e) => setCategorySettings(prev => ({
+                            ...prev,
+                            [editingCategory]: {
+                              ...prev[editingCategory],
+                              deductiblePercent: e.target.value
+                            }
+                          }))}
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            borderRadius: '8px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '0.9rem'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expense Tracking */}
+                  <div>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={categorySettings[editingCategory]?.requiresReceipts || false}
+                        onChange={(e) => setCategorySettings(prev => ({
+                          ...prev,
+                          [editingCategory]: {
+                            ...prev[editingCategory],
+                            requiresReceipts: e.target.checked
+                          }
+                        }))}
+                        style={{ margin: 0 }}
+                      />
+                      Requires Receipt/Documentation
+                    </label>
+                  </div>
+
+                  {/* Expense Type */}
+                  <div>
+                    <label style={{
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      display: 'block'
+                    }}>
+                      Expense Type
+                    </label>
+                    <select
+                      value={categorySettings[editingCategory]?.expenseType || 'operating'}
+                      onChange={(e) => setCategorySettings(prev => ({
+                        ...prev,
+                        [editingCategory]: {
+                          ...prev[editingCategory],
+                          expenseType: e.target.value
+                        }
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      <option value="operating">Operating Expense</option>
+                      <option value="capital">Capital Expense</option>
+                      <option value="startup">Startup Cost</option>
+                      <option value="depreciation">Depreciation</option>
+                      <option value="personal">Personal (Non-deductible)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Settings */}
+              <div style={{
+                background: 'rgba(139, 92, 246, 0.05)',
+                borderRadius: '16px',
+                padding: '1.5rem'
+              }}>
+                <h4 style={{
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  color: '#1f2937',
+                  marginBottom: '1rem'
+                }}>
+                  ⚙️ Advanced Settings
+                </h4>
+
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {/* Auto-Categorization Keywords */}
+                  <div>
+                    <label style={{
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      display: 'block'
+                    }}>
+                      Auto-Categorization Keywords (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., adobe, photoshop, design, studio"
+                      value={categorySettings[editingCategory]?.keywords || ''}
+                      onChange={(e) => setCategorySettings(prev => ({
+                        ...prev,
+                        [editingCategory]: {
+                          ...prev[editingCategory],
+                          keywords: e.target.value
+                        }
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                      Transactions containing these keywords will auto-assign to this category
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label style={{
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      display: 'block'
+                    }}>
+                      Notes & Tax Strategy
+                    </label>
+                    <textarea
+                      placeholder="e.g., Track monthly software expenses, save receipts for audit, consider quarterly payments..."
+                      value={categorySettings[editingCategory]?.notes || ''}
+                      onChange={(e) => setCategorySettings(prev => ({
+                        ...prev,
+                        [editingCategory]: {
+                          ...prev[editingCategory],
+                          notes: e.target.value
+                        }
+                      }))}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '0.9rem',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={() => setEditingCategory(null)}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: '#f3f4f6',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Save category settings
+                    console.log('Saving category settings:', {
+                      category: editingCategory,
+                      settings: categorySettings[editingCategory]
+                    });
+                    setEditingCategory(null);
+                  }}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(5, 150, 105, 0.3)'
+                  }}
+                >
+                  💾 Save Settings
+                </button>
+              </div>
             </div>
           </div>
         </div>

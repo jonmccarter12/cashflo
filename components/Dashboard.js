@@ -3133,7 +3133,7 @@ function DashboardContent() {
               transition: 'all 0.2s ease'
             }}
           >
-🧠 Tax Intelligence
+📋 Transaction History
           </button>
           <button
             onClick={() => setCurrentView('tax')}
