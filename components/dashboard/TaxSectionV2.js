@@ -226,13 +226,6 @@ export default function TaxSectionV2({ isMobile, transactions, bills, oneTimeCos
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          onFocus={(e) => {
-            e.target.select();
-            if (e.target.value === '0' || e.target.value === 0) {
-              e.target.value = '';
-              onChange('');
-            }
-          }}
           style={{
             width: '100%',
             padding: isMobile ? '1rem' : '0.875rem',
