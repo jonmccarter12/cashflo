@@ -385,7 +385,7 @@ const TransactionAnalysis = ({
         const isIncome = transaction.amount > 0;
 
         Object.entries(TAX_CATEGORIES).forEach(([category, config]) => {
-          const matches = config.keywords.filter(keyword =>
+          const matches = (config.keywords || []).filter(keyword =>
             combined.includes(keyword.toLowerCase())
           ).length;
 
@@ -427,7 +427,7 @@ const TransactionAnalysis = ({
           businessId: assignedBusinessId,
           businessName: businessEntities.find(b => b.id === assignedBusinessId)?.name || 'Personal',
           autoDetected: maxMatches > 0,
-          confidence: maxMatches / Math.max(TAX_CATEGORIES[bestMatch].keywords.length, 1)
+          confidence: maxMatches / Math.max((TAX_CATEGORIES[bestMatch]?.keywords || []).length, 1)
         };
       });
   }, [allFinancialData, businessEntities, transactionBusinessAssignments]);
