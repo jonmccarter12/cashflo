@@ -633,17 +633,19 @@ export default function BudgetingSection({
                       <button
                         onClick={() => setEditingCategory(category)}
                         style={{
-                          background: '#f3f4f6',
-                          border: '1px solid #d1d5db',
-                          padding: '0.375rem 0.5rem',
+                          background: '#8b5cf6',
+                          border: '1px solid #7c3aed',
+                          padding: '0.375rem 0.75rem',
                           borderRadius: '0.375rem',
                           cursor: 'pointer',
                           fontSize: '0.75rem',
-                          color: '#6b7280'
+                          color: 'white',
+                          fontWeight: '600',
+                          minWidth: '60px'
                         }}
                         title="Edit business classification"
                       >
-                        ⚙️
+                        Edit
                       </button>
                     </div>
                   </div>
