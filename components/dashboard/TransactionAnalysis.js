@@ -274,7 +274,9 @@ const TransactionAnalysis = ({
   const [businessEntities, setBusinessEntities] = useState([
     { id: 'personal', name: 'Personal', type: 'personal', color: '#6b7280', entityType: null },
     { id: 'studio', name: 'The Studio', type: 'business', color: '#8b5cf6', entityType: 'llc', keywords: ['studio', 'creative', 'design', 'photo', 'video'] },
-    { id: 'smoke_shop', name: 'Smoke Shop', type: 'business', color: '#059669', entityType: 'sole_proprietorship', keywords: ['smoke', 'tobacco', 'vape', 'retail', 'shop'] }
+    { id: 'smoke_shop', name: 'Smoke Shop', type: 'business', color: '#059669', entityType: 'sole_proprietorship', keywords: ['smoke', 'tobacco', 'vape', 'retail', 'shop'] },
+    { id: 'botting', name: 'Botting Business', type: 'business', color: '#f59e0b', entityType: 'sole_proprietorship', keywords: ['bot', 'automation', 'resale', 'sneaker', 'retail'] },
+    { id: 'coding', name: 'Coding/Development', type: 'business', color: '#3b82f6', entityType: 'sole_proprietorship', keywords: ['code', 'development', 'programming', 'software', 'tech', 'web', 'app'] }
   ]);
   const [showBusinessSetup, setShowBusinessSetup] = useState(false);
   const [transactionBusinessAssignments, setTransactionBusinessAssignments] = useState({});
@@ -288,7 +290,11 @@ const TransactionAnalysis = ({
       'Personal': 'personal',
       'Studio': 'studio',
       'Smoke Shop': 'smoke_shop',
-      'Botting': 'personal' // Map Botting to personal for now
+      'Botting': 'botting',
+      'Coding': 'coding',
+      'Tech': 'coding',
+      'Development': 'coding',
+      'Software': 'coding'
     };
     return mapping[categoryName] || 'personal';
   };
