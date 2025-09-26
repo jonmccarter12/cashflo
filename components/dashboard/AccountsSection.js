@@ -349,7 +349,7 @@ export default function AccountsSection({
                           marginTop: '0.125rem'
                         }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 mo, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -373,7 +373,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} mo, $${totalInterest.toFixed(0)}`;
                           })()} interest
                         </div>
                       </div>
@@ -412,7 +412,7 @@ export default function AccountsSection({
                           marginTop: '0.125rem'
                         }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 mo, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -437,7 +437,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} mo, $${totalInterest.toFixed(0)}`;
                           })()} interest
                         </div>
                       </div>
@@ -475,7 +475,7 @@ export default function AccountsSection({
                           marginTop: '0.125rem'
                         }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 mo, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -499,7 +499,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} mo, $${totalInterest.toFixed(0)}`;
                           })()} interest
                         </div>
                       </div>
@@ -1132,7 +1132,7 @@ export default function AccountsSection({
                         </div>
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 months, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -1155,7 +1155,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} months, $${totalInterest.toFixed(0)}`;
                           })()} total interest
                         </div>
                       </div>
@@ -1178,7 +1178,7 @@ export default function AccountsSection({
                         </div>
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 months, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -1202,7 +1202,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} months, $${totalInterest.toFixed(0)}`;
                           })()} total interest
                         </div>
                       </div>
@@ -1224,7 +1224,7 @@ export default function AccountsSection({
                         </div>
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
-                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
+                            if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0 months, $0';
 
                             const balance = Number(account.balance);
                             const monthlyRate = Number(account.apr) / 100 / 12;
@@ -1247,7 +1247,7 @@ export default function AccountsSection({
                               }
                             }
 
-                            return totalInterest.toFixed(0);
+                            return `${months} months, $${totalInterest.toFixed(0)}`;
                           })()} total interest
                         </div>
                       </div>
