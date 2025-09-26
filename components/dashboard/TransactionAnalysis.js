@@ -260,6 +260,8 @@ const TransactionAnalysis = ({
   oneTimeCosts = [],
   accounts = [],
   recurringIncome = [],
+  selectedCat = 'All',
+  selectedCats = [],
   onUpdateTransactionCategory
 }) => {
   const isMobile = useIsMobile();
@@ -279,6 +281,17 @@ const TransactionAnalysis = ({
   const [editingCategory, setEditingCategory] = useState(null);
   const [categorySettings, setCategorySettings] = useState({});
   const [transactionTypeFilter, setTransactionTypeFilter] = useState('all');
+
+  // CATEGORY TO BUSINESS ID MAPPING
+  const mapCategoryToBusinessId = (categoryName) => {
+    const mapping = {
+      'Personal': 'personal',
+      'Studio': 'studio',
+      'Smoke Shop': 'smoke_shop',
+      'Botting': 'personal' // Map Botting to personal for now
+    };
+    return mapping[categoryName] || 'personal';
+  };
 
   // COMPREHENSIVE TRANSACTION + BILLS DATA INTEGRATION
   const allFinancialData = useMemo(() => {
@@ -565,11 +578,26 @@ const TransactionAnalysis = ({
 
   // FINANCIAL SUMMARY CALCULATIONS
   const financialSummary = useMemo(() => {
-    // Filter transactions based on transactionTypeFilter
-    const filteredTransactions = allFinancialData.filter(transaction => {
-      if (transactionTypeFilter === 'credits') return transaction.amount > 0;
-      if (transactionTypeFilter === 'debits') return transaction.amount < 0;
-      return true; // 'all'
+    // Filter transactions using the same logic as the transaction table
+    const filteredTransactions = categorizedTransactions.filter(transaction => {
+      // Category filter
+      if (selectedCat !== 'All') {
+        const allowedBusinessIds = selectedCats.map(cat => mapCategoryToBusinessId(cat));
+        if (!allowedBusinessIds.includes(transaction.businessId)) {
+          return false;
+        }
+      }
+
+      // Filter by transaction type (credits/debits) - same logic as transaction table
+      if (transactionTypeFilter === 'all') return true;
+      const isCredit = transaction.amount > 0 ||
+        transaction.type === 'credit_received' ||
+        transaction.type === 'recurring_income_received';
+      const isDebit = transaction.amount < 0 ||
+        transaction.type === 'bill_payment' ||
+        transaction.type === 'one_time_cost_payment';
+
+      return transactionTypeFilter === 'credits' ? isCredit : isDebit;
     });
 
     const grossProfit = filteredTransactions
@@ -583,7 +611,7 @@ const TransactionAnalysis = ({
     const netProfit = grossProfit - totalExpenses;
 
     return { grossProfit, totalExpenses, netProfit };
-  }, [allFinancialData, transactionTypeFilter]);
+  }, [categorizedTransactions, transactionTypeFilter, selectedCat, selectedCats]);
 
   const { grossProfit, totalExpenses, netProfit } = financialSummary;
 
@@ -1605,6 +1633,14 @@ const TransactionAnalysis = ({
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {categorizedTransactions
                 .filter(transaction => {
+                  // Category filter
+                  if (selectedCat !== 'All') {
+                    const allowedBusinessIds = selectedCats.map(cat => mapCategoryToBusinessId(cat));
+                    if (!allowedBusinessIds.includes(transaction.businessId)) {
+                      return false;
+                    }
+                  }
+
                   // Filter by transaction type (credits/debits)
                   if (transactionTypeFilter === 'all') return true;
                   const isCredit = transaction.amount > 0 ||
@@ -1620,7 +1656,7 @@ const TransactionAnalysis = ({
                   // Determine transaction type and formatting
                   const isCredit = transaction.amount > 0;
                   const transactionLabel = isCredit ? '💵 CREDIT' : '💸 DEBIT';
-                  const amountColor = isCredit ? '#059669' : '#dc2626';
+                  const amountColor = isCredit ? '#dc2626' : '#dc2626'; // Both red for visual consistency
 
                   return (
                 <div
@@ -1676,7 +1712,7 @@ const TransactionAnalysis = ({
                     fontSize: '1rem',
                     color: amountColor
                   }}>
-                    {isCredit ? '+' : '-'}{fmt(Math.abs(transaction.amount))}
+                    {isCredit ? '' : '-'}{fmt(Math.abs(transaction.amount))}
                   </div>
 
                   {/* Date */}

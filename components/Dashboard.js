@@ -4726,6 +4726,8 @@ function DashboardContent() {
           oneTimeCosts={oneTimeCosts}
           accounts={accounts}
           recurringIncome={recurringIncome}
+          selectedCat={selectedCat}
+          selectedCats={selectedCats}
           onUpdateTransactionCategory={(transactionId, category) => {
             // Handle transaction category updates
             console.log('Updating transaction category:', transactionId, category);
