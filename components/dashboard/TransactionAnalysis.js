@@ -563,6 +563,30 @@ const TransactionAnalysis = ({
     }));
   }, [categoryTotals]);
 
+  // FINANCIAL SUMMARY CALCULATIONS
+  const financialSummary = useMemo(() => {
+    // Filter transactions based on transactionTypeFilter
+    const filteredTransactions = allFinancialData.filter(transaction => {
+      if (transactionTypeFilter === 'credits') return transaction.amount > 0;
+      if (transactionTypeFilter === 'debits') return transaction.amount < 0;
+      return true; // 'all'
+    });
+
+    const grossProfit = filteredTransactions
+      .filter(t => t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpenses = Math.abs(filteredTransactions
+      .filter(t => t.amount < 0)
+      .reduce((sum, t) => sum + t.amount, 0));
+
+    const netProfit = grossProfit - totalExpenses;
+
+    return { grossProfit, totalExpenses, netProfit };
+  }, [allFinancialData, transactionTypeFilter]);
+
+  const { grossProfit, totalExpenses, netProfit } = financialSummary;
+
   // RENDER PIE CHART (Simple CSS-based)
   const renderPieChart = () => {
     if (pieChartData.length === 0) return null;
@@ -615,35 +639,53 @@ const TransactionAnalysis = ({
       minHeight: '100vh',
       padding: isMobile ? '1rem' : '2rem'
     }}>
-      {/* Header */}
+      {/* Financial Summary Boxes */}
       <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '24px',
-        padding: isMobile ? '1.5rem' : '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+        gap: '1rem',
+        marginBottom: '2rem'
       }}>
-        <h1 style={{
-          fontSize: isMobile ? '2rem' : '2.5rem',
-          fontWeight: '900',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent',
-          margin: 0,
-          marginBottom: '0.5rem'
+        <div style={{
+          background: '#f0fdf4',
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          border: '1px solid #bbf7d0',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
         }}>
-          📋 Transaction History
-        </h1>
-        <p style={{
-          fontSize: isMobile ? '1.1rem' : '1.25rem',
-          color: '#6b7280',
-          margin: 0,
-          fontWeight: '500'
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: '#16a34a', marginBottom: '0.25rem' }}>
+            {fmt(grossProfit)}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#15803d', fontWeight: '600' }}>Gross Profit</div>
+        </div>
+        <div style={{
+          background: '#fef2f2',
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          border: '1px solid #fecaca',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
         }}>
-          Professional transaction management with tax intelligence
-        </p>
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: '#dc2626', marginBottom: '0.25rem' }}>
+            {fmt(totalExpenses)}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#991b1b', fontWeight: '600' }}>Total Expenses</div>
+        </div>
+        <div style={{
+          background: netProfit >= 0 ? '#f0f9ff' : '#fef2f2',
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          border: `1px solid ${netProfit >= 0 ? '#38bdf8' : '#fecaca'}`,
+          textAlign: 'center',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          gridColumn: isMobile ? '1 / -1' : 'auto'
+        }}>
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: netProfit >= 0 ? '#0284c7' : '#dc2626', marginBottom: '0.25rem' }}>
+            {fmt(netProfit)}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: netProfit >= 0 ? '#0369a1' : '#991b1b', fontWeight: '600' }}>Net Profit</div>
+        </div>
       </div>
 
       {/* Smart Business Detection Notice */}
