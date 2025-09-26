@@ -35,6 +35,7 @@ export default function OneTimeCostsSection({
   toggleOneTimePaid, // This function is passed from Dashboard.js
   selectAllOnFocus,
   deleteOneTimeCost, // This function is passed from Dashboard.js
+  updateOTC, // This function is passed from Dashboard.js
   autoDeductCash,
   autoDeductBank,
   getDefaultAutoDeductAccount,
@@ -130,35 +131,6 @@ export default function OneTimeCostsSection({
     }
   }
 
-  async function updateOTC(otcId, formData) {
-    try {
-      const changes = {
-        name: formData.get('name'),
-        category: formData.get('category'),
-        amount: Number(formData.get('amount')),
-        dueDate: formData.get('dueDate'),
-        accountId: formData.get('accountId'),
-        notes: formData.get('notes')
-      };
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'one_time_cost_modification',
-        otcId,
-        { changes: changes },
-        `Updated one-time cost "${changes.name}"`
-      );
-
-      if (transaction) {
-        setEditingOTC(null);
-        notify('One-time cost updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error updating one-time cost:', error);
-      notify('Failed to update one-time cost', 'error');
-    }
-  }
 
   async function toggleOTCIgnored(o) {
     try {

@@ -675,8 +675,8 @@ function DashboardContent() {
   const [autoDeductPopup, setAutoDeductPopup] = React.useState(null); // { amount, accountName, newBalance, billName }
   const [editingCategoryBusiness, setEditingCategoryBusiness] = React.useState(null);
   const [categoryBusinessTypes, setCategoryBusinessTypes] = React.useState({})
-  const [billsOtcView, setBillsOtcView] = React.useState('bills'); // 'bills' or 'otc'
-  const [accountsView, setAccountsView] = React.useState('debit'); // 'debit' or 'credit'
+  const [billsOtcView, setBillsOtcView] = useCloudState('billsOtcView', 'bills', user?.id, supabase); // 'bills' or 'otc'
+  const [accountsView, setAccountsView] = useCloudState('accountsView', 'debit', user?.id, supabase); // 'debit' or 'credit'
 
   // Dialog states for various modals
   const [showAddAccount, setShowAddAccount] = React.useState(false);
@@ -4181,6 +4181,7 @@ function DashboardContent() {
               toggleOneTimePaid={toggleOneTimePaid}
               selectAllOnFocus={selectAllOnFocus}
               deleteOneTimeCost={deleteOneTimeCost}
+              updateOTC={updateOTC}
               autoDeductCash={autoDeductCash}
               autoDeductBank={autoDeductBank}
               getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
