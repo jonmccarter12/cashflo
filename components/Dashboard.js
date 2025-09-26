@@ -844,9 +844,9 @@ function DashboardContent() {
   // Calculate liquid including guaranteed credits (excluding savings accounts)
   const currentLiquidWithGuaranteed = React.useMemo(() => {
     try {
-      // Exclude savings accounts and credit accounts from liquid calculations for "Need This Week"
+      // Exclude savings accounts, credit accounts, and hidden accounts from liquid calculations for "Need This Week"
       const baseBalance = accounts
-        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit' && !a.ignored)
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
       const guaranteedCredits = upcomingCredits
         .filter(c => c.guaranteed && !c.ignored)
@@ -855,7 +855,7 @@ function DashboardContent() {
     } catch (error) {
       console.error('Error calculating liquid with guaranteed:', error);
       return accounts
-        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit' && !a.ignored)
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     }
   }, [accounts, upcomingCredits]);
@@ -868,9 +868,9 @@ function DashboardContent() {
   // Derived calculations with error handling (excluding savings and credit accounts)
   const currentLiquid = React.useMemo(()=> {
     try {
-      // Exclude savings accounts and credit accounts from liquid calculations
+      // Exclude savings accounts, credit accounts, and hidden accounts from liquid calculations
       return accounts
-        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit')
+        .filter(a => a.type !== 'Savings' && a.accountType !== 'credit' && !a.ignored)
         .reduce((s,a)=> s+(Number(a.balance) || 0), 0);
     } catch (error) {
       console.error('Error calculating current liquid:', error);
@@ -882,16 +882,18 @@ function DashboardContent() {
   // Credit accounts (debt) are subtracted from net worth
   const totalNetWorth = React.useMemo(() => {
     try {
-      let accountsTotal = accounts.reduce((total, account) => {
-        const balance = Number(account.balance) || 0;
-        if (account.accountType === 'credit') {
-          // Credit cards represent debt - subtract from net worth
-          return total - balance;
-        } else {
-          // Regular accounts (assets) - add to net worth
-          return total + balance;
-        }
-      }, 0);
+      let accountsTotal = accounts
+        .filter(account => !account.ignored) // Filter out hidden accounts
+        .reduce((total, account) => {
+          const balance = Number(account.balance) || 0;
+          if (account.accountType === 'credit') {
+            // Credit cards represent debt - subtract from net worth
+            return total - balance;
+          } else {
+            // Regular accounts (assets) - add to net worth
+            return total + balance;
+          }
+        }, 0);
 
       // Optionally include guaranteed credits based on user setting
       if (includeGuaranteedInNetWorth) {
