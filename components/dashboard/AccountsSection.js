@@ -350,10 +350,29 @@ export default function AccountsSection({
                         }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const minPayment = Math.max(account.balance * 0.02, 25);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / minPayment);
-                            const totalInterest = Math.max(0, (minPayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const minPayment = Math.max(balance * 0.02, 25);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - minPayment;
+                              months++;
+
+                              if (minPayment >= remainingBalance + interestThisMonth) {
+                                // Last payment
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} interest
                         </div>
@@ -394,11 +413,30 @@ export default function AccountsSection({
                         }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const minPayment = Math.max(account.balance * 0.02, 25);
-                            const optimizedPayment = Math.max(minPayment * 2, account.balance * 0.05, 50);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / optimizedPayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / optimizedPayment);
-                            const totalInterest = Math.max(0, (optimizedPayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const minPayment = Math.max(balance * 0.02, 25);
+                            const optimizedPayment = Math.max(minPayment * 2, balance * 0.05, 50);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - optimizedPayment;
+                              months++;
+
+                              if (optimizedPayment >= remainingBalance + interestThisMonth) {
+                                // Last payment
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} interest
                         </div>
@@ -438,10 +476,29 @@ export default function AccountsSection({
                         }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const aggressivePayment = Math.max(account.balance * 0.1, 100);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / aggressivePayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / aggressivePayment);
-                            const totalInterest = Math.max(0, (aggressivePayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const aggressivePayment = Math.max(balance * 0.1, 100);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - aggressivePayment;
+                              months++;
+
+                              if (aggressivePayment >= remainingBalance + interestThisMonth) {
+                                // Last payment
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} interest
                         </div>
@@ -462,54 +519,52 @@ export default function AccountsSection({
                         fontWeight: '700'
                       }}>
                         💰 Save ${(() => {
-                          // Robust savings calculation with proper validation
+                          // Robust savings calculation with proper simulation
                           if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) {
                             return '0';
                           }
 
                           try {
                             const balance = Number(account.balance);
-                            const annualRate = Number(account.apr);
-
-                            if (balance <= 0 || annualRate <= 0) return '0';
-
-                            const monthlyRate = annualRate / 100 / 12;
+                            const monthlyRate = Number(account.apr) / 100 / 12;
                             const minPayment = Math.max(balance * 0.02, 25);
                             const optimizedPayment = Math.max(minPayment * 2, balance * 0.05, 50);
 
-                            // Ensure payments are reasonable
-                            if (minPayment >= balance || optimizedPayment >= balance) {
-                              return (minPayment >= balance) ? '0' : Math.max(0, balance - optimizedPayment).toFixed(0);
+                            // Calculate minimum payment total interest
+                            let remainingBalance = balance;
+                            let minTotalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360;
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              minTotalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - minPayment;
+                              months++;
+
+                              if (minPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
                             }
 
-                            // Calculate months to payoff with compound interest
-                            let minMonths, optimizedMonths;
+                            // Calculate optimized payment total interest
+                            remainingBalance = balance;
+                            let optimizedTotalInterest = 0;
+                            months = 0;
 
-                            if (monthlyRate > 0) {
-                              // Standard compound interest calculation
-                              minMonths = Math.ceil(Math.log(1 + (balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                              optimizedMonths = Math.ceil(Math.log(1 + (balance * monthlyRate) / optimizedPayment) / Math.log(1 + monthlyRate));
-                            } else {
-                              // No interest case (0% APR)
-                              minMonths = Math.ceil(balance / minPayment);
-                              optimizedMonths = Math.ceil(balance / optimizedPayment);
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              optimizedTotalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - optimizedPayment;
+                              months++;
+
+                              if (optimizedPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
                             }
-
-                            // Ensure reasonable timeframes (max 30 years)
-                            minMonths = Math.min(minMonths, 360);
-                            optimizedMonths = Math.min(optimizedMonths, 360);
-
-                            // Calculate total amounts paid
-                            const minTotalPaid = minPayment * minMonths;
-                            const optimizedTotalPaid = optimizedPayment * optimizedMonths;
-
-                            // Calculate interest only (total paid minus principal)
-                            const minTotalInterest = Math.max(0, minTotalPaid - balance);
-                            const optimizedTotalInterest = Math.max(0, optimizedTotalPaid - balance);
 
                             // Savings is the difference in interest paid
                             const savings = Math.max(0, minTotalInterest - optimizedTotalInterest);
-
                             return savings.toFixed(0);
                           } catch (error) {
                             console.warn('Savings calculation error:', error);
@@ -1078,10 +1133,28 @@ export default function AccountsSection({
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const minPayment = Math.max(account.balance * 0.02, 25);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / minPayment);
-                            const totalInterest = Math.max(0, (minPayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const minPayment = Math.max(balance * 0.02, 25);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - minPayment;
+                              months++;
+
+                              if (minPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} total interest
                         </div>
@@ -1106,11 +1179,29 @@ export default function AccountsSection({
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const minPayment = Math.max(account.balance * 0.02, 25);
-                            const optimizedPayment = Math.max(minPayment * 2, account.balance * 0.05, 50);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / optimizedPayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / optimizedPayment);
-                            const totalInterest = Math.max(0, (optimizedPayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const minPayment = Math.max(balance * 0.02, 25);
+                            const optimizedPayment = Math.max(minPayment * 2, balance * 0.05, 50);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - optimizedPayment;
+                              months++;
+
+                              if (optimizedPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} total interest
                         </div>
@@ -1134,10 +1225,28 @@ export default function AccountsSection({
                         <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                           ${(() => {
                             if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) return '0';
-                            const monthlyRate = account.apr / 100 / 12;
-                            const aggressivePayment = Math.max(account.balance * 0.1, 100);
-                            const months = monthlyRate > 0 ? Math.ceil(Math.log(1 + (account.balance * monthlyRate) / aggressivePayment) / Math.log(1 + monthlyRate)) : Math.ceil(account.balance / aggressivePayment);
-                            const totalInterest = Math.max(0, (aggressivePayment * months) - account.balance);
+
+                            const balance = Number(account.balance);
+                            const monthlyRate = Number(account.apr) / 100 / 12;
+                            const aggressivePayment = Math.max(balance * 0.1, 100);
+
+                            // Simulate month-by-month to calculate actual interest
+                            let remainingBalance = balance;
+                            let totalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360; // 30 years max
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              totalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - aggressivePayment;
+                              months++;
+
+                              if (aggressivePayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
+                            }
+
                             return totalInterest.toFixed(0);
                           })()} total interest
                         </div>
@@ -1155,54 +1264,52 @@ export default function AccountsSection({
                     }}>
                       <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#22c55e' }}>
                         💰 Save ${(() => {
-                          // Robust savings calculation with proper validation
+                          // Robust savings calculation with proper simulation
                           if (!account.apr || account.apr <= 0 || !account.balance || account.balance <= 0) {
                             return '0';
                           }
 
                           try {
                             const balance = Number(account.balance);
-                            const annualRate = Number(account.apr);
-
-                            if (balance <= 0 || annualRate <= 0) return '0';
-
-                            const monthlyRate = annualRate / 100 / 12;
+                            const monthlyRate = Number(account.apr) / 100 / 12;
                             const minPayment = Math.max(balance * 0.02, 25);
                             const optimizedPayment = Math.max(minPayment * 2, balance * 0.05, 50);
 
-                            // Ensure payments are reasonable
-                            if (minPayment >= balance || optimizedPayment >= balance) {
-                              return (minPayment >= balance) ? '0' : Math.max(0, balance - optimizedPayment).toFixed(0);
+                            // Calculate minimum payment total interest
+                            let remainingBalance = balance;
+                            let minTotalInterest = 0;
+                            let months = 0;
+                            const maxMonths = 360;
+
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              minTotalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - minPayment;
+                              months++;
+
+                              if (minPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
                             }
 
-                            // Calculate months to payoff with compound interest
-                            let minMonths, optimizedMonths;
+                            // Calculate optimized payment total interest
+                            remainingBalance = balance;
+                            let optimizedTotalInterest = 0;
+                            months = 0;
 
-                            if (monthlyRate > 0) {
-                              // Standard compound interest calculation
-                              minMonths = Math.ceil(Math.log(1 + (balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                              optimizedMonths = Math.ceil(Math.log(1 + (balance * monthlyRate) / optimizedPayment) / Math.log(1 + monthlyRate));
-                            } else {
-                              // No interest case (0% APR)
-                              minMonths = Math.ceil(balance / minPayment);
-                              optimizedMonths = Math.ceil(balance / optimizedPayment);
+                            while (remainingBalance > 0.01 && months < maxMonths) {
+                              const interestThisMonth = remainingBalance * monthlyRate;
+                              optimizedTotalInterest += interestThisMonth;
+                              remainingBalance = remainingBalance + interestThisMonth - optimizedPayment;
+                              months++;
+
+                              if (optimizedPayment >= remainingBalance + interestThisMonth) {
+                                break;
+                              }
                             }
-
-                            // Ensure reasonable timeframes (max 30 years)
-                            minMonths = Math.min(minMonths, 360);
-                            optimizedMonths = Math.min(optimizedMonths, 360);
-
-                            // Calculate total amounts paid
-                            const minTotalPaid = minPayment * minMonths;
-                            const optimizedTotalPaid = optimizedPayment * optimizedMonths;
-
-                            // Calculate interest only (total paid minus principal)
-                            const minTotalInterest = Math.max(0, minTotalPaid - balance);
-                            const optimizedTotalInterest = Math.max(0, optimizedTotalPaid - balance);
 
                             // Savings is the difference in interest paid
                             const savings = Math.max(0, minTotalInterest - optimizedTotalInterest);
-
                             return savings.toFixed(0);
                           } catch (error) {
                             console.warn('Savings calculation error:', error);
