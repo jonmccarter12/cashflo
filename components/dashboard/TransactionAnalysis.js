@@ -430,8 +430,13 @@ const TransactionAnalysis = ({
 
         // If not manually assigned, use the category's businessId or default to personal
         if (!assignedBusinessId) {
-          const categoryConfig = TAX_CATEGORIES[bestMatch];
-          assignedBusinessId = categoryConfig?.businessId || 'personal';
+          // For bills and one-time costs, use their category directly
+          if (transaction.source === 'bills' || transaction.source === 'oneTimeCosts') {
+            assignedBusinessId = mapCategoryToBusinessId(transaction.category);
+          } else {
+            const categoryConfig = TAX_CATEGORIES[bestMatch];
+            assignedBusinessId = categoryConfig?.businessId || 'personal';
+          }
         }
 
         return {
@@ -1654,9 +1659,11 @@ const TransactionAnalysis = ({
                 })
                 .slice(0, 50).map((transaction, index) => {
                   // Determine transaction type and formatting
-                  const isCredit = transaction.amount > 0;
+                  const isCredit = transaction.amount > 0 ||
+                    transaction.type === 'credit_received' ||
+                    transaction.type === 'recurring_income_received';
                   const transactionLabel = isCredit ? '💵 CREDIT' : '💸 DEBIT';
-                  const amountColor = isCredit ? '#dc2626' : '#dc2626'; // Both red for visual consistency
+                  const amountColor = isCredit ? '#059669' : '#dc2626'; // Credits green, debits red
 
                   return (
                 <div
@@ -1712,7 +1719,7 @@ const TransactionAnalysis = ({
                     fontSize: '1rem',
                     color: amountColor
                   }}>
-                    {isCredit ? '' : '-'}{fmt(Math.abs(transaction.amount))}
+                    {fmt(Math.abs(transaction.amount))}
                   </div>
 
                   {/* Date */}
