@@ -910,6 +910,23 @@ function DashboardContent() {
     }
   }, [accounts, includeGuaranteedInNetWorth, upcomingCredits]);
 
+  // Memoized pie chart data to ensure proper re-rendering when accounts change
+  const pieChartData = React.useMemo(() => {
+    const visibleAccounts = accounts.filter(acc => !acc.ignored);
+    const total = visibleAccounts.reduce((sum, acc) => {
+      if (acc.accountType === 'credit') {
+        // For credit cards, show available credit (limit - balance)
+        const availableCredit = Math.max(0, (acc.creditLimit || 0) - (acc.balance || 0));
+        return sum + availableCredit;
+      } else {
+        // For regular accounts, show positive balances
+        return sum + Math.max(0, acc.balance);
+      }
+    }, 0);
+
+    return { visibleAccounts, total };
+  }, [accounts]);
+
   const upcoming = React.useMemo(()=>{
     try {
       const now = new Date();
@@ -3321,17 +3338,7 @@ function DashboardContent() {
                   <div style={{ display: 'inline-block', position: 'relative' }}>
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
-                        const visibleAccounts = accounts.filter(acc => !acc.ignored);
-                        const total = visibleAccounts.reduce((sum, acc) => {
-                          if (acc.accountType === 'credit') {
-                            // For credit cards, show available credit (limit - balance)
-                            const availableCredit = Math.max(0, (acc.creditLimit || 0) - (acc.balance || 0));
-                            return sum + availableCredit;
-                          } else {
-                            // For regular accounts, show positive balances
-                            return sum + Math.max(0, acc.balance);
-                          }
-                        }, 0);
+                        const { visibleAccounts, total } = pieChartData;
                         if (total === 0) return <circle cx="70" cy="70" r="60" fill="#f3f4f6" />;
 
                         let currentAngle = 0;
@@ -3379,8 +3386,7 @@ function DashboardContent() {
                     </svg>
                   </div>
                   <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
-                    {accounts.filter(acc => {
-                      if (acc.ignored) return false; // Filter out hidden accounts
+                    {pieChartData.visibleAccounts.filter(acc => {
                       if (acc.accountType === 'credit') {
                         // Show credit cards with available credit
                         return (acc.creditLimit || 0) - (acc.balance || 0) > 0;
