@@ -265,7 +265,7 @@ export default function OneTimeCostsSection({
           </div>
 
           {oneTimeCosts
-            .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true))
+            .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true) && !o.paid)
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
             .map(otc => {
               const account = accounts.find(a => a.id === otc.accountId);
@@ -399,7 +399,7 @@ export default function OneTimeCostsSection({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
             {oneTimeCosts
-              .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true))
+              .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true) && !o.paid)
               .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
               .map(otc => {
                 const account = accounts.find(a => a.id === otc.accountId);

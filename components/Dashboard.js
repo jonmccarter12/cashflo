@@ -690,6 +690,7 @@ function DashboardContent() {
   const [editingTransaction, setEditingTransaction] = React.useState(null);
   const [showTransactionEdit, setShowTransactionEdit] = React.useState(false);
   const [showTransactionImport, setShowTransactionImport] = React.useState(false);
+  const [showAddTransaction, setShowAddTransaction] = React.useState(false);
   const [categoryFilterSticky, setCategoryFilterSticky] = React.useState(false);
   const categoryFilterRef = React.useRef(null);
 
@@ -1253,9 +1254,9 @@ function DashboardContent() {
       const isCredit = tx.type === 'credit_received' ||
                       tx.type === 'recurring_income_received';
 
-      // Debits: money going out
-      const isDebit = tx.type === 'bill_payment' ||
-                     tx.type === 'one_time_cost_payment';
+      // Debits: money going out (only actual payments, not unpaid transactions)
+      const isDebit = (tx.type === 'bill_payment' && tx.payload?.is_paid === true) ||
+                     (tx.type === 'one_time_cost_payment' && tx.payload?.is_paid === true);
 
       // Only show financial transactions (actual money movement)
       const isFinancialTransaction = isCredit || isDebit;
@@ -4752,6 +4753,19 @@ function DashboardContent() {
                 📊 Import
               </button>
               <button
+                onClick={() => setShowAddTransaction(true)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ➕ Add Transaction
+              </button>
+              <button
                 onClick={handleExport}
                 style={{
                   padding: '0.5rem 1rem',
@@ -4983,6 +4997,40 @@ function DashboardContent() {
                                 >
                                   Edit
                                 </button>
+                                {/* Unmark as Paid Button for payment transactions */}
+                                {(tx.type === 'bill_payment' || tx.type === 'one_time_cost_payment') && tx.payload?.is_paid && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        if (tx.type === 'bill_payment') {
+                                          const bill = bills.find(b => b.id === tx.item_id);
+                                          if (bill) {
+                                            await toggleBillPaidStatus(bill, tx.payload.month);
+                                          }
+                                        } else if (tx.type === 'one_time_cost_payment') {
+                                          const otc = oneTimeCosts.find(o => o.id === tx.item_id);
+                                          if (otc) {
+                                            await toggleOneTimePaid(otc);
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error unmarking as paid:', error);
+                                        notify('Failed to unmark as paid', 'error');
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '0.125rem 0.25rem',
+                                      background: '#f59e0b',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '0.25rem',
+                                      fontSize: '0.625rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Unmark
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => deleteTransaction(tx.id)}
                                   style={{
@@ -5061,6 +5109,40 @@ function DashboardContent() {
                             >
                               ✏️ Edit
                             </button>
+                            {/* Unmark as Paid Button for payment transactions */}
+                            {(tx.type === 'bill_payment' || tx.type === 'one_time_cost_payment') && tx.payload?.is_paid && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    if (tx.type === 'bill_payment') {
+                                      const bill = bills.find(b => b.id === tx.item_id);
+                                      if (bill) {
+                                        await toggleBillPaidStatus(bill, tx.payload.month);
+                                      }
+                                    } else if (tx.type === 'one_time_cost_payment') {
+                                      const otc = oneTimeCosts.find(o => o.id === tx.item_id);
+                                      if (otc) {
+                                        await toggleOneTimePaid(otc);
+                                      }
+                                    }
+                                  } catch (error) {
+                                    console.error('Error unmarking as paid:', error);
+                                    notify('Failed to unmark as paid', 'error');
+                                  }
+                                }}
+                                style={{
+                                  padding: '0.25rem 0.5rem',
+                                  background: '#f59e0b',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.625rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ↩️ Unmark
+                              </button>
+                            )}
                             <button
                               onClick={() => deleteTransaction(tx.id)}
                               style={{
@@ -6054,6 +6136,220 @@ function DashboardContent() {
                   }}
                 >
                   Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Transaction Dialog */}
+      {showAddTransaction && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '1rem',
+            padding: '1.5rem',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Manual Transaction</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const transactionData = {
+                description: formData.get('description'),
+                amount: Number(formData.get('amount')),
+                type: formData.get('type'),
+                category: formData.get('category'),
+                account: formData.get('account'),
+                date: formData.get('date')
+              };
+
+              try {
+                const transaction = await logTransaction(
+                  supabase,
+                  user.id,
+                  transactionData.type,
+                  transactionData.account,
+                  {
+                    amount: transactionData.amount,
+                    category: transactionData.category,
+                    is_paid: true, // Manual entries are considered completed
+                    manual_entry: true
+                  },
+                  transactionData.description
+                );
+
+                if (transaction) {
+                  setTransactions(prev => [...prev, transaction]);
+                  notify('Transaction added successfully', 'success');
+                  setShowAddTransaction(false);
+                }
+              } catch (error) {
+                console.error('Error adding transaction:', error);
+                notify('Failed to add transaction', 'error');
+              }
+            }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Description *
+                </label>
+                <input
+                  name="description"
+                  type="text"
+                  required
+                  placeholder="e.g., Grocery shopping at Walmart"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Amount *
+                  </label>
+                  <input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="0.00"
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Type *
+                  </label>
+                  <select
+                    name="type"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}
+                  >
+                    <option value="credit_received">Income/Credit</option>
+                    <option value="bill_payment">Expense/Debit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Category *
+                  </label>
+                  <select
+                    name="category"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}
+                  >
+                    {activeCats.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Account *
+                  </label>
+                  <select
+                    name="account"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.375rem'
+                    }}
+                  >
+                    {accounts.filter(a => !a.ignored).map(account => (
+                      <option key={account.id} value={account.id}>{account.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Date *
+                </label>
+                <input
+                  name="date"
+                  type="date"
+                  required
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddTransaction(false)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Add Transaction
                 </button>
               </div>
             </form>
