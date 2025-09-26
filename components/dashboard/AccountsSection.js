@@ -256,7 +256,8 @@ export default function AccountsSection({
                     <span style={{ fontSize: '1rem', fontWeight: '700', color: 'white' }}>$</span>
                     <input
                       type="number"
-                      defaultValue={account.balance}
+                      value={account.balance}
+                      onChange={() => {}} // Controlled component
                       onBlur={(e) => {
                         if (e.target.value !== account.balance.toString()) {
                           updateAccountBalance(account.id, e.target.value);
@@ -535,7 +536,8 @@ export default function AccountsSection({
                   <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b' }}>$</span>
                   <input
                     type="number"
-                    defaultValue={account.balance}
+                    value={account.balance}
+                    onChange={() => {}} // Controlled component
                     onBlur={(e) => {
                       if (e.target.value !== account.balance.toString()) {
                         updateAccountBalance(account.id, e.target.value);
@@ -812,7 +814,7 @@ export default function AccountsSection({
                       <span style={{ fontSize: '1.25rem', fontWeight: '700', color: 'white' }}>$</span>
                       <input
                         type="number"
-                        defaultValue={account.balance}
+                        value={account.balance}
                         onBlur={(e) => {
                           if (e.target.value !== account.balance.toString()) {
                             updateAccountBalance(account.id, e.target.value);
@@ -1110,7 +1112,8 @@ export default function AccountsSection({
                   <span style={{ fontSize: '1rem', fontWeight: '600', color: '#64748b' }}>$</span>
                   <input
                     type="number"
-                    defaultValue={account.balance}
+                    value={account.balance}
+                    onChange={() => {}} // Controlled component
                     onBlur={(e) => {
                       if (e.target.value !== account.balance.toString()) {
                         updateAccountBalance(account.id, e.target.value);
