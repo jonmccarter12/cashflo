@@ -3380,6 +3380,7 @@ function DashboardContent() {
                   </div>
                   <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
                     {accounts.filter(acc => {
+                      if (acc.ignored) return false; // Filter out hidden accounts
                       if (acc.accountType === 'credit') {
                         // Show credit cards with available credit
                         return (acc.creditLimit || 0) - (acc.balance || 0) > 0;
