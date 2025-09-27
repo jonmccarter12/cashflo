@@ -289,17 +289,18 @@ export default function BillsSection({
               {selectedFrequency === 'weekly' && (
                 <div style={{ marginBottom: '0.5rem' }}>
                   <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
-                    Day of Week:
+                    Start Date:
                   </label>
-                  <select name="weeklyDay" defaultValue={editingBill?.weeklyDay || '1'} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', marginBottom: '0.5rem' }}>
-                    <option value="0">Sunday</option>
-                    <option value="1">Monday</option>
-                    <option value="2">Tuesday</option>
-                    <option value="3">Wednesday</option>
-                    <option value="4">Thursday</option>
-                    <option value="5">Friday</option>
-                    <option value="6">Saturday</option>
-                  </select>
+                  <input
+                    name="weeklyStart"
+                    type="date"
+                    defaultValue={editingBill?.weeklyStart ? new Date(editingBill.weeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}
+                    required
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', marginBottom: '0.5rem' }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                    The day of the week will be determined by the start date above
+                  </div>
                   <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
                     Weekly Schedule:
                   </label>
@@ -311,6 +312,9 @@ export default function BillsSection({
                     <option value="fourth">Fourth week of month</option>
                     <option value="last">Last week of month</option>
                   </select>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Bill will occur on the selected day of week starting from the start date, according to the schedule
+                  </div>
                 </div>
               )}
 
