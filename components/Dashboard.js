@@ -2238,6 +2238,12 @@ function DashboardContent() {
       if (transaction) {
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
+        // Also update the accounts state to reflect the change immediately
+        setAccounts(prev => prev.map(account =>
+          account.id === accountId
+            ? { ...account, balance: balanceValue }
+            : account
+        ));
       } else {
         notify('Failed to save balance update', 'error');
       }
