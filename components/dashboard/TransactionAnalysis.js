@@ -373,55 +373,7 @@ const TransactionAnalysis = ({
     setSortConfig({ key, direction });
   };
 
-  // Sort transactions
-  const sortedTransactions = React.useMemo(() => {
-    const filtered = categorizedTransactions.filter(transaction => {
-      // Channel filter - filter by business entity
-      if (selectedChannel !== 'all') {
-        if (transaction.businessId !== selectedChannel) {
-          return false;
-        }
-      }
-
-      // Category filter
-      if (selectedCat !== 'All') {
-        const allowedBusinessIds = selectedCats.map(cat => mapCategoryToBusinessId(cat));
-        if (!allowedBusinessIds.includes(transaction.businessId)) {
-          return false;
-        }
-      }
-
-      // Filter by transaction type (credits/debits)
-      if (transactionTypeFilter === 'all') return true;
-      const isCredit = transaction.amount > 0 ||
-        transaction.type === 'credit_received' ||
-        transaction.type === 'recurring_income_received';
-      const isDebit = transaction.amount < 0 ||
-        transaction.type === 'bill_payment' ||
-        transaction.type === 'one_time_cost_payment';
-
-      return transactionTypeFilter === 'credits' ? isCredit : isDebit;
-    });
-
-    return [...filtered].sort((a, b) => {
-      if (sortConfig.key === 'amount') {
-        const aVal = Math.abs(a.amount);
-        const bVal = Math.abs(b.amount);
-        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-      if (sortConfig.key === 'date') {
-        const aDate = new Date(a.date);
-        const bDate = new Date(b.date);
-        return sortConfig.direction === 'asc' ? aDate - bDate : bDate - aDate;
-      }
-      const aVal = (a[sortConfig.key] || '').toString().toLowerCase();
-      const bVal = (b[sortConfig.key] || '').toString().toLowerCase();
-      if (sortConfig.direction === 'asc') {
-        return aVal.localeCompare(bVal);
-      }
-      return bVal.localeCompare(aVal);
-    });
-  }, [categorizedTransactions, selectedChannel, selectedCat, selectedCats, transactionTypeFilter, sortConfig]);
+  // Sort transactions - will be defined after categorizedTransactions
 
   // Inline editable field components
   const EditableField = ({ transaction, field, value, type = 'text', options = [] }) => {
@@ -945,6 +897,56 @@ const TransactionAnalysis = ({
         };
       });
   }, [allFinancialData, businessEntities, transactionBusinessAssignments]);
+
+  // Sort transactions
+  const sortedTransactions = React.useMemo(() => {
+    const filtered = categorizedTransactions.filter(transaction => {
+      // Channel filter - filter by business entity
+      if (selectedChannel !== 'all') {
+        if (transaction.businessId !== selectedChannel) {
+          return false;
+        }
+      }
+
+      // Category filter
+      if (selectedCat !== 'All') {
+        const allowedBusinessIds = selectedCats.map(cat => mapCategoryToBusinessId(cat));
+        if (!allowedBusinessIds.includes(transaction.businessId)) {
+          return false;
+        }
+      }
+
+      // Filter by transaction type (credits/debits)
+      if (transactionTypeFilter === 'all') return true;
+      const isCredit = transaction.amount > 0 ||
+        transaction.type === 'credit_received' ||
+        transaction.type === 'recurring_income_received';
+      const isDebit = transaction.amount < 0 ||
+        transaction.type === 'bill_payment' ||
+        transaction.type === 'one_time_cost_payment';
+
+      return transactionTypeFilter === 'credits' ? isCredit : isDebit;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sortConfig.key === 'amount') {
+        const aVal = Math.abs(a.amount);
+        const bVal = Math.abs(b.amount);
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      if (sortConfig.key === 'date') {
+        const aDate = new Date(a.date);
+        const bDate = new Date(b.date);
+        return sortConfig.direction === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+      const aVal = (a[sortConfig.key] || '').toString().toLowerCase();
+      const bVal = (b[sortConfig.key] || '').toString().toLowerCase();
+      if (sortConfig.direction === 'asc') {
+        return aVal.localeCompare(bVal);
+      }
+      return bVal.localeCompare(aVal);
+    });
+  }, [categorizedTransactions, selectedChannel, selectedCat, selectedCats, transactionTypeFilter, sortConfig]);
 
   // CHECK IF THERE ARE ACTIVE BUSINESS TRANSACTIONS
   const hasBusinessTransactions = useMemo(() => {
