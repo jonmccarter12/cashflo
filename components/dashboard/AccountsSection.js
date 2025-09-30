@@ -1057,42 +1057,6 @@ export default function AccountsSection({
                     </div>
 
                     {/* Smart Payment Analysis */}
-                    {account.balance > 0 && account.apr > 0 && (
-                      <div style={{
-                        background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
-                        border: '1px solid rgba(79, 70, 229, 0.3)',
-                        borderRadius: '0.5rem',
-                        padding: '0.75rem'
-                      }}>
-                        <div style={{ fontSize: '0.8rem', color: '#a5b4fc', marginBottom: '0.5rem', fontWeight: '700' }}>💡 Smart Payment Strategy</div>
-
-                        {/* Payment Options Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#fca5a5', fontWeight: '600', marginBottom: '0.25rem' }}>Minimum Payment (4%)</div>
-                            <div style={{ fontSize: '1rem', color: '#ef4444', fontWeight: '700', marginBottom: '0.125rem' }}>${(account.balance * 0.04).toFixed(0)}</div>
-                            <div style={{ fontSize: '0.65rem', color: '#f87171' }}>
-                              {(() => {
-                                const monthlyRate = account.apr / 100 / 12;
-                                const minPayment = account.balance * 0.04;
-                                if (minPayment <= account.balance * monthlyRate) return '∞ months to payoff';
-                                const months = Math.ceil(Math.log(1 + (account.balance * monthlyRate) / minPayment) / Math.log(1 + monthlyRate));
-                                return `${months} months to payoff`;
-                              })()}
-                            </div>
-                          </div>
-
-                          <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#86efac', fontWeight: '600', marginBottom: '0.25rem' }}>Smart Payment Plan</div>
-                            <div style={{ fontSize: '1rem', color: '#22c55e', fontWeight: '700', marginBottom: '0.125rem' }}>
-                              ${Math.max(account.balance * 0.04, account.balance / 24).toFixed(0)}
-                            </div>
-                            <div style={{ fontSize: '0.65rem', color: '#4ade80' }}>24 months to payoff</div>
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
                   </div>
 
                 </div>
