@@ -294,7 +294,13 @@ export default function BillsSection({
                   <input
                     name="weeklyStart"
                     type="date"
-                    defaultValue={editingBill?.weeklyStart ? new Date(editingBill.weeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}
+                    defaultValue={editingBill?.weeklyStart ?
+                      (typeof editingBill.weeklyStart === 'string' ?
+                        editingBill.weeklyStart.slice(0,10) :
+                        new Date(editingBill.weeklyStart).toISOString().slice(0,10)
+                      ) :
+                      new Date().toISOString().slice(0,10)
+                    }
                     required
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', marginBottom: '0.5rem' }}
                   />
@@ -326,7 +332,13 @@ export default function BillsSection({
                   <input
                     name="biweeklyStart"
                     type="date"
-                    defaultValue={editingBill?.biweeklyStart ? new Date(editingBill.biweeklyStart).toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}
+                    defaultValue={editingBill?.biweeklyStart ?
+                      (typeof editingBill.biweeklyStart === 'string' ?
+                        editingBill.biweeklyStart.slice(0,10) :
+                        new Date(editingBill.biweeklyStart).toISOString().slice(0,10)
+                      ) :
+                      new Date().toISOString().slice(0,10)
+                    }
                     required
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
                   />

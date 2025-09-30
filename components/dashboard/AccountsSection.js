@@ -256,11 +256,12 @@ export default function AccountsSection({
                     <span style={{ fontSize: '1rem', fontWeight: '700', color: 'white' }}>$</span>
                     <input
                       type="number"
-                      value={account.balance}
-                      onChange={() => {}} // Controlled component
+                      step="0.01"
+                      defaultValue={account.balance.toFixed(2)}
                       onBlur={(e) => {
-                        if (e.target.value !== account.balance.toString()) {
-                          updateAccountBalance(account.id, e.target.value);
+                        const newValue = parseFloat(e.target.value) || 0;
+                        if (newValue !== account.balance) {
+                          updateAccountBalance(account.id, newValue.toString());
                         }
                       }}
                       onKeyDown={(e) => {
@@ -990,11 +991,12 @@ export default function AccountsSection({
                   <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b' }}>$</span>
                   <input
                     type="number"
-                    value={account.balance}
-                    onChange={() => {}} // Controlled component
+                    step="0.01"
+                    defaultValue={account.balance.toFixed(2)}
                     onBlur={(e) => {
-                      if (e.target.value !== account.balance.toString()) {
-                        updateAccountBalance(account.id, e.target.value);
+                      const newValue = parseFloat(e.target.value) || 0;
+                      if (newValue !== account.balance) {
+                        updateAccountBalance(account.id, newValue.toString());
                       }
                     }}
                     onKeyDown={(e) => {
@@ -1735,11 +1737,12 @@ export default function AccountsSection({
                   <span style={{ fontSize: '1rem', fontWeight: '600', color: '#64748b' }}>$</span>
                   <input
                     type="number"
-                    value={account.balance}
-                    onChange={() => {}} // Controlled component
+                    step="0.01"
+                    defaultValue={account.balance.toFixed(2)}
                     onBlur={(e) => {
-                      if (e.target.value !== account.balance.toString()) {
-                        updateAccountBalance(account.id, e.target.value);
+                      const newValue = parseFloat(e.target.value) || 0;
+                      if (newValue !== account.balance) {
+                        updateAccountBalance(account.id, newValue.toString());
                       }
                     }}
                     onKeyDown={(e) => {
