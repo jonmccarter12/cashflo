@@ -5835,6 +5835,19 @@ function DashboardContent() {
               <select
                 defaultValue={categoryBusinessTypes[editingCategoryBusiness]?.businessType || 'personal'}
                 id={`businessType-${editingCategoryBusiness}`}
+                onChange={(e) => {
+                  const entitySelect = document.getElementById(`entityType-${editingCategoryBusiness}`);
+                  if (e.target.value === 'personal') {
+                    entitySelect.disabled = true;
+                    entitySelect.value = '';
+                    entitySelect.style.backgroundColor = '#f3f4f6';
+                    entitySelect.style.color = '#9ca3af';
+                  } else {
+                    entitySelect.disabled = false;
+                    entitySelect.style.backgroundColor = 'white';
+                    entitySelect.style.color = '#1f2937';
+                  }
+                }}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -5853,20 +5866,29 @@ function DashboardContent() {
               <select
                 defaultValue={categoryBusinessTypes[editingCategoryBusiness]?.entityType || ''}
                 id={`entityType-${editingCategoryBusiness}`}
+                disabled={categoryBusinessTypes[editingCategoryBusiness]?.businessType === 'personal'}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '0.375rem',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  backgroundColor: categoryBusinessTypes[editingCategoryBusiness]?.businessType === 'personal' ? '#f3f4f6' : 'white',
+                  color: categoryBusinessTypes[editingCategoryBusiness]?.businessType === 'personal' ? '#9ca3af' : '#1f2937'
                 }}
               >
                 <option value="">Select entity type...</option>
                 <option value="Sole Proprietorship">Sole Proprietorship</option>
                 <option value="LLC">LLC</option>
-                <option value="Corporation">Corporation</option>
-                <option value="S-Corp">S-Corp</option>
+                <option value="LLC (S-Corp Election)">LLC (S-Corp Election)</option>
+                <option value="LLC (C-Corp Election)">LLC (C-Corp Election)</option>
+                <option value="PLLC">PLLC (Professional LLC)</option>
+                <option value="PLLC (S-Corp Election)">PLLC (S-Corp Election)</option>
+                <option value="PLLC (C-Corp Election)">PLLC (C-Corp Election)</option>
+                <option value="Corporation (C-Corp)">Corporation (C-Corp)</option>
+                <option value="Corporation (S-Corp Election)">Corporation (S-Corp Election)</option>
                 <option value="Partnership">Partnership</option>
+                <option value="Limited Partnership">Limited Partnership</option>
                 <option value="Non-Profit">Non-Profit</option>
               </select>
             </div>
