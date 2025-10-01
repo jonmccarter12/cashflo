@@ -2095,7 +2095,7 @@ const TransactionAnalysis = ({
           }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               gap: '1rem',
               marginBottom: '1rem'
             }}>
@@ -2130,21 +2130,6 @@ const TransactionAnalysis = ({
                 ))}
               </select>
 
-              <select
-                style={{
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option>All Businesses</option>
-                {businessEntities.map(business => (
-                  <option key={business.id}>{business.name}</option>
-                ))}
-              </select>
 
               <select
                 style={{
