@@ -18,7 +18,6 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
-import TaxSection from './dashboard/TaxSectionV2';
 import CreditRepairSection from './dashboard/CreditRepairSection';
 import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
@@ -3234,22 +3233,6 @@ function DashboardContent() {
 📋 Transaction History
           </button>
           <button
-            onClick={() => setCurrentView('tax')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'tax' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'tax' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🏆 Ultimate Tax Intelligence
-          </button>
-          <button
             onClick={() => setCurrentView('credit')}
             style={{
               flex: 1,
@@ -5177,19 +5160,6 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Tax Estimator Tab */}
-      {currentView === 'tax' && (
-        <ErrorBoundary>
-          <TaxSection
-            isMobile={isMobile}
-            transactions={transactions}
-            bills={bills}
-            oneTimeCosts={oneTimeCosts}
-            accounts={accounts}
-            recurringIncome={recurringIncome}
-          />
-        </ErrorBoundary>
-      )}
 
       {/* Credit Accounts Tab */}
       {currentView === 'credit' && (
