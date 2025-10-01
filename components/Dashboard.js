@@ -20,7 +20,6 @@ import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
 import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
-import DebtManagementSection from './dashboard/DebtManagementSection';
 import TransactionImport from './TransactionImport';
 import TransactionAnalysis from './dashboard/TransactionAnalysis';
 import MobileAppShell from './MobileAppShell';
@@ -3264,22 +3263,6 @@ function DashboardContent() {
           >
             🔔 Notifications
           </button>
-          <button
-            onClick={() => setCurrentView('debt')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'debt' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'debt' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🎯 Debt Payoff
-          </button>
         </div>
       </div>
 
@@ -5169,15 +5152,6 @@ function DashboardContent() {
         />
       )}
 
-      {/* Debt Management Tab */}
-      {currentView === 'debt' && (
-        <DebtManagementSection
-          isMobile={isMobile}
-          transactions={transactions}
-          accounts={accounts}
-          bills={bills}
-        />
-      )}
 
       {/* Add Credit Dialog */}
       {showAddCredit && (
