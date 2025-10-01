@@ -1304,7 +1304,7 @@ const TransactionAnalysis = ({
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
         }}>
 
-          {/* Channel Filter and Controls */}
+          {/* Clean Header with Essential Controls */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1313,13 +1313,13 @@ const TransactionAnalysis = ({
             flexWrap: 'wrap',
             gap: '1rem'
           }}>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Transaction Type Filter */}
               <div style={{
                 display: 'flex',
-                gap: '0.5rem',
-                background: '#f8fafc',
-                borderRadius: '12px',
+                gap: '0.25rem',
+                background: '#f1f5f9',
+                borderRadius: '10px',
                 padding: '0.25rem'
               }}>
                 {['all', 'credits', 'debits'].map(type => (
@@ -1328,126 +1328,100 @@ const TransactionAnalysis = ({
                     onClick={() => setTransactionTypeFilter(type)}
                     style={{
                       padding: '0.5rem 1rem',
-                      background: transactionTypeFilter === type ? '#3b82f6' : 'transparent',
-                      color: transactionTypeFilter === type ? 'white' : '#6b7280',
+                      background: transactionTypeFilter === type ? '#1e293b' : 'transparent',
+                      color: transactionTypeFilter === type ? 'white' : '#64748b',
                       border: 'none',
                       borderRadius: '8px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600',
-                      cursor: 'pointer'
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    {type === 'all' ? '💰 All' : type === 'credits' ? '💵 Credits' : '💸 Debits'}
+                    {type === 'all' ? 'All' : type === 'credits' ? '↗ Income' : '↘ Expenses'}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowCSVImport(true)}
                 style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  padding: '0.625rem 1.25rem',
+                  background: '#64748b',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                  transition: 'all 0.2s ease'
                 }}
+                onMouseEnter={(e) => e.target.style.background = '#475569'}
+                onMouseLeave={(e) => e.target.style.background = '#64748b'}
               >
-                📁 Import CSV
+                Import CSV
               </button>
               <button
                 onClick={() => setShowAutoCategorization(true)}
                 style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  padding: '0.625rem 1.25rem',
+                  background: '#1e293b',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                  transition: 'all 0.2s ease'
                 }}
+                onMouseEnter={(e) => e.target.style.background = '#0f172a'}
+                onMouseLeave={(e) => e.target.style.background = '#1e293b'}
               >
-                🤖 Auto-Categorize
-              </button>
-              <button
-                onClick={() => setShowSmartAssignment(true)}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-              >
-                🎯 Smart Assign
-              </button>
-              <button
-                onClick={() => {/* Add export functionality */}}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                📤 Export
+                Auto-Categorize
               </button>
             </div>
           </div>
 
-          {/* Advanced Filters & Search - Wave/QuickBooks Style */}
+          {/* Simplified Search and Filters */}
           <div style={{
             background: '#f8fafc',
             borderRadius: '16px',
-            padding: '1.5rem',
+            padding: '1.25rem',
             marginBottom: '2rem',
             border: '1px solid #e2e8f0'
           }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: '1rem',
-              marginBottom: '1rem'
+              gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr',
+              gap: '1rem'
             }}>
               <input
                 type="text"
-                placeholder="🔍 Search transactions..."
+                placeholder="Search transactions..."
                 style={{
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
                   outline: 'none',
-                  transition: 'border-color 0.3s ease'
+                  transition: 'border-color 0.2s ease',
+                  background: 'white'
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                onFocus={(e) => e.target.style.borderColor = '#6366f1'}
+                onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               />
 
               <select
                 style={{
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
                   outline: 'none',
-                  backgroundColor: 'white'
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
                 }}
               >
                 <option>All Categories</option>
@@ -1456,15 +1430,15 @@ const TransactionAnalysis = ({
                 ))}
               </select>
 
-
               <select
                 style={{
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
                   outline: 'none',
-                  backgroundColor: 'white'
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
                 }}
               >
                 <option>All Time</option>
@@ -1474,56 +1448,24 @@ const TransactionAnalysis = ({
                 <option>This Year</option>
               </select>
             </div>
-
-            {/* Quick Filter Buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {[
-                { label: 'All', color: '#6b7280' },
-                { label: 'Income', color: '#10b981' },
-                { label: 'Expenses', color: '#ef4444' },
-                { label: 'Business', color: '#3b82f6' },
-                { label: 'Personal', color: '#8b5cf6' },
-                { label: 'Uncategorized', color: '#f59e0b' }
-              ].map(filter => (
-                <button
-                  key={filter.label}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: filter.color,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    opacity: 0.8,
-                    transition: 'opacity 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.target.style.opacity = '1'}
-                  onMouseLeave={(e) => e.target.style.opacity = '0.8'}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Mass Actions Bar */}
+          {/* Clean Mass Actions Bar */}
           {selectedTransactions.size > 0 && (
             <div style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              background: '#1e293b',
               color: 'white',
-              padding: '1rem',
+              padding: '1rem 1.25rem',
               borderRadius: '12px',
-              marginBottom: '1rem',
+              marginBottom: '1.5rem',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <div>
+              <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
                 <strong>{selectedTransactions.size}</strong> transaction{selectedTransactions.size !== 1 ? 's' : ''} selected
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <select
                   onChange={(e) => {
                     if (e.target.value) {
@@ -1533,10 +1475,12 @@ const TransactionAnalysis = ({
                     }
                   }}
                   style={{
-                    padding: '0.5rem',
-                    borderRadius: '6px',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '8px',
                     border: 'none',
-                    fontSize: '0.9rem'
+                    fontSize: '0.875rem',
+                    background: 'white',
+                    cursor: 'pointer'
                   }}
                 >
                   <option value="">Bulk Edit...</option>
@@ -1562,50 +1506,58 @@ const TransactionAnalysis = ({
                     background: '#dc2626',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer'
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
+                  onMouseEnter={(e) => e.target.style.background = '#b91c1c'}
+                  onMouseLeave={(e) => e.target.style.background = '#dc2626'}
                 >
-                  🗑️ Delete Selected
+                  Delete
                 </button>
                 <button
                   onClick={() => setSelectedTransactions(new Set())}
                   style={{
                     padding: '0.5rem 1rem',
-                    background: 'rgba(255, 255, 255, 0.2)',
+                    background: 'transparent',
                     color: 'white',
                     border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer'
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+                  onMouseLeave={(e) => e.target.style.background = 'transparent'}
                 >
-                  Clear Selection
+                  Clear
                 </button>
               </div>
             </div>
           )}
 
-          {/* Enhanced Transaction Table - Wave/QuickBooks Style */}
+          {/* Clean Transaction Table */}
           <div style={{
             border: '1px solid #e2e8f0',
-            borderRadius: '16px',
+            borderRadius: '12px',
             overflow: 'hidden',
             backgroundColor: 'white'
           }}>
-            {/* Table Header */}
+            {/* Simplified Table Header */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile
                 ? '0.3fr 2fr 1fr 1fr'
-                : '0.3fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 0.5fr',
-              padding: '1rem',
-              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                : '0.3fr 2.5fr 1fr 1fr 1.2fr 1fr',
+              padding: '1rem 1.25rem',
+              background: '#f8fafc',
               borderBottom: '1px solid #e2e8f0',
               fontWeight: '600',
-              fontSize: '0.9rem',
-              color: '#374151'
+              fontSize: '0.875rem',
+              color: '#475569'
             }}>
               <div style={{ textAlign: 'center' }}>
                 <input
@@ -1627,7 +1579,7 @@ const TransactionAnalysis = ({
               </div>
               <div
                 onClick={() => handleSort('amount')}
-                style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}
               >
                 Amount {sortConfig.key === 'amount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </div>
@@ -1643,15 +1595,6 @@ const TransactionAnalysis = ({
               >
                 Category {sortConfig.key === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </div>}
-              {!isMobile && <div
-                onClick={() => handleSort('account')}
-                style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
-              >
-                Account {sortConfig.key === 'account' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </div>}
-              {!isMobile && <div style={{ textAlign: 'center' }}>Notes</div>}
-              {!isMobile && <div style={{ textAlign: 'center' }}>Receipt</div>}
-              {!isMobile && <div style={{ textAlign: 'center' }}>Tax Impact</div>}
               {!isMobile && <div style={{ textAlign: 'center' }}>Actions</div>}
             </div>
 
@@ -1673,15 +1616,15 @@ const TransactionAnalysis = ({
                     display: 'grid',
                     gridTemplateColumns: isMobile
                       ? '0.3fr 2fr 1fr 1fr'
-                      : '0.3fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 0.5fr',
-                    padding: '1rem',
-                    borderBottom: index < 19 ? '1px solid #f1f5f9' : 'none',
+                      : '0.3fr 2.5fr 1fr 1fr 1.2fr 1fr',
+                    padding: '1rem 1.25rem',
+                    borderBottom: index < 49 ? '1px solid #f1f5f9' : 'none',
                     alignItems: 'center',
-                    fontSize: '0.9rem',
-                    transition: 'background-color 0.3s ease',
+                    fontSize: '0.875rem',
+                    transition: 'background-color 0.2s ease',
                     backgroundColor: selectedTransactions.has(transaction.id) ? '#f0f9ff' : 'transparent'
                   }}
-                  onMouseEnter={(e) => !selectedTransactions.has(transaction.id) && (e.currentTarget.style.backgroundColor = '#fafbff')}
+                  onMouseEnter={(e) => !selectedTransactions.has(transaction.id) && (e.currentTarget.style.backgroundColor = '#f8fafc')}
                   onMouseLeave={(e) => !selectedTransactions.has(transaction.id) && (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
                   {/* Checkbox */}
@@ -1698,21 +1641,23 @@ const TransactionAnalysis = ({
                     />
                   </div>
 
-                  {/* Description with Credit/Debit Label */}
+                  {/* Clean Description */}
                   <div style={{
                     fontWeight: '500',
                     color: '#1f2937'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span style={{
                         padding: '0.25rem 0.5rem',
                         borderRadius: '6px',
-                        fontSize: '0.7rem',
-                        fontWeight: '700',
-                        background: isCredit ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)',
-                        color: amountColor
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        background: isCredit ? '#ecfdf5' : '#fef2f2',
+                        color: isCredit ? '#065f46' : '#991b1b',
+                        minWidth: '60px',
+                        textAlign: 'center'
                       }}>
-                        {transactionLabel}
+                        {isCredit ? '+' : '−'}
                       </span>
                       <EditableField
                         transaction={transaction}
@@ -1723,21 +1668,21 @@ const TransactionAnalysis = ({
                     </div>
                     {isMobile && (
                       <div style={{
-                        fontSize: '0.8rem',
+                        fontSize: '0.75rem',
                         color: '#6b7280',
-                        marginTop: '0.25rem'
+                        marginTop: '0.5rem'
                       }}>
-                        {transaction.taxCategory} • {transaction.businessName}
+                        {transaction.taxCategory}
                       </div>
                     )}
                   </div>
 
-                  {/* Amount with better formatting */}
+                  {/* Clean Amount */}
                   <div style={{
-                    textAlign: 'center',
-                    fontWeight: '700',
-                    fontSize: '1rem',
-                    color: amountColor
+                    textAlign: 'right',
+                    fontWeight: '600',
+                    fontSize: '0.875rem',
+                    color: isCredit ? '#059669' : '#dc2626'
                   }}>
                     <EditableField
                       transaction={transaction}
@@ -1750,8 +1695,8 @@ const TransactionAnalysis = ({
                   {/* Date */}
                   <div style={{
                     textAlign: 'center',
-                    color: '#6b7280',
-                    fontSize: '0.9rem'
+                    color: '#64748b',
+                    fontSize: '0.875rem'
                   }}>
                     <EditableField
                       transaction={transaction}
@@ -1776,63 +1721,7 @@ const TransactionAnalysis = ({
                     </div>
                   )}
 
-                  {/* Business - Desktop Only */}
-                  {!isMobile && (
-                    <div style={{
-                      textAlign: 'center',
-                      color: '#6b7280'
-                    }}>
-                      {transaction.businessName}
-                    </div>
-                  )}
-
-                  {/* Account - Desktop Only */}
-                  {!isMobile && (
-                    <div style={{
-                      textAlign: 'center',
-                      color: '#6b7280',
-                      fontSize: '0.9rem'
-                    }}>
-                      <EditableField
-                        transaction={transaction}
-                        field="account"
-                        value={transaction.account}
-                        type="select"
-                        options={accountOptions}
-                      />
-                    </div>
-                  )}
-
-                  {/* Notes - Desktop Only */}
-                  {!isMobile && (
-                    <div style={{
-                      textAlign: 'center'
-                    }}>
-                      <NotesField transaction={transaction} />
-                    </div>
-                  )}
-
-                  {/* Receipt - Desktop Only */}
-                  {!isMobile && (
-                    <div style={{
-                      textAlign: 'center'
-                    }}>
-                      <ReceiptField transaction={transaction} />
-                    </div>
-                  )}
-
-                  {/* Tax Impact - Desktop Only */}
-                  {!isMobile && (
-                    <div style={{
-                      textAlign: 'center',
-                      fontWeight: '500',
-                      color: transaction.amount < 0 ? '#059669' : '#6b7280'
-                    }}>
-                      {transaction.amount < 0 ? 'Deductible' : 'Taxable'}
-                    </div>
-                  )}
-
-                  {/* Actions - Desktop Only */}
+                  {/* Simple Actions - Desktop Only */}
                   {!isMobile && (
                     <div
                       data-dropdown
@@ -1843,20 +1732,20 @@ const TransactionAnalysis = ({
                       <button
                         onClick={() => setOpenActionDropdown(openActionDropdown === transaction.id ? null : transaction.id)}
                         style={{
-                          background: '#3b82f6',
+                          background: '#64748b',
                           color: 'white',
                           border: 'none',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '8px',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease'
                         }}
-                        onMouseEnter={(e) => e.target.style.background = '#2563eb'}
-                        onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+                        onMouseEnter={(e) => e.target.style.background = '#475569'}
+                        onMouseLeave={(e) => e.target.style.background = '#64748b'}
                       >
-                        Actions ▼
+                        •••
                       </button>
 
                       {/* Actions Dropdown */}
