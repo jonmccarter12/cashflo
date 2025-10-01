@@ -1988,50 +1988,6 @@ const TransactionAnalysis = ({
             gap: '1rem'
           }}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* Channel Filter */}
-              <div style={{
-                display: 'flex',
-                gap: '0.5rem',
-                background: '#f8fafc',
-                borderRadius: '12px',
-                padding: '0.25rem'
-              }}>
-                <button
-                  key="all"
-                  onClick={() => setSelectedChannel('all')}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: selectedChannel === 'all' ? '#3b82f6' : 'transparent',
-                    color: selectedChannel === 'all' ? 'white' : '#6b7280',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🏢 All Channels
-                </button>
-                {businessEntities.filter(entity => entity.type === 'business').map(entity => (
-                  <button
-                    key={entity.id}
-                    onClick={() => setSelectedChannel(entity.id)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: selectedChannel === entity.id ? entity.color : 'transparent',
-                      color: selectedChannel === entity.id ? 'white' : '#6b7280',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {entity.name}
-                  </button>
-                ))}
-              </div>
-
               {/* Transaction Type Filter */}
               <div style={{
                 display: 'flex',
