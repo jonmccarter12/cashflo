@@ -1976,325 +1976,91 @@ const TransactionAnalysis = ({
 
       {viewMode === 'overview' && (
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: '2rem'
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '24px',
+          padding: '2rem',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
         }}>
-          {/* Pie Chart Card */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '24px',
-            padding: '2rem',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+          <h3 style={{
+            fontSize: '1.5rem',
+            fontWeight: '800',
+            color: '#1f2937',
+            marginBottom: '2rem',
+            textAlign: 'center'
           }}>
-            <h3 style={{
-              fontSize: '1.5rem',
-              fontWeight: '800',
-              color: '#1f2937',
-              marginBottom: '2rem',
-              textAlign: 'center'
-            }}>
-              📊 Tax Category Breakdown
-            </h3>
-            {renderPieChart()}
+            📊 Spending Overview
+          </h3>
 
-            {/* Legend */}
-            <div style={{
-              marginTop: '2rem',
-              display: 'grid',
-              gap: '0.75rem'
-            }}>
-              {pieChartData.slice(0, 8).map(segment => (
-                <div key={segment.category} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.75rem',
-                  borderRadius: '12px',
-                  background: 'rgba(0, 0, 0, 0.02)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }} onClick={() => setSelectedCategory(segment.category)}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    background: segment.color
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', color: '#1f2937' }}>
-                      {segment.category}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                      {segment.count} transactions
-                    </div>
-                  </div>
-                  <div style={{
-                    fontWeight: '700',
-                    color: '#1f2937'
-                  }}>
-                    ${segment.amount.toLocaleString()}
-                  </div>
-                  <div style={{
-                    fontSize: '0.9rem',
-                    color: '#6b7280'
-                  }}>
-                    {segment.percentage.toFixed(1)}%
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Simple Pie Chart */}
+          {renderPieChart()}
 
-            {/* Business-Specific Financial Summary */}
-            <div style={{
-              marginTop: '2rem',
-              background: 'rgba(255, 255, 255, 0.8)',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              border: '1px solid #e5e7eb'
-            }}>
-              <h4 style={{
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                marginBottom: '1.5rem',
-                color: '#1f2937',
-                textAlign: 'center'
+          {/* Clean Legend - Top 6 Categories */}
+          <div style={{
+            marginTop: '2rem',
+            display: 'grid',
+            gap: '0.75rem'
+          }}>
+            {pieChartData.slice(0, 6).map(segment => (
+              <div key={segment.category} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                borderRadius: '12px',
+                background: 'rgba(0, 0, 0, 0.02)'
               }}>
-                💼 Business Financial Breakdown
-              </h4>
-
-              {/* Calculate business-specific totals */}
-              {(() => {
-                const personalIncome = categorizedTransactions.filter(t => t.businessId === 'personal' && t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-                const personalExpenses = Math.abs(categorizedTransactions.filter(t => t.businessId === 'personal' && t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-
-                const studioIncome = categorizedTransactions.filter(t => t.businessId === 'studio' && t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-                const studioExpenses = Math.abs(categorizedTransactions.filter(t => t.businessId === 'studio' && t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-
-                const smokeShopIncome = categorizedTransactions.filter(t => t.businessId === 'smoke_shop' && t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-                const smokeShopExpenses = Math.abs(categorizedTransactions.filter(t => t.businessId === 'smoke_shop' && t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-
-                const businessSummary = [
-                  {
-                    name: 'Personal',
-                    icon: '👤',
-                    color: '#6b7280',
-                    income: personalIncome,
-                    expenses: personalExpenses,
-                    net: personalIncome - personalExpenses
-                  },
-                  {
-                    name: 'Studio Business',
-                    icon: '🎨',
-                    color: '#8b5cf6',
-                    income: studioIncome,
-                    expenses: studioExpenses,
-                    net: studioIncome - studioExpenses
-                  },
-                  {
-                    name: 'Smoke Shop',
-                    icon: '🏪',
-                    color: '#059669',
-                    income: smokeShopIncome,
-                    expenses: smokeShopExpenses,
-                    net: smokeShopIncome - smokeShopExpenses
-                  }
-                ].filter(business => business.income > 0 || business.expenses > 0);
-
-                return (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '1rem'
-                  }}>
-                    {businessSummary.map((business, index) => (
-                      <div key={index} style={{
-                        background: `${business.color}08`,
-                        border: `2px solid ${business.color}20`,
-                        borderRadius: '12px',
-                        padding: '1rem'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginBottom: '1rem',
-                          fontSize: '0.95rem',
-                          fontWeight: '600',
-                          color: business.color
-                        }}>
-                          {business.icon} {business.name}
-                        </div>
-                        <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.85rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#6b7280' }}>Gross Income:</span>
-                            <span style={{ fontWeight: '600', color: '#10b981' }}>{fmt(business.income)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#6b7280' }}>Expenses:</span>
-                            <span style={{ fontWeight: '600', color: '#ef4444' }}>{fmt(business.expenses)}</span>
-                          </div>
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            paddingTop: '0.5rem',
-                            borderTop: '1px solid rgba(0,0,0,0.1)',
-                            fontWeight: '700'
-                          }}>
-                            <span>Net Income:</span>
-                            <span style={{ color: business.net >= 0 ? '#10b981' : '#ef4444' }}>
-                              {fmt(business.net)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Transaction Summary Stats - Moved from bottom */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-              gap: '1rem',
-              marginTop: '2rem'
-            }}>
-              {[
-                {
-                  label: 'Total Income',
-                  value: categorizedTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
-                  color: '#10b981',
-                  icon: '📈'
-                },
-                {
-                  label: 'Total Expenses',
-                  value: Math.abs(categorizedTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
-                  color: '#ef4444',
-                  icon: '📉'
-                },
-                {
-                  label: 'Net Income',
-                  value: categorizedTransactions.reduce((sum, t) => sum + t.amount, 0),
-                  color: '#3b82f6',
-                  icon: '💰'
-                },
-                {
-                  label: 'Tax Deductions',
-                  value: Math.abs(categorizedTransactions.filter(t => t.amount < 0 && TAX_CATEGORIES[t.taxCategory]?.businessType === 'business').reduce((sum, t) => sum + t.amount, 0)),
-                  color: '#8b5cf6',
-                  icon: '🎯'
-                }
-              ].map((stat, index) => (
-                <div
-                  key={index}
-                  style={{
-                    background: `${stat.color}08`,
-                    border: `2px solid ${stat.color}20`,
-                    borderRadius: '16px',
-                    padding: '1.5rem',
-                    textAlign: 'center'
-                  }}
-                >
-                  <div style={{
-                    fontSize: '1.5rem',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {stat.icon}
-                  </div>
-                  <div style={{
-                    fontSize: '0.8rem',
-                    color: '#6b7280',
-                    marginBottom: '0.5rem',
-                    fontWeight: '500'
-                  }}>
-                    {stat.label}
-                  </div>
-                  <div style={{
-                    fontSize: '1.2rem',
-                    fontWeight: '700',
-                    color: stat.color
-                  }}>
-                    {fmt(stat.value)}
-                  </div>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: segment.color
+                }} />
+                <div style={{ flex: 1, fontWeight: '600', color: '#1f2937' }}>
+                  {segment.category}
                 </div>
-              ))}
-            </div>
+                <div style={{ fontWeight: '700', color: '#1f2937' }}>
+                  ${segment.amount.toLocaleString()}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Real-Time Tax Estimate Card */}
+          {/* Basic Income vs Expenses */}
           <div style={{
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            borderRadius: '24px',
-            padding: '2rem',
-            color: 'white',
-            boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)'
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: '1rem',
+            marginTop: '2rem'
           }}>
-            <h3 style={{
-              fontSize: '1.5rem',
-              fontWeight: '800',
-              marginBottom: '2rem',
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '2px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: '16px',
+              padding: '1.5rem',
               textAlign: 'center'
             }}>
-              ⚡ Real-Time Tax Estimate
-            </h3>
-
+              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📈</div>
+              <div style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                Total Income
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>
+                {fmt(categorizedTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0))}
+              </div>
+            </div>
             <div style={{
-              display: 'grid',
-              gap: '1.5rem'
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '2px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              textAlign: 'center'
             }}>
-              <div>
-                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Total Income</div>
-                <div style={{ fontSize: '2rem', fontWeight: '900' }}>
-                  ${taxEstimate.totalIncome.toLocaleString()}
-                </div>
+              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📉</div>
+              <div style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                Total Expenses
               </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '1rem'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Federal Tax</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>
-                    ${taxEstimate.federalTax.toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>SE Tax</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700' }}>
-                    ${taxEstimate.seTax.toLocaleString()}
-                  </div>
-                </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444' }}>
+                {fmt(Math.abs(categorizedTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)))}
               </div>
-
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                padding: '1.5rem',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Quarterly Payment Due</div>
-                <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>
-                  ${taxEstimate.estimatedQuarterly.toLocaleString()}
-                </div>
-                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                  Effective Rate: {taxEstimate.effectiveRate.toFixed(1)}%
-                </div>
-              </div>
-
-              {taxEstimate.usingItemized && (
-                <div style={{
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  fontSize: '0.9rem'
-                }}>
-                  💡 You're saving ${taxEstimate.deductionsSaved.toLocaleString()} by itemizing!
-                </div>
-              )}
             </div>
           </div>
         </div>
