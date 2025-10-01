@@ -1231,28 +1231,6 @@ const TransactionAnalysis = ({
         </div>
       </div>
 
-      {/* Smart Business Detection Notice */}
-      {hasBusinessTransactions && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #059669 100%)',
-            borderRadius: '16px',
-            padding: '0.75rem 1.5rem',
-            color: 'white',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)'
-          }}>
-            🏢 Business transactions detected • Multi-business features enabled
-          </div>
-        </div>
-      )}
-
       {/* Navigation Tabs */}
       <div style={{
         display: 'flex',
