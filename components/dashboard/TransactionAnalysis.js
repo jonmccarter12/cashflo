@@ -254,6 +254,26 @@ const STANDARD_DEDUCTIONS_2024 = {
   qualifyingWidow: 29200
 };
 
+// CATEGORY TO BUSINESS ID MAPPING - moved to top to avoid hoisting issues
+const mapCategoryToBusinessId = (categoryName) => {
+  const mapping = {
+    'Personal': 'personal',
+    'Studio': 'studio',
+    'Smoke Shop': 'smoke_shop',
+    'Botting': 'botting',
+    'Coding': 'coding',
+    'Tech': 'coding',
+    'Development': 'coding',
+    'W-2 Income': 'personal',
+    'Self-Employment Income': 'personal',
+    'Studio Income': 'studio',
+    'Studio Expenses': 'studio',
+    'Smoke Shop Income': 'smoke_shop',
+    'Smoke Shop Expenses': 'smoke_shop'
+  };
+  return mapping[categoryName] || 'personal';
+};
+
 const TransactionAnalysis = ({
   transactions = [],
   bills = [],
@@ -725,21 +745,6 @@ const TransactionAnalysis = ({
     { value: 'Deposit', label: 'Deposit' },
     { value: 'Wire Transfer', label: 'Wire Transfer' }
   ];
-
-  // CATEGORY TO BUSINESS ID MAPPING
-  const mapCategoryToBusinessId = (categoryName) => {
-    const mapping = {
-      'Personal': 'personal',
-      'Studio': 'studio',
-      'Smoke Shop': 'smoke_shop',
-      'Botting': 'botting',
-      'Coding': 'coding',
-      'Tech': 'coding',
-      'Development': 'coding',
-      'Software': 'coding'
-    };
-    return mapping[categoryName] || 'personal';
-  };
 
   // COMPREHENSIVE TRANSACTION + BILLS DATA INTEGRATION
   const allFinancialData = useMemo(() => {
