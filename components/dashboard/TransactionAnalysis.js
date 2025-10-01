@@ -315,6 +315,277 @@ const TransactionAnalysis = ({
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [showAutoCategorization, setShowAutoCategorization] = useState(false);
   const [showSmartAssignment, setShowSmartAssignment] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvData, setCsvData] = useState([]);
+  const [columnMapping, setColumnMapping] = useState({});
+  const [importOptions, setImportOptions] = useState({
+    skipDuplicates: true,
+    autoCategorize: true,
+    createRecurring: false
+  });
+  const [autoCategorizeProposals, setAutoCategorizeProposals] = useState([]);
+  const [selectedProposals, setSelectedProposals] = useState(new Set());
+
+  // CSV Processing Functions
+  const parseCSV = (text) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length === 0) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rows = lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      return row;
+    });
+
+    return { headers, rows };
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const parsed = parseCSV(text);
+      setCsvData(parsed);
+
+      // Auto-detect column mappings
+      const autoMapping = {};
+      parsed.headers.forEach(header => {
+        const lower = header.toLowerCase();
+        if (lower.includes('description') || lower.includes('memo') || lower.includes('payee')) {
+          autoMapping.description = header;
+        } else if (lower.includes('amount') || lower.includes('debit') || lower.includes('credit')) {
+          autoMapping.amount = header;
+        } else if (lower.includes('date') || lower.includes('posted')) {
+          autoMapping.date = header;
+        } else if (lower.includes('account')) {
+          autoMapping.account = header;
+        }
+      });
+      setColumnMapping(autoMapping);
+    };
+    reader.readAsText(file);
+  };
+
+  const processCSVImport = () => {
+    if (!csvData.rows || csvData.rows.length === 0) {
+      alert('No data to import');
+      return;
+    }
+
+    const newTransactions = csvData.rows.map((row, index) => {
+      let amount = parseFloat(row[columnMapping.amount] || '0');
+      let description = row[columnMapping.description] || 'Imported Transaction';
+      let date = row[columnMapping.date] || new Date().toISOString().slice(0, 10);
+      let account = row[columnMapping.account] || 'Imported Account';
+
+      // Handle different amount formats
+      if (isNaN(amount)) {
+        const amountStr = row[columnMapping.amount] || '0';
+        amount = parseFloat(amountStr.replace(/[$,()]/g, '').replace(/\s+/g, ''));
+        if (amountStr.includes('(') || amountStr.includes('-')) {
+          amount = -Math.abs(amount);
+        }
+      }
+
+      // Auto-categorize if enabled
+      let taxCategory = 'Uncategorized';
+      if (importOptions.autoCategorize) {
+        const descLower = description.toLowerCase();
+        for (const [category, config] of Object.entries(TAX_CATEGORIES)) {
+          if (config.keywords && config.keywords.some(keyword =>
+            descLower.includes(keyword.toLowerCase())
+          )) {
+            taxCategory = category;
+            break;
+          }
+        }
+      }
+
+      return {
+        id: `imported_${Date.now()}_${index}`,
+        description,
+        amount,
+        date,
+        account,
+        taxCategory,
+        source: 'csv_import',
+        type: amount > 0 ? 'credit_received' : 'debit_spent',
+        businessId: 'personal'
+      };
+    });
+
+    // Skip duplicates if enabled
+    let finalTransactions = newTransactions;
+    if (importOptions.skipDuplicates) {
+      const existingTransactions = allFinancialData.flatMap(account => account.transactions || []);
+      finalTransactions = newTransactions.filter(newTx => {
+        return !existingTransactions.some(existing =>
+          existing.description === newTx.description &&
+          Math.abs(existing.amount - newTx.amount) < 0.01 &&
+          existing.date === newTx.date
+        );
+      });
+    }
+
+    // Add to existing transactions
+    if (finalTransactions.length > 0 && onTransactionUpdate) {
+      finalTransactions.forEach(transaction => {
+        onTransactionUpdate('add', null, transaction);
+      });
+      alert(`Successfully imported ${finalTransactions.length} transactions`);
+    } else {
+      alert('No new transactions to import (all were duplicates)');
+    }
+
+    // Reset and close
+    setCsvFile(null);
+    setCsvData([]);
+    setColumnMapping({});
+    setShowCSVImport(false);
+  };
+
+  // Auto-Categorization Functions
+  const generateAutoCategorizeProposals = () => {
+    const uncategorizedTransactions = categorizedTransactions.filter(t =>
+      t.taxCategory === 'Uncategorized' || !t.taxCategory
+    );
+
+    if (uncategorizedTransactions.length === 0) {
+      alert('No uncategorized transactions found');
+      return;
+    }
+
+    // Group transactions by vendor/description patterns
+    const vendorGroups = {};
+    uncategorizedTransactions.forEach(transaction => {
+      const desc = transaction.description.toLowerCase();
+
+      // Extract vendor name (simplified logic)
+      let vendor = desc.split(' ')[0];
+      if (vendor.length < 3) vendor = desc.split(' ').slice(0, 2).join(' ');
+      if (vendor.length < 3) vendor = transaction.description;
+
+      if (!vendorGroups[vendor]) {
+        vendorGroups[vendor] = [];
+      }
+      vendorGroups[vendor].push(transaction);
+    });
+
+    // Generate proposals for each vendor group
+    const proposals = Object.entries(vendorGroups).map(([vendor, transactions]) => {
+      const description = transactions[0].description.toLowerCase();
+      let proposedCategory = 'Uncategorized';
+      let confidence = 0;
+
+      // Find best matching category based on keywords
+      for (const [category, config] of Object.entries(TAX_CATEGORIES)) {
+        if (config.keywords) {
+          const matches = config.keywords.filter(keyword =>
+            description.includes(keyword.toLowerCase())
+          ).length;
+
+          if (matches > 0) {
+            const categoryConfidence = (matches / config.keywords.length) * 100;
+            if (categoryConfidence > confidence) {
+              confidence = categoryConfidence;
+              proposedCategory = category;
+            }
+          }
+        }
+      }
+
+      // If no keyword match, use common patterns
+      if (confidence === 0) {
+        if (description.includes('amazon') || description.includes('office') || description.includes('staple')) {
+          proposedCategory = 'Office Expenses';
+          confidence = 85;
+        } else if (description.includes('gas') || description.includes('fuel') || description.includes('shell') || description.includes('exxon')) {
+          proposedCategory = 'Vehicle Expenses';
+          confidence = 90;
+        } else if (description.includes('restaurant') || description.includes('coffee') || description.includes('starbucks') || description.includes('food')) {
+          proposedCategory = 'Travel & Meals';
+          confidence = 80;
+        } else if (description.includes('software') || description.includes('adobe') || description.includes('microsoft')) {
+          proposedCategory = 'Software & Subscriptions';
+          confidence = 85;
+        } else if (description.includes('internet') || description.includes('phone') || description.includes('verizon') || description.includes('att')) {
+          proposedCategory = 'Communications';
+          confidence = 85;
+        } else {
+          confidence = 25; // Low confidence fallback
+        }
+      }
+
+      return {
+        id: `proposal_${vendor}_${Date.now()}`,
+        vendor: vendor.charAt(0).toUpperCase() + vendor.slice(1),
+        originalDescription: transactions[0].description,
+        currentCategory: 'Uncategorized',
+        proposedCategory,
+        confidence: Math.min(confidence, 98),
+        transactionIds: transactions.map(t => t.id),
+        count: transactions.length,
+        totalAmount: transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+      };
+    }).filter(p => p.confidence > 20 && p.proposedCategory !== 'Uncategorized');
+
+    setAutoCategorizeProposals(proposals);
+    setSelectedProposals(new Set(proposals.map(p => p.id)));
+  };
+
+  const applyAutoCategorization = () => {
+    const proposalsToApply = autoCategorizeProposals.filter(p =>
+      selectedProposals.has(p.id)
+    );
+
+    if (proposalsToApply.length === 0) {
+      alert('No proposals selected');
+      return;
+    }
+
+    let updatedCount = 0;
+    proposalsToApply.forEach(proposal => {
+      proposal.transactionIds.forEach(transactionId => {
+        const success = onTransactionUpdate('edit', transactionId, {
+          taxCategory: proposal.proposedCategory
+        });
+        if (success) updatedCount++;
+      });
+    });
+
+    alert(`Successfully updated ${updatedCount} transactions`);
+    setAutoCategorizeProposals([]);
+    setSelectedProposals(new Set());
+    setShowAutoCategorization(false);
+  };
+
+  const toggleProposal = (proposalId) => {
+    setSelectedProposals(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(proposalId)) {
+        newSet.delete(proposalId);
+      } else {
+        newSet.add(proposalId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllProposals = () => {
+    if (selectedProposals.size === autoCategorizeProposals.length) {
+      setSelectedProposals(new Set());
+    } else {
+      setSelectedProposals(new Set(autoCategorizeProposals.map(p => p.id)));
+    }
+  };
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -1361,7 +1632,10 @@ const TransactionAnalysis = ({
                 📁 Import CSV
               </button>
               <button
-                onClick={() => setShowAutoCategorization(true)}
+                onClick={() => {
+                  generateAutoCategorizeProposals();
+                  setShowAutoCategorization(true);
+                }}
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
@@ -1375,22 +1649,6 @@ const TransactionAnalysis = ({
                 }}
               >
                 🤖 Auto-Categorize
-              </button>
-              <button
-                onClick={() => setShowSmartAssignment(true)}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-              >
-                🎯 Smart Assign
               </button>
               <button
                 onClick={() => {/* Add export functionality */}}
@@ -2689,6 +2947,7 @@ const TransactionAnalysis = ({
               <input
                 type="file"
                 accept=".csv"
+                onChange={handleFileUpload}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -2697,7 +2956,41 @@ const TransactionAnalysis = ({
                   fontSize: '0.9rem'
                 }}
               />
+              {csvFile && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#059669' }}>
+                  ✓ {csvFile.name} loaded ({csvData.rows?.length || 0} transactions)
+                </div>
+              )}
             </div>
+
+            {csvData.headers && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Column Mapping
+                </label>
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  {['description', 'amount', 'date', 'account'].map(field => (
+                    <div key={field} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem', alignItems: 'center' }}>
+                      <label style={{ textTransform: 'capitalize' }}>{field}:</label>
+                      <select
+                        value={columnMapping[field] || ''}
+                        onChange={(e) => setColumnMapping(prev => ({ ...prev, [field]: e.target.value }))}
+                        style={{
+                          padding: '0.5rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        <option value="">Select column...</option>
+                        {csvData.headers.map(header => (
+                          <option key={header} value={header}>{header}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
@@ -2705,15 +2998,27 @@ const TransactionAnalysis = ({
               </label>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input type="checkbox" defaultChecked />
+                  <input
+                    type="checkbox"
+                    checked={importOptions.skipDuplicates}
+                    onChange={(e) => setImportOptions(prev => ({ ...prev, skipDuplicates: e.target.checked }))}
+                  />
                   Skip duplicate transactions
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input type="checkbox" defaultChecked />
+                  <input
+                    type="checkbox"
+                    checked={importOptions.autoCategorize}
+                    onChange={(e) => setImportOptions(prev => ({ ...prev, autoCategorize: e.target.checked }))}
+                  />
                   Auto-categorize based on description
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input type="checkbox" />
+                  <input
+                    type="checkbox"
+                    checked={importOptions.createRecurring}
+                    onChange={(e) => setImportOptions(prev => ({ ...prev, createRecurring: e.target.checked }))}
+                  />
                   Create retroactive recurring transactions
                 </label>
               </div>
@@ -2760,18 +3065,15 @@ const TransactionAnalysis = ({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // TODO: Implement CSV import
-                  alert('CSV import will be implemented here');
-                  setShowCSVImport(false);
-                }}
+                onClick={processCSVImport}
+                disabled={!csvFile || !columnMapping.description || !columnMapping.amount}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: '#8b5cf6',
+                  background: (!csvFile || !columnMapping.description || !columnMapping.amount) ? '#9ca3af' : '#8b5cf6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: 'pointer'
+                  cursor: (!csvFile || !columnMapping.description || !columnMapping.amount) ? 'not-allowed' : 'pointer'
                 }}
               >
                 Import Transactions
@@ -2813,82 +3115,97 @@ const TransactionAnalysis = ({
 
             {/* Proposed Changes */}
             <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '1rem' }}>
-                Proposed Changes (15 transactions)
-              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+                  Proposed Changes ({autoCategorizeProposals.reduce((sum, p) => sum + p.count, 0)} transactions)
+                </h4>
+                {autoCategorizeProposals.length > 0 && (
+                  <button
+                    onClick={toggleAllProposals}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {selectedProposals.size === autoCategorizeProposals.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
 
-              {/* Sample proposed changes */}
-              {[
-                { vendor: 'Amazon', current: 'Uncategorized', proposed: 'Office Expenses', confidence: 95, count: 5 },
-                { vendor: 'Starbucks', current: 'Uncategorized', proposed: 'Travel & Meals', confidence: 88, count: 3 },
-                { vendor: 'Home Depot', current: 'Uncategorized', proposed: 'Office Expenses', confidence: 92, count: 2 },
-                { vendor: 'Shell Gas', current: 'Uncategorized', proposed: 'Vehicle Expenses', confidence: 98, count: 5 }
-              ].map((change, index) => (
-                <div key={index} style={{
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  marginBottom: '0.5rem',
-                  background: '#f9fafb'
+              {autoCategorizeProposals.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  color: '#6b7280',
+                  padding: '2rem',
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '8px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>{change.vendor} ({change.count} transactions)</div>
-                      <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
-                        {change.current} → <span style={{ color: '#059669' }}>{change.proposed}</span>
+                  No uncategorized transactions found or no suggestions available.
+                </div>
+              ) : (
+                autoCategorizeProposals.map((proposal) => (
+                  <div key={proposal.id} style={{
+                    border: selectedProposals.has(proposal.id) ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    marginBottom: '0.5rem',
+                    background: selectedProposals.has(proposal.id) ? '#f0f9ff' : '#f9fafb',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => toggleProposal(proposal.id)}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedProposals.has(proposal.id)}
+                            onChange={() => toggleProposal(proposal.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <div style={{ fontWeight: '600' }}>
+                            {proposal.vendor} ({proposal.count} transaction{proposal.count !== 1 ? 's' : ''})
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                          "{proposal.originalDescription}"
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+                          {proposal.currentCategory} → <span style={{ color: '#059669', fontWeight: '600' }}>{proposal.proposedCategory}</span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#8b5cf6', marginTop: '0.25rem' }}>
+                          {proposal.confidence}% confidence • {fmt(proposal.totalAmount)} total
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: '#8b5cf6' }}>
-                        {change.confidence}% confidence
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          background: '#10b981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ✓ Accept
-                      </button>
-                      <button
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          background: '#ef4444',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ✗ Reject
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
+                  onClick={applyAutoCategorization}
+                  disabled={selectedProposals.size === 0}
                   style={{
                     padding: '0.75rem 1.5rem',
-                    background: '#10b981',
+                    background: selectedProposals.size === 0 ? '#9ca3af' : '#10b981',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: 'pointer'
+                    cursor: selectedProposals.size === 0 ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  Accept All
+                  Apply Selected ({selectedProposals.size})
                 </button>
                 <button
+                  onClick={() => setSelectedProposals(new Set())}
                   style={{
                     padding: '0.75rem 1.5rem',
                     background: '#ef4444',
@@ -2902,7 +3219,11 @@ const TransactionAnalysis = ({
                 </button>
               </div>
               <button
-                onClick={() => setShowAutoCategorization(false)}
+                onClick={() => {
+                  setShowAutoCategorization(false);
+                  setAutoCategorizeProposals([]);
+                  setSelectedProposals(new Set());
+                }}
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: '#6b7280',
