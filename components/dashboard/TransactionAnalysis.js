@@ -1185,7 +1185,7 @@ const TransactionAnalysis = ({
       {/* Financial Summary Boxes */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
         gap: '1rem',
         marginBottom: '2rem'
       }}>
@@ -1221,13 +1221,38 @@ const TransactionAnalysis = ({
           borderRadius: '0.75rem',
           border: `1px solid ${netProfit >= 0 ? '#38bdf8' : '#fecaca'}`,
           textAlign: 'center',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          gridColumn: isMobile ? '1 / -1' : 'auto'
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
         }}>
           <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: netProfit >= 0 ? '#0284c7' : '#dc2626', marginBottom: '0.25rem' }}>
             {fmt(netProfit)}
           </div>
           <div style={{ fontSize: '0.875rem', color: netProfit >= 0 ? '#0369a1' : '#991b1b', fontWeight: '600' }}>Net Profit</div>
+        </div>
+        <div style={{
+          background: '#f0f9ff',
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          border: '1px solid #38bdf8',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: '#0284c7', marginBottom: '0.25rem' }}>
+            {categorizedTransactions.filter(t => selectedChannel === 'all' || t.businessId === selectedChannel).length}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#0369a1', fontWeight: '600' }}>Transactions</div>
+        </div>
+        <div style={{
+          background: '#faf5ff',
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          border: '1px solid #c084fc',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: '700', color: '#7c3aed', marginBottom: '0.25rem' }}>
+            {netProfit > 0 ? fmt(netProfit * 0.3) : '$0.00'}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#6b46c1', fontWeight: '600' }}>Est. Tax Owed</div>
         </div>
       </div>
 
