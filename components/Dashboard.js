@@ -18,7 +18,6 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
-import CreditRepairSection from './dashboard/CreditRepairSection';
 import FinancialHealthSection from './dashboard/FinancialHealthSection';
 import NotificationsSection from './dashboard/NotificationsSection';
 import DebtManagementSection from './dashboard/DebtManagementSection';
@@ -2877,7 +2876,8 @@ function DashboardContent() {
         setBillsOtcView('bills');
         break;
       case 'check-credit':
-        setCurrentView('credit');
+        // Credit functionality removed - redirect to financial health
+        setCurrentView('financial-health');
         break;
       default:
         console.log(`Quick action not implemented: ${action}`);
@@ -3231,22 +3231,6 @@ function DashboardContent() {
             }}
           >
 📋 Transaction History
-          </button>
-          <button
-            onClick={() => setCurrentView('credit')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'credit' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'credit' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            💳 Credit Accounts
           </button>
           <button
             onClick={() => setCurrentView('financial-health')}
@@ -5161,14 +5145,6 @@ function DashboardContent() {
       )}
 
 
-      {/* Credit Accounts Tab */}
-      {currentView === 'credit' && (
-        <CreditRepairSection
-          isMobile={isMobile}
-          accounts={accounts}
-          transactions={transactions}
-        />
-      )}
 
 
       {/* Financial Health Tab */}
