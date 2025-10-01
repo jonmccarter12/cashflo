@@ -18,8 +18,6 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
-import FinancialHealthSection from './dashboard/FinancialHealthSection';
-import NotificationsSection from './dashboard/NotificationsSection';
 import TransactionImport from './TransactionImport';
 import TransactionAnalysis from './dashboard/TransactionAnalysis';
 import MobileAppShell from './MobileAppShell';
@@ -2875,8 +2873,8 @@ function DashboardContent() {
         setBillsOtcView('bills');
         break;
       case 'check-credit':
-        // Credit functionality removed - redirect to financial health
-        setCurrentView('financial-health');
+        // Credit functionality removed - redirect to transaction history
+        setCurrentView('history');
         break;
       default:
         console.log(`Quick action not implemented: ${action}`);
@@ -3230,38 +3228,6 @@ function DashboardContent() {
             }}
           >
 📋 Transaction History
-          </button>
-          <button
-            onClick={() => setCurrentView('financial-health')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'financial-health' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'financial-health' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            📈 Financial Health
-          </button>
-          <button
-            onClick={() => setCurrentView('notifications')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
-              background: currentView === 'notifications' ? '#8b5cf6' : 'transparent',
-              color: currentView === 'notifications' ? 'white' : '#6b7280',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🔔 Notifications
           </button>
         </div>
       </div>
@@ -5130,27 +5096,6 @@ function DashboardContent() {
 
 
 
-      {/* Financial Health Tab */}
-      {currentView === 'financial-health' && (
-        <FinancialHealthSection
-          isMobile={isMobile}
-          transactions={transactions}
-          accounts={accounts}
-          bills={bills}
-        />
-      )}
-
-      {/* Notifications Tab */}
-      {currentView === 'notifications' && (
-        <NotificationsSection
-          isMobile={isMobile}
-          transactions={transactions}
-          bills={bills}
-          accounts={accounts}
-          creditData={null} // Will be integrated with credit API data
-          budgetData={null} // Will be integrated with budget data
-        />
-      )}
 
 
       {/* Add Credit Dialog */}
