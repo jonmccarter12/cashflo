@@ -792,18 +792,47 @@ export default function AccountsSection({
                     }}
                   />
                 </div>
-                {upcomingExpenses > 0 && (
-                  <div style={{
-                    fontSize: '0.75rem',
-                    color: '#64748b',
-                    background: `${healthColor}15`,
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '0.375rem',
-                    border: `1px solid ${healthColor}30`
-                  }}>
-                    -{fmt(upcomingExpenses)} due
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '0.25rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  {upcomingExpenses > 0 && (
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#64748b',
+                      background: `${healthColor}15`,
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '0.375rem',
+                      border: `1px solid ${healthColor}30`,
+                      textAlign: 'center'
+                    }}>
+                      {fmt(upcomingExpenses)} due
+                    </div>
+                  )}
+                  {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#dc2626',
+                      background: '#fee2e2',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '0.375rem',
+                      border: '1px solid #fecaca',
+                      textAlign: 'center'
+                    }}>
+                      Short {fmt(upcomingExpenses - account.balance)}
+                    </div>
+                  )}
+                  {upcomingExpenses > 0 && account.balance >= upcomingExpenses && (
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#059669',
+                      background: '#d1fae5',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '0.375rem',
+                      border: '1px solid #a7f3d0',
+                      textAlign: 'center'
+                    }}>
+                      +{fmt(account.balance - upcomingExpenses)} after
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => setEditingAccount(account)}
                   style={{
@@ -1527,19 +1556,50 @@ export default function AccountsSection({
                     }}
                   />
                 </div>
-                {upcomingExpenses > 0 && (
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: '#64748b',
-                    background: `${healthColor}15`,
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: '0.5rem',
-                    border: `1px solid ${healthColor}30`,
-                    fontWeight: '500'
-                  }}>
-                    -{fmt(upcomingExpenses)} due this week
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  {upcomingExpenses > 0 && (
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#64748b',
+                      background: `${healthColor}15`,
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      border: `1px solid ${healthColor}30`,
+                      fontWeight: '500',
+                      textAlign: 'center'
+                    }}>
+                      {fmt(upcomingExpenses)} due this week
+                    </div>
+                  )}
+                  {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#dc2626',
+                      background: '#fee2e2',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid #fecaca',
+                      fontWeight: '600',
+                      textAlign: 'center'
+                    }}>
+                      Short {fmt(upcomingExpenses - account.balance)}
+                    </div>
+                  )}
+                  {upcomingExpenses > 0 && account.balance >= upcomingExpenses && (
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#059669',
+                      background: '#d1fae5',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid #a7f3d0',
+                      fontWeight: '500',
+                      textAlign: 'center'
+                    }}>
+                      +{fmt(account.balance - upcomingExpenses)} remaining
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );

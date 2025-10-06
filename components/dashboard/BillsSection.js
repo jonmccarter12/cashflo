@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt, yyyyMm, getNextOccurrence } from '../../lib/utils';
+import { fmt, yyyyMm, getNextOccurrence, getEffectiveDueDate } from '../../lib/utils';
 import { notify } from '../Notify';
 import { IRS_TAX_CATEGORIES } from './TaxSection';
 // import RetroactiveBillHistory from '../RetroactiveBillHistory';
@@ -64,14 +64,14 @@ export default function BillsSection({
           {bills
             .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
             .sort((a,b) => {
-              const aDate = getNextOccurrence(a);
-              const bDate = getNextOccurrence(b);
+              const aDate = getEffectiveDueDate(a);
+              const bDate = getEffectiveDueDate(b);
               return aDate - bDate;
             })
             .map(bill => {
               const account = accounts.find(a => a.id === bill.accountId);
               const isPaid = bill.paidMonths.includes(yyyyMm());
-              const nextDate = getNextOccurrence(bill);
+              const nextDate = getEffectiveDueDate(bill);
               
               return (
                 <div key={bill.id} style={{
@@ -153,14 +153,14 @@ export default function BillsSection({
             {bills
               .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
               .sort((a,b) => {
-                const aDate = getNextOccurrence(a);
-                const bDate = getNextOccurrence(b);
+                const aDate = getEffectiveDueDate(a);
+                const bDate = getEffectiveDueDate(b);
                 return aDate - bDate;
               })
               .map(bill => {
                 const account = accounts.find(a => a.id === bill.accountId);
                 const isPaid = bill.paidMonths.includes(yyyyMm());
-                const nextDate = getNextOccurrence(bill);
+                const nextDate = getEffectiveDueDate(bill);
                 
                 return (
                   <div key={bill.id} style={{
@@ -376,6 +376,25 @@ export default function BillsSection({
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <textarea name="notes" placeholder="Notes (optional)" defaultValue={editingBill?.notes || ''} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical', minHeight: '60px' }} />
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem', display: 'block' }}>
+                  Custom Due Date Override (optional):
+                </label>
+                <input
+                  name="customDueDate"
+                  type="date"
+                  defaultValue={editingBill?.customDueDate ?
+                    (typeof editingBill.customDueDate === 'string' ?
+                      editingBill.customDueDate.slice(0,10) :
+                      new Date(editingBill.customDueDate).toISOString().slice(0,10)
+                    ) : ''
+                  }
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  Use this to override the automatic due date calculation (useful for unpaid bills that need different dates)
+                </div>
+              </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#000' }}>
                   <input

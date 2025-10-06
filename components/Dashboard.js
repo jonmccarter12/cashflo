@@ -6,6 +6,7 @@ import {
   loadData,
   getNextOccurrence,
   getNextIncomeOccurrence,
+  getEffectiveDueDate,
 } from '../lib/utils';
 import { notify } from './Notify';
 import ErrorBoundary from './ErrorBoundary';
@@ -229,6 +230,7 @@ function DashboardContent() {
             dueDay: tx.payload.dueDay,
             accountId: tx.payload.accountId,
             notes: tx.payload.notes || '',
+            customDueDate: tx.payload.customDueDate || null, // Override automatic due date calculation
             paidMonths: tx.payload.paidMonths || [], // For retroactive history
             skipMonths: [],
             ignored: false,
@@ -942,7 +944,7 @@ function DashboardContent() {
         if(b.ignored) continue;
         if(!activeCats.includes(b.category)) continue;
         
-        const nextDate = getNextOccurrence(b, now);
+        const nextDate = getEffectiveDueDate(b, now);
         const paid = b.paidMonths.includes(currentMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
         const overdue = nextDate < now && !paid;
         const withinWeek = nextDate <= horizon && !paid;
@@ -1846,7 +1848,8 @@ function DashboardContent() {
         frequency,
         accountId: formData.get('accountId'),
         notes: formData.get('notes') || '',
-        autopay: formData.get('autopay') === 'on'
+        autopay: formData.get('autopay') === 'on',
+        customDueDate: formData.get('customDueDate') || null
       };
 
       // Add frequency-specific fields
