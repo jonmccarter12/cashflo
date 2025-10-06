@@ -24,7 +24,7 @@ export default function AccountsSection({
   const [tempAccountName, setTempAccountName] = React.useState('');
 
   // Calculate upcoming expenses for the next 7 days for a specific account
-  const getUpcomingExpenses = (accountId) => {
+  const getUpcomingExpenses = React.useCallback((accountId) => {
     const today = new Date();
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
@@ -57,7 +57,7 @@ export default function AccountsSection({
     });
 
     return totalUpcoming;
-  };
+  }, [bills, oneTimeCosts]);
 
   // Determine account health color based on balance vs upcoming expenses
   const getAccountHealthColor = (balance, upcomingExpenses) => {
