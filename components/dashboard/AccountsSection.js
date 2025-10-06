@@ -15,11 +15,58 @@ export default function AccountsSection({
   setEditingAccount,
   toggleAccountIgnored,
   supabase,
-  user
+  user,
+  bills = [],
+  oneTimeCosts = []
 }) {
   const selectAllOnFocus = (e) => e.target.select();
   const [editingAccountName, setEditingAccountName] = React.useState(null);
   const [tempAccountName, setTempAccountName] = React.useState('');
+
+  // Calculate upcoming expenses for the next 7 days for a specific account
+  const getUpcomingExpenses = (accountId) => {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+
+    let totalUpcoming = 0;
+
+    // Check bills due in the next 7 days for this account
+    bills.forEach(bill => {
+      if (bill.accountId === accountId && !bill.paid && !bill.ignored) {
+        const dueDate = new Date(bill.dueDate || bill.nextDue);
+        if (dueDate >= today && dueDate <= nextWeek) {
+          totalUpcoming += bill.amount || 0;
+        }
+      }
+    });
+
+    // Check one-time costs due in the next 7 days for this account
+    oneTimeCosts.forEach(otc => {
+      if (otc.accountId === accountId && !otc.paid && !otc.ignored) {
+        const dueDate = new Date(otc.dueDate);
+        if (dueDate >= today && dueDate <= nextWeek) {
+          totalUpcoming += otc.amount || 0;
+        }
+      }
+    });
+
+    return totalUpcoming;
+  };
+
+  // Determine account health color based on balance vs upcoming expenses
+  const getAccountHealthColor = (balance, upcomingExpenses) => {
+    const ratio = balance / (upcomingExpenses || 1); // Avoid division by zero
+
+    if (upcomingExpenses === 0) {
+      // No upcoming expenses - base color on balance amount
+      return balance >= 100 ? '#22c55e' : balance >= 50 ? '#f59e0b' : '#ef4444';
+    }
+
+    if (ratio >= 2) return '#22c55e';      // Green: 2x+ coverage
+    if (ratio >= 1.2) return '#f59e0b';    // Yellow: 1.2x+ coverage
+    return '#ef4444';                      // Red: insufficient coverage
+  };
 
   // Filter accounts based on view
   const filteredAccounts = accounts.filter(account => {
@@ -624,6 +671,9 @@ export default function AccountsSection({
           }
 
           // Regular debit account display for mobile
+          const upcomingExpenses = getUpcomingExpenses(account.id);
+          const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
+
           return (
             <div key={account.id} style={{
               display: 'flex',
@@ -633,8 +683,8 @@ export default function AccountsSection({
               background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
               borderRadius: '0.5rem',
               marginBottom: '0.5rem',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              border: `2px solid ${healthColor}20`,
+              boxShadow: `0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 1px ${healthColor}10`,
               transition: 'all 0.2s ease'
             }}>
               <div style={{ flex: 1 }}>
@@ -699,8 +749,18 @@ export default function AccountsSection({
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem', fontWeight: '500', marginLeft: '0.5rem' }}>{account.type}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'white', padding: '0.375rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }}>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b' }}>$</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  background: 'white',
+                  padding: '0.375rem 0.5rem',
+                  borderRadius: '0.375rem',
+                  border: `2px solid ${healthColor}`,
+                  boxShadow: `0 1px 2px rgba(0, 0, 0, 0.05), 0 0 8px ${healthColor}20`,
+                  transition: 'all 0.2s ease'
+                }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: healthColor }}>$</span>
                   <input
                     type="number"
                     step="0.01"
@@ -724,14 +784,26 @@ export default function AccountsSection({
                       outline: 'none',
                       fontSize: '0.875rem',
                       textAlign: 'right',
-                      fontWeight: '600',
+                      fontWeight: '700',
                       background: 'transparent',
-                      color: '#1f2937',
+                      color: healthColor,
                       WebkitAppearance: 'none',
                       MozAppearance: 'textfield'
                     }}
                   />
                 </div>
+                {upcomingExpenses > 0 && (
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: '#64748b',
+                    background: `${healthColor}15`,
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '0.375rem',
+                    border: `1px solid ${healthColor}30`
+                  }}>
+                    -{fmt(upcomingExpenses)} due
+                  </div>
+                )}
                 <button
                   onClick={() => setEditingAccount(account)}
                   style={{
@@ -1289,13 +1361,16 @@ export default function AccountsSection({
           }
 
           // Regular debit account display for desktop
+          const upcomingExpenses = getUpcomingExpenses(account.id);
+          const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
+
           return (
             <div key={account.id} style={{
               background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
               padding: '0.75rem',
               borderRadius: '0.75rem',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              border: `2px solid ${healthColor}20`,
+              boxShadow: `0 2px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px ${healthColor}10`,
               transition: 'all 0.2s ease'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -1408,9 +1483,19 @@ export default function AccountsSection({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginLeft: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: '600', color: '#64748b' }}>$</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginLeft: '0.75rem', gap: '1rem' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'white',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: `2px solid ${healthColor}`,
+                  boxShadow: `0 1px 3px rgba(0, 0, 0, 0.05), 0 0 12px ${healthColor}20`,
+                  transition: 'all 0.2s ease'
+                }}>
+                  <span style={{ fontSize: '1rem', fontWeight: '600', color: healthColor }}>$</span>
                   <input
                     type="number"
                     step="0.01"
@@ -1436,12 +1521,25 @@ export default function AccountsSection({
                       textAlign: 'right',
                       fontWeight: '700',
                       background: 'transparent',
-                      color: '#1f2937',
+                      color: healthColor,
                       WebkitAppearance: 'none',
                       MozAppearance: 'textfield'
                     }}
                   />
                 </div>
+                {upcomingExpenses > 0 && (
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#64748b',
+                    background: `${healthColor}15`,
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    border: `1px solid ${healthColor}30`,
+                    fontWeight: '500'
+                  }}>
+                    -{fmt(upcomingExpenses)} due this week
+                  </div>
+                )}
               </div>
             </div>
           );

@@ -3777,6 +3777,8 @@ function DashboardContent() {
           toggleAccountIgnored={toggleAccountIgnored}
           supabase={supabase}
           user={user}
+          bills={bills}
+          oneTimeCosts={oneTimeCosts}
         />
 
         {/* Income & Credits */}
