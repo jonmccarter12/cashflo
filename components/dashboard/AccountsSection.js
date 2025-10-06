@@ -40,9 +40,10 @@ export default function AccountsSection({
         const dueDate = getEffectiveDueDate(bill, today);
         console.log(`  Bill ${bill.name}: accountId=${bill.accountId}, isPaid=${isPaid}, dueDate=${dueDate.toLocaleDateString()}, amount=${bill.amount}`);
         if (!isPaid) {
-          if (dueDate >= today && dueDate <= nextWeek) {
+          // Include overdue bills (dueDate < today) AND bills due in the next 7 days
+          if (dueDate <= nextWeek) {
             totalUpcoming += bill.amount || 0;
-            console.log(`    -> Adding ${bill.amount} to upcoming expenses`);
+            console.log(`    -> Adding ${bill.amount} to upcoming expenses (${dueDate < today ? 'OVERDUE' : 'upcoming'})`);
           }
         }
       }
@@ -811,7 +812,7 @@ export default function AccountsSection({
                       border: `1px solid ${healthColor}30`,
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due
+                      {fmt(upcomingExpenses)} due/overdue
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
@@ -1576,7 +1577,7 @@ export default function AccountsSection({
                       fontWeight: '500',
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due this week
+                      {fmt(upcomingExpenses)} due/overdue
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
