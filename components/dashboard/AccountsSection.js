@@ -679,6 +679,11 @@ export default function AccountsSection({
           const upcomingExpenses = getUpcomingExpenses(account.id);
           const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
 
+          // Debug remaining calculation
+          if (account.name === 'BOA – Business') {
+            console.log(`BOA Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
+          }
+
           return (
             <div key={account.id} style={{
               display: 'flex',
@@ -1397,6 +1402,11 @@ export default function AccountsSection({
           // Regular debit account display for desktop
           const upcomingExpenses = getUpcomingExpenses(account.id);
           const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
+
+          // Debug remaining calculation
+          if (account.name === 'BOA – Business') {
+            console.log(`BOA Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
+          }
 
           return (
             <div key={account.id} style={{
