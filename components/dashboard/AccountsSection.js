@@ -812,7 +812,7 @@ export default function AccountsSection({
                       border: `1px solid ${healthColor}30`,
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due/overdue
+                      {fmt(upcomingExpenses)} due
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
@@ -1577,7 +1577,7 @@ export default function AccountsSection({
                       fontWeight: '500',
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due/overdue
+                      {fmt(upcomingExpenses)} due
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
