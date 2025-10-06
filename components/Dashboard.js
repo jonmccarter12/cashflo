@@ -2004,12 +2004,14 @@ function DashboardContent() {
 
         if (transaction) {
           // Handle auto-deduct when marking as paid
+          console.log(`togglePaid debug: isPaid=${isPaid}, autoDeductCash=${autoDeductCash}, autoDeductBank=${autoDeductBank}, willAutoDeduct=${!isPaid && (autoDeductCash || autoDeductBank)}`);
           if (!isPaid && (autoDeductCash || autoDeductBank)) {
             const deductAccount = getDefaultAutoDeductAccount();
             const account = accounts.find(a => a.id === deductAccount);
 
             if (account) {
               const newBalance = account.balance - b.amount;
+              console.log(`Auto-deducting ${b.amount} from ${account.name}: ${account.balance} -> ${newBalance}`);
 
               // Create account balance adjustment transaction
               const balanceTransaction = await logTransaction(
