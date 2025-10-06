@@ -679,10 +679,6 @@ export default function AccountsSection({
           const upcomingExpenses = getUpcomingExpenses(account.id);
           const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
 
-          // Debug remaining calculation
-          if (account.name && account.name.includes('BOA')) {
-            console.log(`${account.name} (ID: ${account.id}) Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
-          }
 
           return (
             <div key={account.id} style={{
@@ -1403,10 +1399,6 @@ export default function AccountsSection({
           const upcomingExpenses = getUpcomingExpenses(account.id);
           const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
 
-          // Debug remaining calculation
-          if (account.name && account.name.includes('BOA')) {
-            console.log(`${account.name} (ID: ${account.id}) Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
-          }
 
           return (
             <div key={account.id} style={{
