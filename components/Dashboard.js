@@ -1862,7 +1862,7 @@ function DashboardContent() {
       }
 
       if (frequency === 'weekly') {
-        newData.weeklyDay = Number(formData.get('weeklyDay'));
+        newData.weeklyStart = formData.get('weeklyStart');
         newData.weeklySchedule = formData.get('weeklySchedule');
       }
 
