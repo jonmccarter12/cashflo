@@ -30,7 +30,6 @@ export default function AccountsSection({
     nextWeek.setDate(today.getDate() + 7);
 
     let totalUpcoming = 0;
-    console.log(`Calculating upcoming expenses for account ${accountId}:`);
 
     // Check bills due in the next 7 days for this account
     bills.forEach(bill => {
@@ -38,17 +37,11 @@ export default function AccountsSection({
         const currentMonth = yyyyMm();
         const isPaid = bill.paidMonths.includes(currentMonth);
         const dueDate = getEffectiveDueDate(bill, today);
-        console.log(`  Bill ${bill.name}: accountId=${bill.accountId}, currentMonth=${currentMonth}, paidMonths=[${bill.paidMonths.join(',')}], isPaid=${isPaid}, dueDate=${dueDate.toLocaleDateString()}, amount=${bill.amount}`);
         if (!isPaid) {
           // Include overdue bills (dueDate < today) AND bills due in the next 7 days
           if (dueDate <= nextWeek) {
             totalUpcoming += bill.amount || 0;
-            console.log(`    -> Adding ${bill.amount} to upcoming expenses (${dueDate < today ? 'OVERDUE' : 'upcoming'})`);
-          } else {
-            console.log(`    -> Bill due ${dueDate.toLocaleDateString()} is outside next week window`);
           }
-        } else {
-          console.log(`    -> Bill marked as paid for ${currentMonth}, skipping`);
         }
       }
     });
@@ -63,7 +56,6 @@ export default function AccountsSection({
       }
     });
 
-    console.log(`  Total upcoming expenses for account ${accountId}: ${totalUpcoming}`);
     return totalUpcoming;
   };
 
