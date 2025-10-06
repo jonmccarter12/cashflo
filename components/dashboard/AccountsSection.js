@@ -801,7 +801,7 @@ export default function AccountsSection({
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: '0.25rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', flexDirection: 'column', alignItems: 'flex-end', marginLeft: 'auto', minWidth: 'max-content' }}>
                   {upcomingExpenses > 0 && (
                     <div style={{
                       fontSize: '0.75rem',
@@ -1565,7 +1565,7 @@ export default function AccountsSection({
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column', alignItems: 'flex-end', marginLeft: 'auto', minWidth: 'max-content' }}>
                   {upcomingExpenses > 0 && (
                     <div style={{
                       fontSize: '0.875rem',
