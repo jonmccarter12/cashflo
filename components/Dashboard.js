@@ -310,12 +310,17 @@ function DashboardContent() {
                 payloadAmount: tx.payload.amount,
                 otcAmount: currentOTC.amount,
                 isPaid: tx.payload.is_paid,
-                oldBalance: account.balance
+                oldBalance: account.balance,
+                autoDeducted: tx.payload.auto_deducted
               });
-              accounts.set(tx.payload.accountId, {
-                ...account,
-                balance: Math.round((account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)) * 100) / 100
-              });
+
+              // Only auto-deduct if auto-deduct settings were enabled when the transaction was created
+              if (tx.payload.auto_deducted) {
+                accounts.set(tx.payload.accountId, {
+                  ...account,
+                  balance: Math.round((account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)) * 100) / 100
+                });
+              }
             }
           }
           break;
@@ -1679,6 +1684,11 @@ function DashboardContent() {
 
   async function toggleOneTimePaid(otc) {
     try {
+      // Check if auto-deduct is enabled (same logic as bills)
+      const shouldAutoDeduct = !otc.paid && (autoDeductCash || autoDeductBank);
+
+      console.log(`toggleOneTimePaid debug: otcPaid=${otc.paid}, autoDeductCash=${autoDeductCash}, autoDeductBank=${autoDeductBank}, willAutoDeduct=${shouldAutoDeduct}`);
+
       const transaction = await logTransaction(
         supabase,
         user.id,
@@ -1687,9 +1697,10 @@ function DashboardContent() {
         {
           is_paid: !otc.paid,
           accountId: otc.accountId,
-          amount: otc.amount
+          amount: otc.amount,
+          auto_deducted: shouldAutoDeduct
         },
-        `One-time cost "${otc.name}" marked as ${!otc.paid ? 'paid' : 'unpaid'}`
+        `One-time cost "${otc.name}" marked as ${!otc.paid ? 'paid' : 'unpaid'}${shouldAutoDeduct ? ' (auto-deducted)' : ''}`
       );
 
       if (transaction) {
