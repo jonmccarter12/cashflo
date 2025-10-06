@@ -681,7 +681,7 @@ export default function AccountsSection({
 
           // Debug remaining calculation
           if (account.name && account.name.includes('BOA')) {
-            console.log(`${account.name} Debug: balance=${account.balance} (type: ${typeof account.balance}), upcomingExpenses=${upcomingExpenses} (type: ${typeof upcomingExpenses}), remaining=${account.balance - upcomingExpenses}`);
+            console.log(`${account.name} (ID: ${account.id}) Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
           }
 
           return (
@@ -1405,7 +1405,7 @@ export default function AccountsSection({
 
           // Debug remaining calculation
           if (account.name && account.name.includes('BOA')) {
-            console.log(`${account.name} Debug: balance=${account.balance} (type: ${typeof account.balance}), upcomingExpenses=${upcomingExpenses} (type: ${typeof upcomingExpenses}), remaining=${account.balance - upcomingExpenses}`);
+            console.log(`${account.name} (ID: ${account.id}) Debug: balance=${account.balance}, upcomingExpenses=${upcomingExpenses}, remaining=${account.balance - upcomingExpenses}`);
           }
 
           return (
