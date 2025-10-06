@@ -303,6 +303,13 @@ function DashboardContent() {
             });
             if (accounts.has(tx.payload.accountId)) {
               const account = accounts.get(tx.payload.accountId);
+              console.log('Processing one-time cost payment:', {
+                otcName: currentOTC.name,
+                payloadAmount: tx.payload.amount,
+                otcAmount: currentOTC.amount,
+                isPaid: tx.payload.is_paid,
+                oldBalance: account.balance
+              });
               accounts.set(tx.payload.accountId, {
                 ...account,
                 balance: Math.round((account.balance + (tx.payload.is_paid ? -tx.payload.amount : tx.payload.amount)) * 100) / 100
