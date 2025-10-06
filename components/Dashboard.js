@@ -4650,8 +4650,33 @@ function DashboardContent() {
           recurringIncome={recurringIncome}
           selectedCat={selectedCat}
           selectedCats={selectedCats}
+          onTransactionUpdate={(action, transactionId, data) => {
+            if (action === 'add') {
+              // Add new transaction
+              const newTransaction = { ...data, id: transactionId || `tx_${Date.now()}` };
+              setTransactions(prev => [...prev, newTransaction]);
+              console.log('Added transaction:', newTransaction);
+              return true;
+            } else if (action === 'edit') {
+              // Update existing transaction
+              setTransactions(prev => prev.map(tx =>
+                tx.id === transactionId ? { ...tx, ...data } : tx
+              ));
+              console.log('Updated transaction:', transactionId, data);
+              return true;
+            } else if (action === 'delete') {
+              // Delete transaction
+              setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+              console.log('Deleted transaction:', transactionId);
+              return true;
+            }
+            return false;
+          }}
           onUpdateTransactionCategory={(transactionId, category) => {
-            // Handle transaction category updates
+            // Handle transaction category updates (legacy support)
+            setTransactions(prev => prev.map(tx =>
+              tx.id === transactionId ? { ...tx, taxCategory: category } : tx
+            ));
             console.log('Updating transaction category:', transactionId, category);
           }}
         />
