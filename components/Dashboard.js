@@ -4666,7 +4666,6 @@ function DashboardContent() {
           bills={bills}
           oneTimeCosts={oneTimeCosts}
           accounts={accounts}
-          setAccounts={setAccounts}
           setTransactions={setTransactions}
           recurringIncome={recurringIncome}
           selectedCat={selectedCat}

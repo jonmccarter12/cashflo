@@ -279,10 +279,12 @@ const TransactionAnalysis = ({
   bills = [],
   oneTimeCosts = [],
   accounts = [],
+  setTransactions,
   recurringIncome = [],
   selectedCat = 'All',
   selectedCats = [],
-  onUpdateTransactionCategory
+  onUpdateTransactionCategory,
+  onTransactionUpdate
 }) => {
   const isMobile = useIsMobile();
   const [selectedBusinessType, setSelectedBusinessType] = useState('sole-proprietorship');
