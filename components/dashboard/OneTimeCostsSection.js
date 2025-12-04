@@ -83,28 +83,36 @@ export default function OneTimeCostsSection({
           if (autoDeductCash || autoDeductBank) {
             const autoDeductAccountId = getDefaultAutoDeductAccount();
             if (autoDeductAccountId) {
-              await logTransaction(
-                supabase,
-                user.id,
-                'account_balance_adjustment',
-                autoDeductAccountId,
-                { adjustment: -Number(otcAmount) },
-                `Auto deducted ${fmt(Number(otcAmount))} for "${otcName}"`
-              );
+              const account = accounts.find(a => a.id === autoDeductAccountId);
+              if (account) {
+                const newBalance = account.balance - Number(otcAmount);
+                await logTransaction(
+                  supabase,
+                  user.id,
+                  'account_balance_adjustment',
+                  autoDeductAccountId,
+                  { new_balance: newBalance },
+                  `Auto deducted ${fmt(Number(otcAmount))} for "${otcName}"`
+                );
+              }
             }
           }
         }
 
         // If auto deduct is checked (legacy checkbox), deduct from selected account
         if (otcAutoDeduct) {
-          await logTransaction(
-            supabase,
-            user.id,
-            'account_balance_adjustment',
-            otcAccountId,
-            { adjustment: -Number(otcAmount) },
-            `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
-          );
+          const account = accounts.find(a => a.id === otcAccountId);
+          if (account) {
+            const newBalance = account.balance - Number(otcAmount);
+            await logTransaction(
+              supabase,
+              user.id,
+              'account_balance_adjustment',
+              otcAccountId,
+              { new_balance: newBalance },
+              `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
+            );
+          }
         }
 
         setOtcName("");

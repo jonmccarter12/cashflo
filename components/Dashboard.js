@@ -1436,6 +1436,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`${income.name} marked as ${!isReceived ? 'received' : 'not received'}`, 'success');
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling income received:', error);
@@ -1458,6 +1461,9 @@ function DashboardContent() {
         );
         if (transaction) {
           notify('Recurring income deleted');
+
+          // Optimistic update - add transaction to local state immediately
+          setTransactions(prev => [...prev, transaction]);
         }
       } catch (error) {
         console.error('Error deleting recurring income:', error);
@@ -1728,6 +1734,9 @@ function DashboardContent() {
 
       if (transaction) {
         notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling one-time cost ignored:', error);
@@ -1754,6 +1763,9 @@ function DashboardContent() {
           );
           if (transaction) {
             notify('One-time cost deleted');
+
+            // Optimistic update - add transaction to local state immediately
+            setTransactions(prev => [...prev, transaction]);
           }
         } catch (error) {
           console.error('Error deleting one-time cost:', error);
@@ -2153,6 +2165,9 @@ function DashboardContent() {
             );
             if (transaction) {
               notify('Bill deleted');
+
+              // Optimistic update - add transaction to local state immediately
+              setTransactions(prev => [...prev, transaction]);
             }
           } catch (error) {
             console.error('Error deleting bill:', error);
@@ -2295,6 +2310,9 @@ function DashboardContent() {
 
         if(transaction) {
           notify(`Account "${account.name}" and its associated items deleted`, 'success');
+
+          // Optimistic update - add transaction to local state immediately
+          setTransactions(prev => [...prev, transaction]);
         }
       } catch (error) {
         console.error('Error deleting account:', error);
@@ -2377,6 +2395,9 @@ function DashboardContent() {
       );
       if (transaction) {
         notify(`Bill "${b.name}" marked as ${!isSkipped ? 'skipped' : 'un-skipped'} for this month.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling skip month:', error);
@@ -2442,9 +2463,12 @@ function DashboardContent() {
         { ignored: !category.ignored },
         `Category "${name}" ignored status set to ${!category.ignored}`
       );
-      
+
       if (transaction) {
         notify(`Category "${name}" is now ${!category.ignored ? 'shown' : 'hidden'}.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling category ignore:', error);
