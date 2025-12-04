@@ -175,9 +175,20 @@ function DashboardContent() {
         case 'account_balance_adjustment':
           if (accounts.has(tx.item_id)) {
             const currentAccount = accounts.get(tx.item_id);
+            // Handle both old format (adjustment) and new format (new_balance)
+            let newBalance;
+            if (tx.payload.new_balance !== undefined) {
+              newBalance = tx.payload.new_balance;
+            } else if (tx.payload.adjustment !== undefined) {
+              // Legacy format - calculate new balance from adjustment
+              newBalance = currentAccount.balance + tx.payload.adjustment;
+            } else {
+              // Fallback - keep current balance
+              newBalance = currentAccount.balance;
+            }
             accounts.set(tx.item_id, {
               ...currentAccount,
-              balance: tx.payload.new_balance,
+              balance: newBalance,
               updatedAt: tx.timestamp
             });
           }
