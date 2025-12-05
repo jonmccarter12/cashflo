@@ -1471,10 +1471,32 @@ function DashboardContent() {
           `Deleted recurring income "${income.name}"`
         );
         if (transaction) {
-          notify('Recurring income deleted');
-
           // Optimistic update - add transaction to local state immediately
           setTransactions(prev => [...prev, transaction]);
+
+          // Show notification with undo button
+          notify(`"${income.name}" deleted`, 'success', {
+            duration: 8000,
+            action: async () => {
+              try {
+                // Delete the transaction to undo
+                const { error } = await supabase
+                  .from('transaction_log')
+                  .delete()
+                  .eq('id', transaction.id);
+
+                if (error) throw error;
+
+                // Remove from local state
+                setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
+                notify('Deletion undone', 'info');
+              } catch (error) {
+                console.error('Error undoing deletion:', error);
+                notify('Failed to undo deletion', 'error');
+              }
+            },
+            actionLabel: 'Undo'
+          });
         }
       } catch (error) {
         console.error('Error deleting recurring income:', error);
@@ -1773,10 +1795,32 @@ function DashboardContent() {
             `Deleted one-time cost "${otc.name}"`
           );
           if (transaction) {
-            notify('One-time cost deleted');
-
             // Optimistic update - add transaction to local state immediately
             setTransactions(prev => [...prev, transaction]);
+
+            // Show notification with undo button
+            notify(`"${otc.name}" deleted`, 'success', {
+              duration: 8000,
+              action: async () => {
+                try {
+                  // Delete the transaction to undo
+                  const { error } = await supabase
+                    .from('transaction_log')
+                    .delete()
+                    .eq('id', transaction.id);
+
+                  if (error) throw error;
+
+                  // Remove from local state
+                  setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
+                  notify('Deletion undone', 'info');
+                } catch (error) {
+                  console.error('Error undoing deletion:', error);
+                  notify('Failed to undo deletion', 'error');
+                }
+              },
+              actionLabel: 'Undo'
+            });
           }
         } catch (error) {
           console.error('Error deleting one-time cost:', error);
@@ -2175,10 +2219,32 @@ function DashboardContent() {
               `Deleted bill "${bill.name}"`
             );
             if (transaction) {
-              notify('Bill deleted');
-
               // Optimistic update - add transaction to local state immediately
               setTransactions(prev => [...prev, transaction]);
+
+              // Show notification with undo button
+              notify(`Bill "${bill.name}" deleted`, 'success', {
+                duration: 8000,
+                action: async () => {
+                  try {
+                    // Delete the transaction to undo
+                    const { error } = await supabase
+                      .from('transaction_log')
+                      .delete()
+                      .eq('id', transaction.id);
+
+                    if (error) throw error;
+
+                    // Remove from local state
+                    setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
+                    notify('Deletion undone', 'info');
+                  } catch (error) {
+                    console.error('Error undoing deletion:', error);
+                    notify('Failed to undo deletion', 'error');
+                  }
+                },
+                actionLabel: 'Undo'
+              });
             }
           } catch (error) {
             console.error('Error deleting bill:', error);
@@ -2320,10 +2386,32 @@ function DashboardContent() {
         );
 
         if(transaction) {
-          notify(`Account "${account.name}" and its associated items deleted`, 'success');
-
           // Optimistic update - add transaction to local state immediately
           setTransactions(prev => [...prev, transaction]);
+
+          // Show notification with undo button
+          notify(`Account "${account.name}" deleted`, 'success', {
+            duration: 8000,
+            action: async () => {
+              try {
+                // Delete the transaction to undo
+                const { error } = await supabase
+                  .from('transaction_log')
+                  .delete()
+                  .eq('id', transaction.id);
+
+                if (error) throw error;
+
+                // Remove from local state
+                setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
+                notify('Deletion undone', 'info');
+              } catch (error) {
+                console.error('Error undoing deletion:', error);
+                notify('Failed to undo deletion', 'error');
+              }
+            },
+            actionLabel: 'Undo'
+          });
         }
       } catch (error) {
         console.error('Error deleting account:', error);
