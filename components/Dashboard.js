@@ -5099,7 +5099,8 @@ function DashboardContent() {
                                         if (tx.type === 'bill_payment') {
                                           const bill = bills.find(b => b.id === tx.item_id);
                                           if (bill) {
-                                            await toggleBillPaidStatus(bill, tx.payload.month);
+                                            await togglePaid(bill);
+                                            notify(`"${bill.name}" unmarked as paid`, 'success');
                                           }
                                         } else if (tx.type === 'one_time_cost_payment') {
                                           const otc = oneTimeCosts.find(o => o.id === tx.item_id);
@@ -5211,7 +5212,8 @@ function DashboardContent() {
                                     if (tx.type === 'bill_payment') {
                                       const bill = bills.find(b => b.id === tx.item_id);
                                       if (bill) {
-                                        await toggleBillPaidStatus(bill, tx.payload.month);
+                                        await togglePaid(bill);
+                                        notify(`"${bill.name}" unmarked as paid`, 'success');
                                       }
                                     } else if (tx.type === 'one_time_cost_payment') {
                                       const otc = oneTimeCosts.find(o => o.id === tx.item_id);
