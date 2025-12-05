@@ -1026,60 +1026,8 @@ const TransactionAnalysis = ({
   const allFinancialData = useMemo(() => {
     const currentYear = new Date().getFullYear();
 
-    // Convert bills to transaction format
-    const billTransactions = bills.map(bill => ({
-      id: `bill-${bill.id}`,
-      description: bill.name,
-      amount: -Math.abs(bill.amount), // Bills are expenses (negative)
-      date: new Date().toISOString().split('T')[0], // Current date for bills
-      category: bill.category || 'Bills',
-      source: 'bills',
-      frequency: bill.frequency,
-      annualAmount: bill.frequency === 'monthly' ? bill.amount * 12 :
-                   bill.frequency === 'weekly' ? bill.amount * 52 :
-                   bill.frequency === 'biweekly' ? bill.amount * 26 : bill.amount,
-      // Professional data fields
-      account: bill.account || 'Auto-pay Account',
-      paymentMethod: bill.paymentMethod || 'Auto-debit',
-      notes: `Recurring ${bill.frequency} bill${bill.notes ? ` - ${bill.notes}` : ''}`,
-      receipts: []
-    }));
-
-    // Convert one-time costs to transaction format
-    const oneTimeCostTransactions = oneTimeCosts.map(cost => ({
-      id: `cost-${cost.id}`,
-      description: cost.name,
-      amount: -Math.abs(cost.amount), // Costs are expenses (negative)
-      date: cost.date || new Date().toISOString().split('T')[0],
-      category: cost.category || 'One-time Expenses',
-      source: 'oneTimeCosts',
-      // Professional data fields
-      account: cost.account || 'Business Checking',
-      paymentMethod: cost.paymentMethod || 'Debit Card',
-      notes: cost.notes || '',
-      receipts: cost.receipts || []
-    }));
-
-    // Convert recurring income to transaction format
-    const incomeTransactions = recurringIncome.map(income => ({
-      id: `income-${income.id}`,
-      description: income.name,
-      amount: Math.abs(income.amount), // Income is positive
-      date: new Date().toISOString().split('T')[0],
-      category: income.category || 'Recurring Income',
-      source: 'recurringIncome',
-      frequency: income.frequency,
-      annualAmount: income.frequency === 'monthly' ? income.amount * 12 :
-                   income.frequency === 'weekly' ? income.amount * 52 :
-                   income.frequency === 'biweekly' ? income.amount * 26 : income.amount,
-      // Professional data fields
-      account: income.account || 'Business Checking',
-      paymentMethod: income.paymentMethod || 'Direct Deposit',
-      notes: `Recurring ${income.frequency} income${income.notes ? ` - ${income.notes}` : ''}`,
-      receipts: []
-    }));
-
-    // Enhance existing transactions with professional fields if missing
+    // Only show real transactions from the transaction log (actual payment events)
+    // No longer showing synthetic bills/costs/income to avoid duplicates and confusion
     const enhancedTransactions = transactions
       .filter(t => {
         const transactionDate = t.date || t.timestamp;
@@ -1097,15 +1045,9 @@ const TransactionAnalysis = ({
         receipts: transaction.receipts || []
       }));
 
-    // Combine all financial data
-    const allTransactions = [
-      ...enhancedTransactions,
-      ...billTransactions,
-      ...oneTimeCostTransactions,
-      ...incomeTransactions
-    ];
-
-    return allTransactions;
+    // Only show real transactions (payment events), not synthetic bills/costs/income
+    // This prevents duplicates and makes the history show actual payment events only
+    return enhancedTransactions;
   }, [transactions, bills, oneTimeCosts, recurringIncome]);
 
   // INTELLIGENT TRANSACTION CATEGORIZATION
