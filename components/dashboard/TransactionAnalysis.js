@@ -1988,9 +1988,51 @@ const TransactionAnalysis = ({
                       <div style={{
                         fontSize: '0.8rem',
                         color: '#6b7280',
-                        marginTop: '0.25rem'
+                        marginTop: '0.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap'
                       }}>
-                        {transaction.taxCategory} • {transaction.businessName}
+                        <span>{transaction.taxCategory} • {transaction.businessName}</span>
+                        {/* Unmark as Paid Button - Mobile Only */}
+                        {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && transaction.payload?.is_paid && togglePaid && toggleOneTimePaid && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                if (transaction.type === 'bill_payment') {
+                                  const bill = bills.find(b => b.id === transaction.item_id);
+                                  if (bill) {
+                                    await togglePaid(bill);
+                                    notify(`"${bill.name}" unmarked as paid`, 'success');
+                                  }
+                                } else if (transaction.type === 'one_time_cost_payment') {
+                                  const otc = oneTimeCosts.find(o => o.id === transaction.item_id);
+                                  if (otc) {
+                                    await toggleOneTimePaid(otc);
+                                    notify(`"${otc.name}" unmarked as paid`, 'success');
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error unmarking as paid:', error);
+                                notify('Failed to unmark as paid', 'error');
+                              }
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#f59e0b',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ↩️ Unmark
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
