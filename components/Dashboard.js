@@ -4794,6 +4794,8 @@ function DashboardContent() {
           recurringIncome={recurringIncome}
           selectedCat={selectedCat}
           selectedCats={selectedCats}
+          togglePaid={togglePaid}
+          toggleOneTimePaid={toggleOneTimePaid}
           onTransactionUpdate={(action, transactionId, data) => {
             if (action === 'add') {
               // Add new transaction

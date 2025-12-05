@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { fmt } from '../../lib/utils';
+import { notify } from '../Notify';
 
 // COMPREHENSIVE TAX CATEGORY SYSTEM
 const TAX_CATEGORIES = {
@@ -284,7 +285,9 @@ const TransactionAnalysis = ({
   selectedCat = 'All',
   selectedCats = [],
   onUpdateTransactionCategory,
-  onTransactionUpdate
+  onTransactionUpdate,
+  togglePaid,
+  toggleOneTimePaid
 }) => {
   const isMobile = useIsMobile();
   const [selectedBusinessType, setSelectedBusinessType] = useState('sole-proprietorship');
@@ -2198,6 +2201,48 @@ const TransactionAnalysis = ({
                           >
                             📋 Copy
                           </button>
+
+                          {/* Unmark as Paid Button - Only for payment transactions */}
+                          {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && transaction.payload?.is_paid && togglePaid && toggleOneTimePaid && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  if (transaction.type === 'bill_payment') {
+                                    const bill = bills.find(b => b.id === transaction.item_id);
+                                    if (bill) {
+                                      await togglePaid(bill);
+                                      notify(`"${bill.name}" unmarked as paid`, 'success');
+                                    }
+                                  } else if (transaction.type === 'one_time_cost_payment') {
+                                    const otc = oneTimeCosts.find(o => o.id === transaction.item_id);
+                                    if (otc) {
+                                      await toggleOneTimePaid(otc);
+                                      notify(`"${otc.name}" unmarked as paid`, 'success');
+                                    }
+                                  }
+                                  setOpenActionDropdown(null);
+                                } catch (error) {
+                                  console.error('Error unmarking as paid:', error);
+                                  notify('Failed to unmark as paid', 'error');
+                                }
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem',
+                                background: 'none',
+                                border: 'none',
+                                textAlign: 'left',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f3f4f6',
+                                color: '#f59e0b'
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = '#fffbeb'}
+                              onMouseLeave={(e) => e.target.style.background = 'none'}
+                            >
+                              ↩️ Unmark as Paid
+                            </button>
+                          )}
 
                           <button
                             onClick={() => {
