@@ -1081,9 +1081,15 @@ const TransactionAnalysis = ({
 
     // Enhance existing transactions with professional fields if missing
     const enhancedTransactions = transactions
-      .filter(t => new Date(t.date).getFullYear() === currentYear)
+      .filter(t => {
+        const transactionDate = t.date || t.timestamp;
+        return new Date(transactionDate).getFullYear() === currentYear;
+      })
       .map(transaction => ({
         ...transaction,
+        date: transaction.date || transaction.timestamp, // Normalize date field
+        amount: transaction.amount || transaction.payload?.amount || 0, // Extract amount from payload if needed
+        description: transaction.description || `${transaction.type} transaction`, // Add description if missing
         // Add professional fields with defaults if missing
         account: transaction.account || 'Main Account',
         paymentMethod: transaction.paymentMethod || (transaction.amount > 0 ? 'Deposit' : 'Debit Card'),
