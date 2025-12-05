@@ -41,13 +41,44 @@ export default function OneTimeCostsSection({
   getDefaultAutoDeductAccount,
   setTransactions,
 }) {
+  const [isCreating, setIsCreating] = React.useState(false);
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !isCreating) {
+      e.preventDefault();
+      addOneTimeCost();
+    }
+  };
 
   async function addOneTimeCost() {
+    setIsCreating(true);
     try {
+      // Validation
       if (!otcName || !otcAmount || !otcDueDate) {
         notify('Please fill in all required fields', 'error');
+        setIsCreating(false);
         return;
       }
+
+      if (Number(otcAmount) <= 0) {
+        notify('Amount must be greater than zero', 'error');
+        setIsCreating(false);
+        return;
+      }
+
+      if (isNaN(Number(otcAmount))) {
+        notify('Please enter a valid amount', 'error');
+        setIsCreating(false);
+        return;
+      }
+
+      const dueDate = new Date(otcDueDate);
+      if (isNaN(dueDate.getTime())) {
+        notify('Please enter a valid due date', 'error');
+        setIsCreating(false);
+        return;
+      }
+
       const newOtcId = crypto.randomUUID();
       const payload = {
         name: otcName,
@@ -155,6 +186,8 @@ export default function OneTimeCostsSection({
     } catch (error) {
       console.error('Error adding one-time cost:', error);
       notify('Failed to add one-time cost', 'error');
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -194,6 +227,7 @@ export default function OneTimeCostsSection({
               placeholder="Cost name"
               value={otcName}
               onChange={(e) => setOtcName(e.target.value)}
+              onKeyPress={handleKeyPress}
               style={{ width: '100%', padding: '0.375rem', marginBottom: '0.25rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
             />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginBottom: '0.25rem' }}>
@@ -202,12 +236,17 @@ export default function OneTimeCostsSection({
                 placeholder="Amount"
                 value={otcAmount}
                 onChange={(e) => setOtcAmount(Number(e.target.value))}
+                onKeyPress={handleKeyPress}
+                min="0.01"
+                step="0.01"
+                required
                 style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
               />
               <input
                 type="date"
                 value={otcDueDate}
                 onChange={(e) => setOtcDueDate(e.target.value)}
+                onKeyPress={handleKeyPress}
                 style={{ padding: '0.375rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.75rem' }}
               />
             </div>
@@ -260,9 +299,20 @@ export default function OneTimeCostsSection({
             </div>
             <button
               onClick={addOneTimeCost}
-              style={{ width: '100%', padding: '0.375rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.75rem' }}
+              disabled={isCreating}
+              style={{
+                width: '100%',
+                padding: '0.375rem',
+                background: isCreating ? '#9ca3af' : '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.25rem',
+                fontSize: '0.75rem',
+                cursor: isCreating ? 'not-allowed' : 'pointer',
+                opacity: isCreating ? 0.7 : 1
+              }}
             >
-              Add One-Time Cost
+              {isCreating ? '...' : 'Add One-Time Cost'}
             </button>
           </div>
 
@@ -333,6 +383,7 @@ export default function OneTimeCostsSection({
                 placeholder="Cost name"
                 value={otcName}
                 onChange={(e) => setOtcName(e.target.value)}
+                onKeyPress={handleKeyPress}
                 style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
               <input
@@ -340,12 +391,18 @@ export default function OneTimeCostsSection({
                 placeholder="Amount"
                 value={otcAmount}
                 onChange={(e) => setOtcAmount(Number(e.target.value))}
+                onKeyPress={handleKeyPress}
+                min="0.01"
+                step="0.01"
+                required
                 style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
               <input
                 type="date"
                 value={otcDueDate}
                 onChange={(e) => setOtcDueDate(e.target.value)}
+                onKeyPress={handleKeyPress}
+                required
                 style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
               />
               <select
@@ -391,9 +448,18 @@ export default function OneTimeCostsSection({
                 </div>
                 <button
                   onClick={addOneTimeCost}
-                  style={{ padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  disabled={isCreating}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: isCreating ? '#9ca3af' : '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: isCreating ? 'not-allowed' : 'pointer',
+                    opacity: isCreating ? 0.7 : 1
+                  }}
                 >
-                  Add Cost
+                  {isCreating ? 'Creating...' : 'Add Cost'}
                 </button>
               </div>
             </div>
