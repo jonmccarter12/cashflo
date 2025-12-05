@@ -1996,7 +1996,7 @@ const TransactionAnalysis = ({
                       }}>
                         <span>{transaction.taxCategory} • {transaction.businessName}</span>
                         {/* Unmark as Paid Button - Mobile Only */}
-                        {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && transaction.payload?.is_paid && togglePaid && toggleOneTimePaid && (
+                        {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && (
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
@@ -2245,7 +2245,7 @@ const TransactionAnalysis = ({
                           </button>
 
                           {/* Unmark as Paid Button - Only for payment transactions */}
-                          {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && transaction.payload?.is_paid && togglePaid && toggleOneTimePaid && (
+                          {(transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') && (
                             <button
                               onClick={async () => {
                                 try {
