@@ -39,6 +39,7 @@ export default function OneTimeCostsSection({
   autoDeductCash,
   autoDeductBank,
   getDefaultAutoDeductAccount,
+  setTransactions,
 }) {
 
   async function addOneTimeCost() {
@@ -68,9 +69,12 @@ export default function OneTimeCostsSection({
       );
 
       if (transaction) {
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
+
         // If mark as paid is checked, immediately mark it as paid
         if (otcMarkAsPaid) {
-          await logTransaction(
+          const paidTransaction = await logTransaction(
             supabase,
             user.id,
             'one_time_cost_payment',
@@ -79,6 +83,11 @@ export default function OneTimeCostsSection({
             `Marked one-time cost "${otcName}" as paid`
           );
 
+          if (paidTransaction) {
+            // Optimistic update for paid transaction
+            setTransactions(prev => [...prev, paidTransaction]);
+          }
+
           // If auto-deduct is enabled (cash or bank), automatically deduct from appropriate account
           if (autoDeductCash || autoDeductBank) {
             const autoDeductAccountId = getDefaultAutoDeductAccount();
@@ -86,7 +95,7 @@ export default function OneTimeCostsSection({
               const account = accounts.find(a => a.id === autoDeductAccountId);
               if (account) {
                 const newBalance = account.balance - Number(otcAmount);
-                await logTransaction(
+                const balanceTransaction = await logTransaction(
                   supabase,
                   user.id,
                   'account_balance_adjustment',
@@ -94,6 +103,11 @@ export default function OneTimeCostsSection({
                   { new_balance: newBalance },
                   `Auto deducted ${fmt(Number(otcAmount))} for "${otcName}"`
                 );
+
+                if (balanceTransaction) {
+                  // Optimistic update for balance adjustment
+                  setTransactions(prev => [...prev, balanceTransaction]);
+                }
               }
             }
           }
@@ -104,7 +118,7 @@ export default function OneTimeCostsSection({
           const account = accounts.find(a => a.id === otcAccountId);
           if (account) {
             const newBalance = account.balance - Number(otcAmount);
-            await logTransaction(
+            const balanceTransaction = await logTransaction(
               supabase,
               user.id,
               'account_balance_adjustment',
@@ -112,6 +126,11 @@ export default function OneTimeCostsSection({
               { new_balance: newBalance },
               `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
             );
+
+            if (balanceTransaction) {
+              // Optimistic update for balance adjustment
+              setTransactions(prev => [...prev, balanceTransaction]);
+            }
           }
         }
 
@@ -152,6 +171,9 @@ export default function OneTimeCostsSection({
       );
       if (transaction) {
         notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
+
+        // Optimistic update - add transaction to local state immediately
+        setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
       console.error('Error toggling OTC ignored:', error);

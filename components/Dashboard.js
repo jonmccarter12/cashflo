@@ -4161,6 +4161,7 @@ function DashboardContent() {
               autoDeductCash={autoDeductCash}
               autoDeductBank={autoDeductBank}
               getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
+              setTransactions={setTransactions}
             />
           )}
         </div>
