@@ -714,6 +714,8 @@ function DashboardContent() {
   const [showTransactionEdit, setShowTransactionEdit] = React.useState(false);
   const [showTransactionImport, setShowTransactionImport] = React.useState(false);
   const [showAddTransaction, setShowAddTransaction] = React.useState(false);
+  const [incomeSourceInput, setIncomeSourceInput] = React.useState('');
+  const [showIncomeSourceSuggestions, setShowIncomeSourceSuggestions] = React.useState(false);
   const [categoryFilterSticky, setCategoryFilterSticky] = React.useState(false);
   const categoryFilterRef = React.useRef(null);
 
@@ -1022,13 +1024,15 @@ function DashboardContent() {
         g.total += amt; 
         g.items.push(it);
       }
-      const byAccount = Object.values(byAcc).map(g=> ({ 
-        account: g.account, 
-        totalDue: g.total, 
-        balance: g.account.balance, 
-        deficit: Math.max(0, g.total - g.account.balance), 
-        items: g.items 
-      }));
+      const byAccount = Object.values(byAcc)
+        .filter(g => g.account) // Skip entries with deleted/missing accounts
+        .map(g => ({
+          account: g.account,
+          totalDue: g.total,
+          balance: g.account.balance,
+          deficit: Math.max(0, g.total - g.account.balance),
+          items: g.items
+        }));
 
       return { 
         items, 
@@ -1844,7 +1848,7 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`One-time cost "${o.name}" is now ${o.ignored ? 'shown' : 'hidden'}.`);
+        notify(`One-time cost "${o.name}" is now ${!o.ignored ? 'hidden' : 'shown'}.`, 'success');
 
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
@@ -2229,7 +2233,7 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`Bill "${b.name}" is now ${b.ignored ? 'shown' : 'hidden'}.`);
+        notify(`Bill "${b.name}" is now ${!b.ignored ? 'hidden' : 'shown'}.`, 'success');
 
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
@@ -2257,7 +2261,7 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`Account "${account.name}" is now ${account.ignored ? 'shown' : 'hidden'}.`);
+        notify(`Account "${account.name}" is now ${!account.ignored ? 'hidden' : 'shown'}.`, 'success');
 
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
@@ -2638,7 +2642,7 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`Category "${name}" is now ${!category.ignored ? 'shown' : 'hidden'}.`);
+        notify(`Category "${name}" is now ${!category.ignored ? 'hidden' : 'shown'}.`, 'success');
 
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
@@ -2685,6 +2689,7 @@ function DashboardContent() {
             );
 
             if (transaction) {
+              setTransactions(prev => [...prev, transaction]);
               notify(`Category "${name}" deleted successfully.`, 'success');
             }
           } catch (error) {
@@ -2701,25 +2706,28 @@ function DashboardContent() {
     }
   }
 
-  async function moveCategoryUp(id) {
+  async function moveCategoryUp(categoryName) {
     try {
       const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-      const index = cats.findIndex(c => c.id === id);
+      const index = cats.findIndex(c => c.name === categoryName);
       if (index <= 0) return;
-      
+
       const cat1 = cats[index];
       const cat2 = cats[index - 1];
-      
+
       const order1 = cat1.order;
       const order2 = cat2.order;
 
-      await logTransaction(
+      const tx1 = await logTransaction(
         supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved up`
       );
-      await logTransaction(
+      const tx2 = await logTransaction(
         supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved down`
       );
 
+      if (tx1 && tx2) {
+        setTransactions(prev => [...prev, tx1, tx2]);
+      }
       notify('Category moved up', 'success');
     } catch (error) {
       console.error('Error moving category up:', error);
@@ -2727,25 +2735,28 @@ function DashboardContent() {
     }
   }
 
-  async function moveCategoryDown(id) {
+  async function moveCategoryDown(categoryName) {
     try {
       const cats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-      const index = cats.findIndex(c => c.id === id);
+      const index = cats.findIndex(c => c.name === categoryName);
       if (index < 0 || index >= cats.length - 1) return;
-      
-      const cat1 =cats[index];
+
+      const cat1 = cats[index];
       const cat2 = cats[index + 1];
-      
+
       const order1 = cat1.order;
       const order2 = cat2.order;
 
-      await logTransaction(
+      const tx1 = await logTransaction(
         supabase, user.id, 'category_order_changed', cat1.id, { new_order: order2 }, `Category "${cat1.name}" moved down`
       );
-      await logTransaction(
+      const tx2 = await logTransaction(
         supabase, user.id, 'category_order_changed', cat2.id, { new_order: order1 }, `Category "${cat2.name}" moved up`
       );
 
+      if (tx1 && tx2) {
+        setTransactions(prev => [...prev, tx1, tx2]);
+      }
       notify('Category moved down', 'success');
     } catch (error) {
       console.error('Error moving category down:', error);
@@ -2902,61 +2913,6 @@ function DashboardContent() {
     setEditingCategoryBusiness(null);
   };
 
-  async function moveCategoryUp(categoryName) {
-    try {
-      if (!user?.id) {
-        notify('Please log in to reorder categories', 'error');
-        return;
-      }
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_order_changed',
-        crypto.randomUUID(),
-        { category: categoryName, direction: 'up' },
-        `Moved ${categoryName} up in order`
-      );
-
-      if (transaction) {
-        notify(`Moved ${categoryName} up`, 'success');
-
-        // Optimistic update - add transaction to local state immediately
-        setTransactions(prev => [...prev, transaction]);
-      }
-    } catch (error) {
-      console.error('Error moving category up:', error);
-      notify('Failed to reorder category', 'error');
-    }
-  }
-
-  async function moveCategoryDown(categoryName) {
-    try {
-      if (!user?.id) {
-        notify('Please log in to reorder categories', 'error');
-        return;
-      }
-
-      const transaction = await logTransaction(
-        supabase,
-        user.id,
-        'category_order_changed',
-        crypto.randomUUID(),
-        { category: categoryName, direction: 'down' },
-        `Moved ${categoryName} down in order`
-      );
-
-      if (transaction) {
-        notify(`Moved ${categoryName} down`, 'success');
-
-        // Optimistic update - add transaction to local state immediately
-        setTransactions(prev => [...prev, transaction]);
-      }
-    } catch (error) {
-      console.error('Error moving category down:', error);
-      notify('Failed to reorder category', 'error');
-    }
-  }
 
   async function renameCategory(oldName, newName) {
     try {
@@ -3762,9 +3718,9 @@ function DashboardContent() {
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
                         const creditsByCategory = {};
-                        transactions.filter(tx => tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
-                          const category = tx.details?.category || 'Other';
-                          creditsByCategory[category] = (creditsByCategory[category] || 0) + tx.details.amount;
+                        transactions.filter(tx => (tx.type === 'recurring_income_received' || tx.type === 'credit_received') && tx.payload?.amount > 0).forEach(tx => {
+                          const category = tx.payload?.category || tx.payload?.name || 'Other';
+                          creditsByCategory[category] = (creditsByCategory[category] || 0) + tx.payload.amount;
                         });
 
                         const total = Object.values(creditsByCategory).reduce((sum, amount) => sum + amount, 0);
@@ -3848,9 +3804,9 @@ function DashboardContent() {
                     <svg width="140" height="140" viewBox="0 0 140 140">
                       {(() => {
                         const debitsByCategory = {};
-                        transactions.filter(tx => !tx.action_type?.includes('payment') && tx.details?.amount > 0).forEach(tx => {
-                          const category = tx.details?.category || 'Other';
-                          debitsByCategory[category] = (debitsByCategory[category] || 0) + tx.details.amount;
+                        transactions.filter(tx => (tx.type === 'bill_payment' || tx.type === 'one_time_cost_payment') && tx.payload?.amount > 0).forEach(tx => {
+                          const category = tx.payload?.category || tx.description?.split('"')[1] || 'Other';
+                          debitsByCategory[category] = (debitsByCategory[category] || 0) + tx.payload.amount;
                         });
 
                         const total = Object.values(debitsByCategory).reduce((sum, amount) => sum + amount, 0);
@@ -5539,12 +5495,9 @@ function DashboardContent() {
             }}>
               <input name="name" placeholder="Income name (e.g., Salary)" required style={inputStyle} />
               {(() => {
-                // Extract unique sources from income history for autocomplete
                 const previousSources = [...new Set(incomeHistory.map(entry => entry.source).filter(Boolean))];
-                const [sourceInput, setSourceInput] = React.useState('');
-                const [showSuggestions, setShowSuggestions] = React.useState(false);
                 const filteredSuggestions = previousSources.filter(source =>
-                  source.toLowerCase().includes(sourceInput.toLowerCase())
+                  source.toLowerCase().includes(incomeSourceInput.toLowerCase())
                 );
 
                 return (
@@ -5553,16 +5506,16 @@ function DashboardContent() {
                       name="source"
                       placeholder="Income source (e.g., ABC Company, Freelance)"
                       required
-                      value={sourceInput}
-                      onChange={(e) => setSourceInput(e.target.value)}
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      value={incomeSourceInput}
+                      onChange={(e) => setIncomeSourceInput(e.target.value)}
+                      onFocus={() => setShowIncomeSourceSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowIncomeSourceSuggestions(false), 200)}
                       style={{
                         ...inputStyle,
                         backgroundColor: previousSources.length > 0 ? '#f8fafc' : 'white'
                       }}
                     />
-                    {showSuggestions && filteredSuggestions.length > 0 && (
+                    {showIncomeSourceSuggestions && filteredSuggestions.length > 0 && (
                       <div style={{
                         position: 'absolute',
                         top: '100%',
@@ -5580,8 +5533,8 @@ function DashboardContent() {
                           <div
                             key={index}
                             onClick={() => {
-                              setSourceInput(source);
-                              setShowSuggestions(false);
+                              setIncomeSourceInput(source);
+                              setShowIncomeSourceSuggestions(false);
                             }}
                             style={{
                               padding: '0.5rem',
@@ -5592,14 +5545,14 @@ function DashboardContent() {
                             onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
                             onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
                           >
-                            💼 {source}
+                            {source}
                           </div>
                         ))}
                       </div>
                     )}
                     {previousSources.length > 0 && (
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: isMobile ? '0.125rem' : '0.25rem' }}>
-                        💡 Start typing to see previous sources
+                        Start typing to see previous sources
                       </div>
                     )}
                   </div>
