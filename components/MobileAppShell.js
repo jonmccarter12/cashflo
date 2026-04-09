@@ -162,6 +162,7 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
           {user ? (
             <button
               onClick={() => supabase?.auth.signOut()}
+              aria-label="Log out of your account"
               style={{
                 padding: '0.375rem 0.75rem',
                 background: '#dc2626',
@@ -238,33 +239,42 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
       </div>
 
       {/* Bottom Navigation */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(0,0,0,0.1)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        zIndex: 100
-      }}>
-        <div style={{
-          display: 'flex',
-          paddingTop: '0.5rem',
-          paddingBottom: '0.5rem',
-          overflowX: 'auto',
-          gap: '1rem',
-          paddingLeft: '1rem',
-          paddingRight: '1rem'
-        }}>
+      <nav
+        aria-label="Main navigation"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px)',
+          borderTop: '1px solid rgba(0,0,0,0.1)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          zIndex: 100
+        }}
+      >
+        <div
+          role="tablist"
+          aria-label="App sections"
+          style={{
+            display: 'flex',
+            paddingTop: '0.5rem',
+            paddingBottom: '0.5rem',
+            overflowX: 'auto',
+            gap: '1rem',
+            paddingLeft: '1rem',
+            paddingRight: '1rem'
+          }}
+        >
           {tabs.map((tab) => {
-            const Icon = tab.icon;
             const isActive = activeTab === tab.id;
 
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-label={tab.label}
                 onClick={() => onTabChange(tab.id)}
                 style={{
                   display: 'flex',
@@ -298,7 +308,7 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
             );
           })}
         </div>
-      </div>
+      </nav>
 
     </div>
   );

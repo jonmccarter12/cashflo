@@ -1026,27 +1026,53 @@ const TransactionAnalysis = ({
   const allFinancialData = useMemo(() => {
     const currentYear = new Date().getFullYear();
 
-    // Only show real transactions from the transaction log (actual payment events)
-    // No longer showing synthetic bills/costs/income to avoid duplicates and confusion
+    // Only show actual money movement transactions (payments, income received, credits received)
+    // Excludes: bill creation, modifications, deletions, category changes, account renames, etc.
+    const moneyMovementTypes = new Set([
+      'bill_payment',
+      'one_time_cost_payment',
+      'recurring_income_received',
+      'credit_received',
+      'account_balance_adjustment',
+    ]);
+
     const enhancedTransactions = transactions
       .filter(t => {
+        // Only include money movement events
+        if (!moneyMovementTypes.has(t.type)) return false;
         const transactionDate = t.date || t.timestamp;
         return new Date(transactionDate).getFullYear() === currentYear;
       })
-      .map(transaction => ({
-        ...transaction,
-        date: transaction.date || transaction.timestamp, // Normalize date field
-        amount: transaction.amount || transaction.payload?.amount || 0, // Extract amount from payload if needed
-        description: transaction.description || `${transaction.type} transaction`, // Add description if missing
-        // Add professional fields with defaults if missing
-        account: transaction.account || 'Main Account',
-        paymentMethod: transaction.paymentMethod || (transaction.amount > 0 ? 'Deposit' : 'Debit Card'),
-        notes: transaction.notes || '',
-        receipts: transaction.receipts || []
-      }));
+      .map(transaction => {
+        // Determine amount based on transaction type
+        let amount = transaction.amount || transaction.payload?.amount || 0;
+        if (transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') {
+          // Payments are money leaving (negative)
+          if (transaction.payload?.is_paid) {
+            amount = -(Math.abs(amount));
+          } else {
+            amount = Math.abs(amount); // Unmarking = money back
+          }
+        } else if (transaction.type === 'recurring_income_received' || transaction.type === 'credit_received') {
+          // Income/credits are money coming in (positive)
+          amount = Math.abs(amount);
+          if (transaction.payload?.is_received === false) {
+            amount = -amount; // Unmarking income = negative
+          }
+        }
 
-    // Only show real transactions (payment events), not synthetic bills/costs/income
-    // This prevents duplicates and makes the history show actual payment events only
+        return {
+          ...transaction,
+          date: transaction.date || transaction.timestamp,
+          amount,
+          description: transaction.description || `${transaction.type} transaction`,
+          account: transaction.account || 'Main Account',
+          paymentMethod: transaction.paymentMethod || (amount > 0 ? 'Deposit' : 'Debit Card'),
+          notes: transaction.notes || '',
+          receipts: transaction.receipts || []
+        };
+      });
+
     return enhancedTransactions;
   }, [transactions, bills, oneTimeCosts, recurringIncome]);
 

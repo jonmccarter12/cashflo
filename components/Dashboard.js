@@ -13,6 +13,7 @@ import ErrorBoundary from './ErrorBoundary';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useCloudState } from '../hooks/useCloudState';
 import { useCloudTransactions } from '../hooks/useCloudTransactions';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 // Lazy loaded for performance
 import { useAuth } from '../hooks/useAuth'; // NEW
 import AccountsSection from './dashboard/AccountsSection';
@@ -65,6 +66,8 @@ function DashboardContent() {
     supabase
   } = useAuth();
 
+  const isOnline = useOnlineStatus();
+
   // Navigation state with persistence
   const [currentView, setCurrentView] = React.useState(() => {
     if (typeof window !== 'undefined') {
@@ -88,7 +91,7 @@ function DashboardContent() {
   // Supabase client and user state are now managed by useAuth hook
 
   // Fast performance: Use basic sync first, enhance later
-  const [transactions, setTransactions] = useCloudTransactions(user?.id, supabase);
+  const [transactions, setTransactions, { initialLoadDone }] = useCloudTransactions(user?.id, supabase);
   const [enhancedFeatures, setEnhancedFeatures] = React.useState({
     transactionsSyncing: false,
     transactionsLastSync: null,
@@ -135,29 +138,32 @@ function DashboardContent() {
     const upcomingCredits = new Map();
     const recurringIncome = new Map();
     const incomeHistory = []; // Income history is also derived or logged as separate transactions
-    
-    // Default categories (initial state if no category transactions exist)
+
+    // Default categories with stable IDs (prevent re-generation on every render)
     const initialCategories = [
-      { id: crypto.randomUUID(), name: 'Personal', order: 0, budget: 500, ignored: false },
-      { id: crypto.randomUUID(), name: 'Studio', order: 1, budget: 1200, ignored: false },
-      { id: crypto.randomUUID(), name: 'Smoke Shop', order: 2, budget: 800, ignored: false },
-      { id: crypto.randomUUID(), name: 'Botting', order: 3, budget: 300, ignored: false },
+      { id: 'default-cat-personal', name: 'Personal', order: 0, budget: 500, ignored: false },
+      { id: 'default-cat-studio', name: 'Studio', order: 1, budget: 1200, ignored: false },
+      { id: 'default-cat-smoke-shop', name: 'Smoke Shop', order: 2, budget: 800, ignored: false },
+      { id: 'default-cat-botting', name: 'Botting', order: 3, budget: 300, ignored: false },
     ];
     initialCategories.forEach(cat => categories.set(cat.id, cat));
 
-    // Default accounts with proper UUIDs
-    const initialAccounts = [
-      { id: '550e8400-e29b-41d4-a716-446655440001', name:'Cash on Hand', type:'Cash', balance:0 },
-      { id: '550e8400-e29b-41d4-a716-446655440002', name:'BOA – Business', type:'Bank', balance:0 },
-      { id: '550e8400-e29b-41d4-a716-446655440003', name:'Personal Checking', type:'Bank', balance:0 },
-    ];
-    initialAccounts.forEach(acc => accounts.set(acc.id, acc));
+    // Only show default accounts if initial load is done and there are no transactions
+    // This prevents showing 0 balances while data is still loading from Supabase
+    if (initialLoadDone || transactions.length > 0) {
+      const initialAccounts = [
+        { id: '550e8400-e29b-41d4-a716-446655440001', name:'Cash on Hand', type:'Cash', balance:0 },
+        { id: '550e8400-e29b-41d4-a716-446655440002', name:'BOA – Business', type:'Bank', balance:0 },
+        { id: '550e8400-e29b-41d4-a716-446655440003', name:'Personal Checking', type:'Bank', balance:0 },
+      ];
+      initialAccounts.forEach(acc => accounts.set(acc.id, acc));
+    }
 
 
-    // Process transactions in chronological order
-    transactions.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    // Process transactions in chronological order (copy to avoid mutating React state)
+    const sortedTransactions = [...transactions].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-    for (const tx of transactions) {
+    for (const tx of sortedTransactions) {
       switch (tx.type) {
         case 'account_created':
           accounts.set(tx.item_id, {
@@ -241,8 +247,14 @@ function DashboardContent() {
             dueDay: tx.payload.dueDay,
             accountId: tx.payload.accountId,
             notes: tx.payload.notes || '',
-            customDueDate: tx.payload.customDueDate || null, // Override automatic due date calculation
-            paidMonths: tx.payload.paidMonths || [], // For retroactive history
+            autopay: tx.payload.autopay || false,
+            yearlyMonth: tx.payload.yearlyMonth,
+            weeklyDay: tx.payload.weeklyDay,
+            weeklyStart: tx.payload.weeklyStart,
+            weeklySchedule: tx.payload.weeklySchedule,
+            biweeklyStart: tx.payload.biweeklyStart,
+            customDueDate: tx.payload.customDueDate || null,
+            paidMonths: tx.payload.paidMonths || [],
             skipMonths: [],
             ignored: false,
             updatedAt: tx.timestamp
@@ -316,15 +328,6 @@ function DashboardContent() {
             });
             if (accounts.has(tx.payload.accountId)) {
               const account = accounts.get(tx.payload.accountId);
-              console.log('Processing one-time cost payment:', {
-                otcName: currentOTC.name,
-                payloadAmount: tx.payload.amount,
-                otcAmount: currentOTC.amount,
-                isPaid: tx.payload.is_paid,
-                oldBalance: account.balance,
-                autoDeducted: tx.payload.auto_deducted
-              });
-
               // Only auto-deduct if auto-deduct settings were enabled when the transaction was created
               if (tx.payload.auto_deducted) {
                 accounts.set(tx.payload.accountId, {
@@ -572,26 +575,26 @@ function DashboardContent() {
 
     // No automatic Uncategorized category - user manages all categories
 
+    // Build lookup map for O(1) account access
+    const accountsMap = new Map();
+    accounts.forEach((acc, id) => accountsMap.set(id, acc));
+
     const result = {
       accounts: Array.from(accounts.values()),
+      accountsMap,
       bills: Array.from(bills.values()),
       oneTimeCosts: Array.from(oneTimeCosts.values()),
       categories: sortedCategories,
       upcomingCredits: Array.from(upcomingCredits.values()),
       recurringIncome: Array.from(recurringIncome.values()),
-      incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100) // Keep last 100 entries
+      incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100)
     };
 
-    console.log('masterState - upcomingCredits count:', result.upcomingCredits.length);
-    if (result.upcomingCredits.length > 0) {
-      console.log('masterState - upcomingCredits:', result.upcomingCredits);
-    }
-
     return result;
-  }, [transactions]); // Depend on transactions
+  }, [transactions, initialLoadDone]); // Depend on transactions and initial load state
 
   // OLD: Master state -> NOW derived from transactions
-  const { accounts, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, incomeHistory } = masterState;
+  const { accounts, accountsMap, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, incomeHistory } = masterState;
 
   // Sync initial dummy data to transactions if no transactions exist and old local storage has data
   // This is a one-time migration for existing users.
@@ -725,6 +728,7 @@ function DashboardContent() {
     borderRadius: '0.375rem'
   };
   const billsSectionRef = React.useRef(null);
+  const autoDeductPopupTimerRef = React.useRef(null);
 
   // One-time cost form state - these states are kept in DashboardContent
   // because they are used for calculations (e.g., upcoming.items, timeline)
@@ -743,7 +747,9 @@ function DashboardContent() {
   const [otcMarkAsPaid, setOtcMarkAsPaid] = React.useState(false);
   const [otcAutoDeduct, setOtcAutoDeduct] = React.useState(false);
 
-  // Autopay processing function
+  // Autopay processing with guard to prevent double-fire
+  const autopayProcessingRef = React.useRef(new Set());
+
   async function processAutopayBills() {
     if (!user?.id || !supabase) return;
 
@@ -756,24 +762,36 @@ function DashboardContent() {
       // Check if bill is already paid this month
       if (bill.paidMonths.includes(currentMonth)) continue;
 
+      // Guard: skip if we're already processing this bill this month
+      const processKey = `${bill.id}-${currentMonth}`;
+      if (autopayProcessingRef.current.has(processKey)) continue;
+
       // Check if bill is due this month
       const nextDue = getNextOccurrence(bill);
       const billMonth = nextDue.toISOString().slice(0, 7);
 
       // If the bill is due this month and we're at or past the due date
       if (billMonth === currentMonth && today >= nextDue) {
+        autopayProcessingRef.current.add(processKey);
         try {
           await logTransaction(
             supabase,
             user.id,
             'bill_payment',
             bill.id,
-            { paid: true, autopay: true },
+            {
+              month: currentMonth,
+              is_paid: true,
+              accountId: bill.accountId,
+              amount: bill.amount,
+              autopay: true
+            },
             `Autopay: Marked "${bill.name}" as paid for ${currentMonth}`
           );
           console.log(`Autopay processed: ${bill.name}`);
         } catch (error) {
           console.error(`Autopay failed for ${bill.name}:`, error);
+          autopayProcessingRef.current.delete(processKey);
         }
       }
     }
@@ -784,7 +802,20 @@ function DashboardContent() {
     if (bills.length > 0) {
       processAutopayBills();
     }
-  }, [bills, user?.id, supabase]);
+  }, [bills, user?.id, supabase, monthKey]);
+
+  // Check for month rollover every minute to trigger autopay at midnight
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const currentMonth = yyyyMm();
+      if (currentMonth !== monthKey) {
+        // Month changed — force a re-render by reloading the page
+        // This is the simplest way to handle the monthKey being set once on mount
+        window.location.reload();
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [monthKey]);
 
   // Enhanced sync status tracking
   const isSyncing = transactionsSyncing || nwHistorySyncing;
@@ -1426,6 +1457,11 @@ function DashboardContent() {
 
   async function toggleIncomeReceived(income) {
     try {
+      if (!user?.id) {
+        notify('Please log in to update income status', 'error');
+        return;
+      }
+
       const currentMonth = yyyyMm();
       const isReceived = income.receivedMonths?.includes(currentMonth);
 
@@ -1460,49 +1496,51 @@ function DashboardContent() {
   async function deleteIncome(incomeId) {
     const income = recurringIncome.find(i => i.id === incomeId);
     if (!income) return;
-    if (confirm('Delete this recurring income?')) {
-      try {
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'recurring_income_deleted',
-          incomeId,
-          {},
-          `Deleted recurring income "${income.name}"`
-        );
-        if (transaction) {
-          // Optimistic update - add transaction to local state immediately
-          setTransactions(prev => [...prev, transaction]);
 
-          // Show notification with undo button
-          notify(`"${income.name}" deleted`, 'success', {
-            duration: 8000,
-            action: async () => {
-              try {
-                // Delete the transaction to undo
-                const { error } = await supabase
-                  .from('transaction_log')
-                  .delete()
-                  .eq('id', transaction.id);
+    setConfirmDialog({
+      title: 'Delete Recurring Income',
+      message: `Are you sure you want to delete "${income.name}"?`,
+      onConfirm: async () => {
+        try {
+          const transaction = await logTransaction(
+            supabase,
+            user.id,
+            'recurring_income_deleted',
+            incomeId,
+            {},
+            `Deleted recurring income "${income.name}"`
+          );
+          if (transaction) {
+            setTransactions(prev => [...prev, transaction]);
 
-                if (error) throw error;
+            notify(`"${income.name}" deleted`, 'success', {
+              duration: 8000,
+              action: async () => {
+                try {
+                  const { error } = await supabase
+                    .from('transaction_log')
+                    .delete()
+                    .eq('id', transaction.id);
 
-                // Remove from local state
-                setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
-                notify('Deletion undone', 'info');
-              } catch (error) {
-                console.error('Error undoing deletion:', error);
-                notify('Failed to undo deletion', 'error');
-              }
-            },
-            actionLabel: 'Undo'
-          });
+                  if (error) throw error;
+
+                  setTransactions(prev => prev.filter(tx => tx.id !== transaction.id));
+                  notify('Deletion undone', 'info');
+                } catch (error) {
+                  console.error('Error undoing deletion:', error);
+                  notify('Failed to undo deletion', 'error');
+                }
+              },
+              actionLabel: 'Undo'
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting recurring income:', error);
+          notify('Failed to delete recurring income', 'error');
         }
-      } catch (error) {
-        console.error('Error deleting recurring income:', error);
-        notify('Failed to delete recurring income', 'error');
-      }
-    }
+      },
+      onCancel: () => {}
+    });
   }
 
   async function receiveCredit(creditId) {
@@ -1565,30 +1603,31 @@ function DashboardContent() {
   async function deleteCredit(creditId) {
     const credit = upcomingCredits.find(c => c.id === creditId);
     if (!credit) return;
-    if (confirm('Delete this upcoming credit?')) {
-      try {
-        // Optimistic update: Remove from UI immediately
-        setUpcomingCredits(prev => prev.filter(c => c.id !== creditId));
 
-        const transaction = await logTransaction(
-          supabase,
-          user.id,
-          'credit_deleted',
-          creditId,
-          {},
-          `Deleted credit "${credit.name}"`
-        );
-        if (transaction) {
-          notify('Credit deleted');
+    setConfirmDialog({
+      title: 'Delete Credit',
+      message: `Are you sure you want to delete "${credit.name}"?`,
+      onConfirm: async () => {
+        try {
+          const transaction = await logTransaction(
+            supabase,
+            user.id,
+            'credit_deleted',
+            creditId,
+            {},
+            `Deleted credit "${credit.name}"`
+          );
+          if (transaction) {
+            setTransactions(prev => [...prev, transaction]);
+            notify('Credit deleted', 'success');
+          }
+        } catch (error) {
+          console.error('Error deleting credit:', error);
+          notify('Failed to delete credit', 'error');
         }
-      } catch (error) {
-        console.error('Error deleting credit:', error);
-        notify('Failed to delete credit', 'error');
-
-        // Revert optimistic update on error
-        setUpcomingCredits(prev => [...prev, credit]);
-      }
-    }
+      },
+      onCancel: () => {}
+    });
   }
 
   // UPCOMING CREDITS FUNCTIONS
@@ -1619,7 +1658,6 @@ function DashboardContent() {
         notes: notes || ''
       };
 
-      console.log('Adding credit with payload:', payload); // Debug log
 
       const transaction = await logTransaction(
         supabase,
@@ -1723,10 +1761,13 @@ function DashboardContent() {
 
   async function toggleOneTimePaid(otc) {
     try {
+      if (!user?.id) {
+        notify('Please log in to update payment status', 'error');
+        return;
+      }
+
       // Check if auto-deduct is enabled (same logic as bills)
       const shouldAutoDeduct = !otc.paid && (autoDeductCash || autoDeductBank);
-
-      console.log(`toggleOneTimePaid debug: otcPaid=${otc.paid}, autoDeductCash=${autoDeductCash}, autoDeductBank=${autoDeductBank}, willAutoDeduct=${shouldAutoDeduct}`);
 
       const transaction = await logTransaction(
         supabase,
@@ -1743,9 +1784,46 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        notify(`${otc.name} marked as ${!otc.paid ? 'paid' : 'unpaid'}`, 'success');
+        // Handle auto-deduct when marking as paid
+        if (shouldAutoDeduct) {
+          const deductAccount = getDefaultAutoDeductAccount();
+          const account = accountsMap.get(deductAccount);
 
-        // Optimistic update - add transaction to local state immediately
+          if (account) {
+            const newBalance = Math.round((account.balance - otc.amount) * 100) / 100;
+
+            const balanceTransaction = await logTransaction(
+              supabase,
+              user.id,
+              'account_balance_adjustment',
+              account.id,
+              {
+                old_balance: account.balance,
+                new_balance: newBalance,
+                reason: `Auto-deduct for ${otc.name}`
+              },
+              `Auto-deducted ${fmt(otc.amount)} for ${otc.name} from ${account.name}`
+            );
+
+            if (balanceTransaction) {
+              setAutoDeductPopup({
+                amount: otc.amount,
+                accountName: account.name,
+                newBalance: newBalance,
+                billName: otc.name
+              });
+
+              if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
+              autoDeductPopupTimerRef.current = setTimeout(() => {
+                setAutoDeductPopup(null);
+              }, 3000);
+
+              setTransactions(prev => [...prev, balanceTransaction]);
+            }
+          }
+        }
+
+        notify(`${otc.name} marked as ${!otc.paid ? 'paid' : 'unpaid'}`, 'success');
         setTransactions(prev => [...prev, transaction]);
       }
     } catch (error) {
@@ -1879,7 +1957,6 @@ function DashboardContent() {
         payload.biweeklyStart = formData.get('biweeklyStart');
       }
 
-      console.log('Adding bill with payload:', payload); // Debug log
 
       const transaction = await logTransaction(
         supabase,
@@ -2082,20 +2159,18 @@ function DashboardContent() {
 
         if (transaction) {
           // Handle auto-deduct when marking as paid
-          console.log(`togglePaid debug: isPaid=${isPaid}, autoDeductCash=${autoDeductCash}, autoDeductBank=${autoDeductBank}, willAutoDeduct=${!isPaid && (autoDeductCash || autoDeductBank)}`);
           if (!isPaid && (autoDeductCash || autoDeductBank)) {
             const deductAccount = getDefaultAutoDeductAccount();
-            const account = accounts.find(a => a.id === deductAccount);
+            const account = accountsMap.get(deductAccount);
 
             if (account) {
-              const newBalance = account.balance - b.amount;
-              console.log(`Auto-deducting ${b.amount} from ${account.name}: ${account.balance} -> ${newBalance}`);
+              const newBalance = Math.round((account.balance - b.amount) * 100) / 100;
 
               // Create account balance adjustment transaction
               const balanceTransaction = await logTransaction(
                 supabase,
                 user.id,
-                'account_balance_adjusted',
+                'account_balance_adjustment',
                 account.id,
                 {
                   old_balance: account.balance,
@@ -2114,8 +2189,9 @@ function DashboardContent() {
                   billName: b.name
                 });
 
-                // Auto-fade popup after 3 seconds
-                setTimeout(() => {
+                // Auto-fade popup after 3 seconds (with cleanup)
+                if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
+                autoDeductPopupTimerRef.current = setTimeout(() => {
                   setAutoDeductPopup(null);
                 }, 3000);
 
@@ -2277,7 +2353,6 @@ function DashboardContent() {
       const aprValue = accountType === 'credit' ? (Number(apr) || 0) : null;
       const creditLimitValue = accountType === 'credit' ? (Number(creditLimit) || 0) : null;
 
-      console.log('Adding account:', { name, type, balance: balanceValue, accountType, apr: aprValue, creditLimit: creditLimitValue }); // Debug log
 
       const accountData = {
         name: name.trim(),
@@ -2322,7 +2397,7 @@ function DashboardContent() {
         return;
       }
 
-      const account = accounts.find(a => a.id === accountId);
+      const account = accountsMap.get(accountId);
       if (!account) {
         notify('Account not found', 'error');
         return;
@@ -2334,7 +2409,6 @@ function DashboardContent() {
         return;
       }
 
-      console.log('Updating account balance:', { accountId, newBalance, balanceValue }); // Debug log
 
       const transaction = await logTransaction(
         supabase,
@@ -2359,7 +2433,7 @@ function DashboardContent() {
   }
 
   async function deleteAccount(accountId) {
-    const account = accounts.find(a => a.id === accountId);
+    const account = accountsMap.get(accountId);
     if (!account) return;
 
     // Show confirmation dialog
@@ -2420,7 +2494,7 @@ function DashboardContent() {
   }
 
   async function renameAccount(accountId, newName) {
-    const account = accounts.find(a => a.id === accountId);
+    const account = accountsMap.get(accountId);
     if (!account || !newName.trim() || newName === account.name) return;
 
     try {
@@ -2446,7 +2520,7 @@ function DashboardContent() {
   }
 
   async function updateAccount(accountId, updates) {
-    const account = accounts.find(a => a.id === accountId);
+    const account = accountsMap.get(accountId);
     if (!account) return;
 
     try {
@@ -2935,32 +3009,36 @@ function DashboardContent() {
 
   // Transaction management functions
   async function deleteTransaction(transactionId) {
-    if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
-      return;
-    }
+    setConfirmDialog({
+      title: 'Delete Transaction',
+      message: 'Are you sure you want to delete this transaction? This action cannot be undone.',
+      onConfirm: async () => {
+        const removedTx = transactions.find(tx => tx.id === transactionId);
+        // Optimistic update: Remove from UI immediately
+        setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
 
-    try {
-      // Optimistic update: Remove from UI immediately
-      setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+        try {
+          const { error } = await supabase
+            .from('transaction_log')
+            .delete()
+            .eq('id', transactionId)
+            .eq('user_id', user.id);
 
-      const { error } = await supabase
-        .from('transaction_log')
-        .delete()
-        .eq('id', transactionId)
-        .eq('user_id', user.id);
+          if (error) throw error;
 
-      if (error) {
-        throw error;
-      }
+          notify('Transaction deleted successfully', 'success');
+        } catch (error) {
+          console.error('Error deleting transaction:', error);
+          notify('Failed to delete transaction', 'error');
 
-      notify('Transaction deleted successfully', 'success');
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      notify('Failed to delete transaction', 'error');
-
-      // Revert optimistic update on error by triggering a re-sync
-      // The useCloudTransactions hook should automatically refetch on error
-    }
+          // Revert optimistic update on error
+          if (removedTx) {
+            setTransactions(prev => [...prev, removedTx]);
+          }
+        }
+      },
+      onCancel: () => {}
+    });
   }
 
   async function editTransaction(transactionId, newDescription) {
@@ -2999,6 +3077,41 @@ function DashboardContent() {
       setEditingTransaction(null);
       setShowTransactionEdit(false);
     }
+  }
+
+  // Export data as CSV
+  function exportDataAsCSV() {
+    const rows = [['Date', 'Type', 'Description', 'Amount', 'Account']];
+
+    // Only export money-movement transactions
+    const moneyTypes = new Set(['bill_payment', 'one_time_cost_payment', 'recurring_income_received', 'credit_received', 'account_balance_adjustment']);
+
+    const exportTxs = [...transactions]
+      .filter(tx => moneyTypes.has(tx.type))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    for (const tx of exportTxs) {
+      const amount = tx.payload?.amount || 0;
+      const account = accountsMap.get(tx.payload?.accountId)?.name || '';
+      const sign = (tx.type === 'recurring_income_received' || tx.type === 'credit_received') ? '' : '-';
+      rows.push([
+        new Date(tx.timestamp).toLocaleDateString(),
+        tx.type.replace(/_/g, ' '),
+        (tx.description || '').replace(/,/g, ';'),
+        `${sign}${amount}`,
+        account
+      ]);
+    }
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cashflo-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify('Data exported successfully', 'success');
   }
 
   // Quick action handler for mobile menu
@@ -3049,6 +3162,67 @@ function DashboardContent() {
         borderTopLeftRadius: isMobile ? '1.5rem' : '0',
         borderTopRightRadius: isMobile ? '1.5rem' : '0'
       }}>
+      {/* Offline banner */}
+      {!isOnline && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0.5rem 1rem',
+          gap: '0.5rem',
+          background: '#fef3c7',
+          borderBottom: '1px solid #fbbf24',
+          color: '#92400e',
+          fontSize: '0.8rem',
+          fontWeight: '500'
+        }}>
+          You're offline. Changes won't be saved until you reconnect.
+        </div>
+      )}
+      {/* Loading indicator while initial data loads */}
+      {user?.id && !initialLoadDone && transactions.length === 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          gap: '0.75rem',
+          color: '#6b7280',
+          fontSize: '0.875rem'
+        }}>
+          <div style={{
+            width: '1.25rem',
+            height: '1.25rem',
+            border: '2px solid #e5e7eb',
+            borderTopColor: '#8b5cf6',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          Loading your data...
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+      {/* Sync status indicator */}
+      {user?.id && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          padding: '0.25rem 0.5rem',
+          gap: '0.4rem',
+          fontSize: '0.7rem',
+          color: '#9ca3af'
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: !isOnline ? '#ef4444' : isSyncing ? '#f59e0b' : hasErrors ? '#ef4444' : '#22c55e',
+            animation: isSyncing ? 'pulse 1.5s ease-in-out infinite' : 'none'
+          }} />
+          {!isOnline ? 'Offline' : isSyncing ? 'Syncing...' : hasErrors ? 'Sync error' : 'Synced'}
+        </div>
+      )}
       {/* Header - Shown on both mobile and desktop */}
       <div style={{
         display: 'block',
@@ -4411,6 +4585,28 @@ function DashboardContent() {
             )}
           </div>
 
+          {/* Data Export */}
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              onClick={exportDataAsCSV}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#f9fafb',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              Export Data (CSV)
+            </button>
+          </div>
+
           {/* Category Budget Management */}
           <div style={{
             marginTop: '1.5rem',
@@ -5692,18 +5888,32 @@ function DashboardContent() {
 
       {/* Confirmation Dialog */}
       {confirmDialog && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-message"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              if (confirmDialog.onCancel) confirmDialog.onCancel();
+              setConfirmDialog(null);
+            }
+          }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
           <div style={{ background: 'white', padding: '2rem', borderRadius: '0.75rem', width: '90%', maxWidth: '400px', border: '1px solid #e5e7eb', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)' }}>
             <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.5rem' }}>
+              <h3 id="confirm-dialog-title" style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.5rem' }}>
                 {confirmDialog.title}
               </h3>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
+              <p id="confirm-dialog-message" style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.5' }}>
                 {confirmDialog.message}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
+                autoFocus
+                aria-label="Cancel"
                 onClick={() => {
                   if (confirmDialog.onCancel) confirmDialog.onCancel();
                   setConfirmDialog(null);
@@ -5729,6 +5939,7 @@ function DashboardContent() {
                 Cancel
               </button>
               <button
+                aria-label="Confirm action"
                 onClick={() => {
                   if (confirmDialog.onConfirm) confirmDialog.onConfirm();
                   setConfirmDialog(null);

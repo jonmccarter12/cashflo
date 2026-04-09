@@ -3,7 +3,7 @@ import { fmt, logTransaction } from '../../lib/utils';
 import { notify } from '../Notify';
 import { IRS_TAX_CATEGORIES } from './TaxSection';
 
-export default function OneTimeCostsSection({
+function OneTimeCostsSection({
   isMobile,
   user,
   supabase,
@@ -569,3 +569,5 @@ export default function OneTimeCostsSection({
     </>
   );
 }
+
+export default React.memo(OneTimeCostsSection);

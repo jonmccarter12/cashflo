@@ -4,7 +4,7 @@ import { notify } from '../Notify';
 import { IRS_TAX_CATEGORIES } from './TaxSection';
 // import RetroactiveBillHistory from '../RetroactiveBillHistory';
 
-export default function BillsSection({
+function BillsSection({
   isMobile,
   bills,
   accounts,
@@ -237,10 +237,21 @@ export default function BillsSection({
 
       {/* Common Dialog for Add/Edit Bill */}
       {(showAddBillDialog || editingBill) && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bill-dialog-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setEditingBill(null);
+              setShowAddBillDialog(false);
+            }
+          }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
           <div style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', width: '90%', maxWidth: isMobile ? '400px' : '500px' }}>
             <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
-              <h2 style={{ color: 'white', fontSize: '1.25rem' }}>{editingBill ? 'Edit Bill' : 'Add Bill'}</h2>
+              <h2 id="bill-dialog-title" style={{ color: 'white', fontSize: '1.25rem' }}>{editingBill ? 'Edit Bill' : 'Add Bill'}</h2>
             </div>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -253,11 +264,11 @@ export default function BillsSection({
               setEditingBill(null);
               setShowAddBillDialog(false);
             }}>
-              <input name="name" placeholder="Bill name (e.g., Electric Bill)" defaultValue={editingBill?.name || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="name" placeholder="Bill name (e.g., Electric Bill)" aria-label="Bill name" defaultValue={editingBill?.name || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="category" defaultValue={editingBill?.category || activeCats[0]} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 {activeCats.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" defaultValue={editingBill?.amount || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
+              <input name="amount" type="number" step="0.01" placeholder="Amount (e.g., 125.50)" aria-label="Bill amount" defaultValue={editingBill?.amount || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="taxCategory" defaultValue={editingBill?.taxCategory || 'None/Personal'} style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
                 {IRS_TAX_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
@@ -419,3 +430,5 @@ export default function BillsSection({
     </>
   );
 }
+
+export default React.memo(BillsSection);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { fmt, yyyyMm, getEffectiveDueDate } from '../../lib/utils';
 
-export default function AccountsSection({
+function AccountsSection({
   isMobile,
   accounts,
   setShowAddAccount,
@@ -61,13 +61,11 @@ export default function AccountsSection({
 
   // Determine account health color based on balance vs upcoming expenses
   const getAccountHealthColor = (balance, upcomingExpenses) => {
-    const ratio = balance / (upcomingExpenses || 1); // Avoid division by zero
-
     if (upcomingExpenses === 0) {
-      // No upcoming expenses - base color on balance amount
       return balance >= 100 ? '#22c55e' : balance >= 50 ? '#f59e0b' : '#ef4444';
     }
 
+    const ratio = balance / upcomingExpenses;
     if (ratio >= 2) return '#22c55e';      // Green: 2x+ coverage
     if (ratio >= 1.2) return '#f59e0b';    // Yellow: 1.2x+ coverage
     return '#ef4444';                      // Red: insufficient coverage
@@ -1612,7 +1610,9 @@ export default function AccountsSection({
           );
         })}
       </div>
-      
+
     </div>
   );
 }
+
+export default React.memo(AccountsSection);

@@ -11,11 +11,17 @@ export function useCloudTransactions(userId, supabase) {
   const [syncing, setSyncing] = React.useState(false);
   const [lastSync, setLastSync] = React.useState(null);
   const [syncError, setSyncError] = React.useState(null);
+  const [initialLoadDone, setInitialLoadDone] = React.useState(() => {
+    // If we have cached data, consider initial load done so we show cached values immediately
+    const { data } = loadData(TRANSACTION_LOG_KEY, []);
+    return data.length > 0;
+  });
 
   // Fetch initial transactions and subscribe to changes
   React.useEffect(() => {
     if (!userId || !supabase) {
       setTransactions([]); // Clear transactions if user logs out
+      setInitialLoadDone(false);
       return;
     }
 
@@ -33,7 +39,7 @@ export function useCloudTransactions(userId, supabase) {
           .order('timestamp', { ascending: true });
 
         if (error) throw error;
-        
+
         // Simple merge: remote data is the source of truth
         setTransactions(data);
         saveData(TRANSACTION_LOG_KEY, data);
@@ -44,20 +50,47 @@ export function useCloudTransactions(userId, supabase) {
         notify('Failed to fetch transaction history from the cloud.', 'error');
       } finally {
         setSyncing(false);
+        setInitialLoadDone(true);
       }
     }
 
     fetchInitialTransactions();
 
-    // Set up real-time subscription
+    // Set up real-time subscription with incremental updates
     const channel = supabase.channel(`transactions:${userId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'transaction_log', filter: `user_id=eq.${userId}` },
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'transaction_log', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.log('Real-time transaction change received:', payload);
-          // Re-fetch all to ensure consistency. More advanced logic could apply the patch.
-          fetchInitialTransactions();
-          notify('Data updated in real-time.', 'info');
+          console.log('Real-time INSERT received:', payload);
+          setTransactions(prev => {
+            // Avoid duplicates (optimistic updates may have already added it)
+            if (prev.some(tx => tx.id === payload.new.id)) return prev;
+            const updated = [...prev, payload.new];
+            saveData(TRANSACTION_LOG_KEY, updated);
+            return updated;
+          });
+        }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'transaction_log', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          console.log('Real-time DELETE received:', payload);
+          setTransactions(prev => {
+            const updated = prev.filter(tx => tx.id !== payload.old.id);
+            saveData(TRANSACTION_LOG_KEY, updated);
+            return updated;
+          });
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'transaction_log', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          console.log('Real-time UPDATE received:', payload);
+          setTransactions(prev => {
+            const updated = prev.map(tx => tx.id === payload.new.id ? payload.new : tx);
+            saveData(TRANSACTION_LOG_KEY, updated);
+            return updated;
+          });
         }
       )
       .subscribe((status, err) => {
@@ -77,5 +110,5 @@ export function useCloudTransactions(userId, supabase) {
 
   }, [userId, supabase]);
 
-  return [transactions, setTransactions, { syncing, lastSync, syncError }];
+  return [transactions, setTransactions, { syncing, lastSync, syncError, initialLoadDone }];
 }

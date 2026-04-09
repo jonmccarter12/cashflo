@@ -2,7 +2,7 @@ import React from 'react';
 import { fmt, getNextIncomeOccurrence, logTransaction } from '../../lib/utils';
 import { notify } from '../Notify';
 
-export default function IncomeSection({
+function IncomeSection({
   isMobile,
   accounts,
   recurringIncome,
@@ -478,3 +478,5 @@ export default function IncomeSection({
     </div>
   );
 }
+
+export default React.memo(IncomeSection);
