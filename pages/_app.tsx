@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import React from 'react';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
+import { ThemeProvider } from '../hooks/useTheme';
 export default function MyApp({ Component, pageProps }: AppProps) {
   React.useEffect(() => {
     // Register service worker
@@ -76,8 +77,10 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       </Head>
 
       {/* PWA and Main App */}
-      <PWAInstallPrompt />
-      <Component {...pageProps} />
+      <ThemeProvider>
+        <PWAInstallPrompt />
+        <Component {...pageProps} />
+      </ThemeProvider>
     </>
   );
 }

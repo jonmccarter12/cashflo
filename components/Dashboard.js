@@ -20,14 +20,17 @@ import AccountsSection from './dashboard/AccountsSection';
 import IncomeSection from './dashboard/IncomeSection';
 import BillsSection from './dashboard/BillsSection';
 import OneTimeCostsSection from './dashboard/OneTimeCostsSection';
+import GoalsSection from './dashboard/GoalsSection';
 import TransactionImport from './TransactionImport';
 import TransactionAnalysis from './dashboard/TransactionAnalysis';
 import MobileAppShell from './MobileAppShell';
+import { useTheme } from '../hooks/useTheme';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
 // Version: 2.0 - Fixed showAddBill error completely
 function DashboardContent() {
+  const { theme } = useTheme();
   const monthKey = yyyyMm();
 
   // Performance optimization: Progressive feature loading
@@ -137,6 +140,7 @@ function DashboardContent() {
     const categories = new Map();
     const upcomingCredits = new Map();
     const recurringIncome = new Map();
+    const savingsGoals = new Map();
     const incomeHistory = []; // Income history is also derived or logged as separate transactions
 
     // Default categories with stable IDs (prevent re-generation on every render)
@@ -567,6 +571,30 @@ function DashboardContent() {
             });
           }
           break;
+        case 'goal_created':
+          savingsGoals.set(tx.item_id, {
+            id: tx.item_id,
+            name: tx.payload.name,
+            targetAmount: tx.payload.targetAmount,
+            deadline: tx.payload.deadline,
+            accountId: tx.payload.accountId,
+            startBalance: tx.payload.startBalance || 0,
+            updatedAt: tx.timestamp
+          });
+          break;
+        case 'goal_updated':
+          if (savingsGoals.has(tx.item_id)) {
+            const currentGoal = savingsGoals.get(tx.item_id);
+            savingsGoals.set(tx.item_id, {
+              ...currentGoal,
+              ...tx.payload.changes,
+              updatedAt: tx.timestamp
+            });
+          }
+          break;
+        case 'goal_deleted':
+          savingsGoals.delete(tx.item_id);
+          break;
         default:
           console.warn(`Unknown transaction type: ${tx.type}`);
       }
@@ -589,6 +617,7 @@ function DashboardContent() {
       categories: sortedCategories,
       upcomingCredits: Array.from(upcomingCredits.values()),
       recurringIncome: Array.from(recurringIncome.values()),
+      savingsGoals: Array.from(savingsGoals.values()),
       incomeHistory: incomeHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100)
     };
 
@@ -596,7 +625,7 @@ function DashboardContent() {
   }, [transactions, initialLoadDone]); // Depend on transactions and initial load state
 
   // OLD: Master state -> NOW derived from transactions
-  const { accounts, accountsMap, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, incomeHistory } = masterState;
+  const { accounts, accountsMap, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, savingsGoals, incomeHistory } = masterState;
 
   // Sync initial dummy data to transactions if no transactions exist and old local storage has data
   // This is a one-time migration for existing users.
@@ -928,6 +957,41 @@ function DashboardContent() {
   const projectedWithIncome = React.useMemo(() => {
     return currentLiquidWithGuaranteed + pendingIncomeTotal;
   }, [currentLiquidWithGuaranteed, pendingIncomeTotal]);
+
+  // Monthly spending summary
+  const monthlySummary = React.useMemo(() => {
+    const currentMonth = yyyyMm();
+    const now = new Date();
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonth = yyyyMm(prevDate);
+
+    let thisMonthSpending = 0;
+    let lastMonthSpending = 0;
+    let thisMonthIncome = 0;
+
+    for (const tx of transactions) {
+      const txMonth = yyyyMm(new Date(tx.timestamp));
+
+      if (tx.type === 'bill_payment' && tx.payload?.is_paid) {
+        const amt = Number(tx.payload.amount) || 0;
+        if (txMonth === currentMonth) thisMonthSpending += amt;
+        else if (txMonth === lastMonth) lastMonthSpending += amt;
+      } else if (tx.type === 'one_time_cost_payment' && tx.payload?.is_paid) {
+        const amt = Number(tx.payload.amount) || 0;
+        if (txMonth === currentMonth) thisMonthSpending += amt;
+        else if (txMonth === lastMonth) lastMonthSpending += amt;
+      } else if (tx.type === 'recurring_income_received' && tx.payload?.is_received) {
+        const amt = Number(tx.payload.amount) || 0;
+        if (txMonth === currentMonth) thisMonthIncome += amt;
+      }
+    }
+
+    const spendingChange = lastMonthSpending > 0
+      ? ((thisMonthSpending - lastMonthSpending) / lastMonthSpending) * 100
+      : null;
+
+    return { thisMonthSpending, lastMonthSpending, thisMonthIncome, spendingChange };
+  }, [transactions]);
 
   // Derived calculations with error handling (excluding savings and credit accounts)
   const currentLiquid = React.useMemo(()=> {
@@ -3097,7 +3161,7 @@ function DashboardContent() {
       <div style={{
         padding: isMobile ? '0.25rem' : '2rem',
         minHeight: isMobile ? 'auto' : '100vh',
-        background: isMobile ? '#f8fafc' : '#f3f4f6',
+        background: isMobile ? theme.bgMobile : theme.bg,
         fontFamily: 'system-ui, -apple-system, sans-serif',
         borderTopLeftRadius: isMobile ? '1.5rem' : '0',
         borderTopRightRadius: isMobile ? '1.5rem' : '0'
@@ -4264,6 +4328,58 @@ function DashboardContent() {
       </div>
 
 
+      {/* Monthly Spending Summary */}
+      <div style={{
+        background: 'white',
+        padding: isMobile ? '0.75rem' : '1.5rem',
+        borderRadius: isMobile ? '0.5rem' : '1rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        border: '1px solid #e5e7eb',
+        marginBottom: isMobile ? '1rem' : '2rem'
+      }}>
+        <h3 style={{ fontSize: isMobile ? '0.75rem' : '1.125rem', fontWeight: '600', margin: '0 0 1rem 0' }}>Monthly Summary</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.5rem' : '1rem' }}>
+          <div style={{ textAlign: 'center', padding: isMobile ? '0.5rem' : '1rem', background: '#fef2f2', borderRadius: '0.5rem' }}>
+            <div style={{ fontSize: isMobile ? '0.6rem' : '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Spent This Month</div>
+            <div style={{ fontSize: isMobile ? '1rem' : '1.5rem', fontWeight: '700', color: '#dc2626' }}>
+              {fmt(monthlySummary.thisMonthSpending)}
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', padding: isMobile ? '0.5rem' : '1rem', background: '#f0fdf4', borderRadius: '0.5rem' }}>
+            <div style={{ fontSize: isMobile ? '0.6rem' : '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Income Received</div>
+            <div style={{ fontSize: isMobile ? '1rem' : '1.5rem', fontWeight: '700', color: '#10b981' }}>
+              {fmt(monthlySummary.thisMonthIncome)}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: isMobile ? '0.5rem' : '0.75rem', fontSize: isMobile ? '0.65rem' : '0.875rem', color: '#6b7280', textAlign: 'center' }}>
+          {monthlySummary.spendingChange !== null ? (
+            <span>
+              vs last month ({fmt(monthlySummary.lastMonthSpending)}):{' '}
+              <span style={{
+                color: monthlySummary.spendingChange > 0 ? '#dc2626' : '#10b981',
+                fontWeight: '600'
+              }}>
+                {monthlySummary.spendingChange > 0 ? '\u2191' : '\u2193'}{' '}
+                {Math.abs(monthlySummary.spendingChange).toFixed(1)}%
+              </span>
+            </span>
+          ) : (
+            <span>No spending data from last month</span>
+          )}
+        </div>
+      </div>
+
+      {/* Savings Goals */}
+      <GoalsSection
+        isMobile={isMobile}
+        savingsGoals={savingsGoals}
+        accounts={accounts}
+        user={user}
+        supabase={supabase}
+        setTransactions={setTransactions}
+      />
+
       {/* Third Row: Bills & One-Time Costs Section with Toggle */}
       <div ref={billsSectionRef} style={{ marginBottom: '1.5rem' }}>
         <div style={{ background: 'white', padding: isMobile ? '1rem' : '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
@@ -4325,6 +4441,7 @@ function DashboardContent() {
               getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
               user={user}
               supabase={supabase}
+              transactions={transactions}
             />
           ) : (
             <OneTimeCostsSection

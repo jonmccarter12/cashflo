@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useTheme } from '../hooks/useTheme';
 import {
   Home,
   CreditCard,
@@ -19,6 +20,7 @@ import {
 
 const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSearchChange, user, supabase, setShowAuth }) => {
   const isMobile = useIsMobile();
+  const { isDark, toggleTheme } = useTheme();
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -173,6 +175,22 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            onClick={toggleTheme}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              padding: '0.375rem 0.5rem',
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              lineHeight: 1
+            }}
+          >
+            {isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+          </button>
           {user ? (
             <button
               onClick={() => supabase?.auth.signOut()}

@@ -21,13 +21,18 @@ function BillsSection({
   addBill,
   getDefaultAutoDeductAccount,
   user,
-  supabase
+  supabase,
+  transactions = []
 }) {
   const selectAllOnFocus = (e) => e.target.select();
   const [showRetroactiveHistory, setShowRetroactiveHistory] = React.useState(false);
   const [pendingBillData, setPendingBillData] = React.useState(null);
   const [showAddBillDialog, setShowAddBillDialog] = React.useState(false);
   const [selectedFrequency, setSelectedFrequency] = React.useState('monthly');
+  const [showTemplates, setShowTemplates] = React.useState(true);
+  const [billSearch, setBillSearch] = React.useState('');
+  const [billStatusFilter, setBillStatusFilter] = React.useState('all'); // all, paid, unpaid, overdue
+  const [showPaymentHistory, setShowPaymentHistory] = React.useState(null); // bill id or null
 
   // Update frequency when editing bill changes
   React.useEffect(() => {
@@ -60,9 +65,54 @@ function BillsSection({
             <span style={{ fontSize: '1rem', fontWeight: '600', color: '#8b5cf6' }}>{fmt(totalBillsForSelectedCategory)}</span>
           </div>
 
+          {/* Search and Filter */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="Search bills..."
+              value={billSearch}
+              onChange={(e) => setBillSearch(e.target.value)}
+              aria-label="Search bills"
+              style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.75rem', marginBottom: '0.375rem', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+              {['all', 'paid', 'unpaid', 'overdue'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setBillStatusFilter(status)}
+                  style={{
+                    padding: '0.125rem 0.5rem',
+                    background: billStatusFilter === status ? '#8b5cf6' : '#f3f4f6',
+                    color: billStatusFilter === status ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '1rem',
+                    fontSize: '0.625rem',
+                    cursor: 'pointer',
+                    fontWeight: billStatusFilter === status ? '600' : '400'
+                  }}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '0.5rem' }}>
           {bills
-            .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
+            .filter(b => {
+              if (!selectedCats.includes(b.category)) return false;
+              if (!showIgnored && b.ignored) return false;
+              // Search filter
+              if (billSearch && !b.name.toLowerCase().includes(billSearch.toLowerCase())) return false;
+              // Status filter
+              const isPaidNow = b.paidMonths.includes(yyyyMm());
+              const nextDate = getEffectiveDueDate(b);
+              const isOverdue = !isPaidNow && nextDate < new Date();
+              if (billStatusFilter === 'paid' && !isPaidNow) return false;
+              if (billStatusFilter === 'unpaid' && isPaidNow) return false;
+              if (billStatusFilter === 'overdue' && !isOverdue) return false;
+              return true;
+            })
             .sort((a,b) => {
               const aDate = getEffectiveDueDate(a);
               const bDate = getEffectiveDueDate(b);
@@ -119,7 +169,55 @@ function BillsSection({
                     >
                       Delete
                     </button>
+                    <button
+                      onClick={() => setShowPaymentHistory(showPaymentHistory === bill.id ? null : bill.id)}
+                      style={{ padding: '0.125rem 0.25rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.125rem', fontSize: '0.625rem', cursor: 'pointer' }}
+                    >
+                      History
+                    </button>
                   </div>
+                  {/* Payment History */}
+                  {showPaymentHistory === bill.id && (
+                    <div style={{ marginTop: '0.375rem', padding: '0.375rem', background: '#f3f4f6', borderRadius: '0.25rem', fontSize: '0.625rem' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Payment History:</div>
+                      {bill.paidMonths.length === 0 ? (
+                        <div style={{ color: '#9ca3af', fontStyle: 'italic' }}>No payments recorded</div>
+                      ) : (
+                        [...bill.paidMonths].sort().reverse().map(month => {
+                          const paymentTx = transactions.find(tx =>
+                            tx.type === 'bill_payment' && tx.item_id === bill.id && tx.payload?.month === month && tx.payload?.is_paid
+                          );
+                          return (
+                            <div key={month} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.125rem 0', borderBottom: '1px solid #e5e7eb' }}>
+                              <span style={{ color: '#10b981' }}>{month}</span>
+                              <span style={{ color: '#6b7280' }}>
+                                {paymentTx ? new Date(paymentTx.timestamp).toLocaleDateString() : 'Paid'}
+                                {paymentTx?.payload?.autopay && ' (autopay)'}
+                              </span>
+                            </div>
+                          );
+                        })
+                      )}
+                      {/* Show missed months */}
+                      {(() => {
+                        const now = new Date();
+                        const missed = [];
+                        for (let i = 0; i < 6; i++) {
+                          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                          const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          if (!bill.paidMonths.includes(m) && m !== yyyyMm()) {
+                            missed.push(m);
+                          }
+                        }
+                        return missed.length > 0 ? (
+                          <div style={{ marginTop: '0.25rem' }}>
+                            <span style={{ color: '#ef4444', fontWeight: '500' }}>Missed: </span>
+                            {missed.join(', ')}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -149,9 +247,52 @@ function BillsSection({
             </div>
           </div>
           
+          {/* Search and Filter */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Search bills..."
+              value={billSearch}
+              onChange={(e) => setBillSearch(e.target.value)}
+              aria-label="Search bills"
+              style={{ padding: '0.375rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '200px' }}
+            />
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              {['all', 'paid', 'unpaid', 'overdue'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setBillStatusFilter(status)}
+                  style={{
+                    padding: '0.25rem 0.75rem',
+                    background: billStatusFilter === status ? '#8b5cf6' : '#f3f4f6',
+                    color: billStatusFilter === status ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '1rem',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: billStatusFilter === status ? '600' : '400'
+                  }}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
             {bills
-              .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
+              .filter(b => {
+                if (!selectedCats.includes(b.category)) return false;
+                if (!showIgnored && b.ignored) return false;
+                if (billSearch && !b.name.toLowerCase().includes(billSearch.toLowerCase())) return false;
+                const isPaidNow = b.paidMonths.includes(yyyyMm());
+                const nextDate = getEffectiveDueDate(b);
+                const isOverdue = !isPaidNow && nextDate < new Date();
+                if (billStatusFilter === 'paid' && !isPaidNow) return false;
+                if (billStatusFilter === 'unpaid' && isPaidNow) return false;
+                if (billStatusFilter === 'overdue' && !isOverdue) return false;
+                return true;
+              })
               .sort((a,b) => {
                 const aDate = getEffectiveDueDate(a);
                 const bDate = getEffectiveDueDate(b);
@@ -245,6 +386,7 @@ function BillsSection({
             if (e.key === 'Escape') {
               setEditingBill(null);
               setShowAddBillDialog(false);
+              setShowTemplates(true);
             }
           }}
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
@@ -253,7 +395,72 @@ function BillsSection({
             <div style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', margin: '-2rem -2rem 1rem -2rem', padding: '1rem 2rem', borderRadius: '0.5rem 0.5rem 0 0' }}>
               <h2 id="bill-dialog-title" style={{ color: 'white', fontSize: '1.25rem' }}>{editingBill ? 'Edit Bill' : 'Add Bill'}</h2>
             </div>
-            <form onSubmit={(e) => {
+            {!editingBill && showTemplates && (() => {
+              const billTemplates = [
+                { name: 'Rent / Mortgage', amount: 1500, frequency: 'monthly', dueDay: 1 },
+                { name: 'Electric Bill', amount: 120, frequency: 'monthly', dueDay: 15 },
+                { name: 'Water Bill', amount: 60, frequency: 'monthly', dueDay: 15 },
+                { name: 'Internet', amount: 80, frequency: 'monthly', dueDay: 20 },
+                { name: 'Phone Bill', amount: 85, frequency: 'monthly', dueDay: 25 },
+                { name: 'Car Insurance', amount: 150, frequency: 'monthly', dueDay: 1 },
+                { name: 'Health Insurance', amount: 400, frequency: 'monthly', dueDay: 1 },
+                { name: 'Streaming Services', amount: 15, frequency: 'monthly', dueDay: 15 },
+                { name: 'Gym Membership', amount: 50, frequency: 'monthly', dueDay: 1 },
+                { name: 'Car Payment', amount: 350, frequency: 'monthly', dueDay: 10 },
+              ];
+              return (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>Quick templates:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                    {billTemplates.map((template) => (
+                      <button
+                        key={template.name}
+                        type="button"
+                        onClick={() => {
+                          const form = document.querySelector('[data-bill-form]');
+                          if (form) {
+                            form.querySelector('[name="name"]').value = template.name;
+                            form.querySelector('[name="amount"]').value = template.amount;
+                            form.querySelector('[name="dueDay"]').value = template.dueDay;
+                          }
+                          setSelectedFrequency(template.frequency);
+                          setShowTemplates(false);
+                        }}
+                        style={{
+                          padding: '0.25rem 0.625rem',
+                          background: '#ede9fe',
+                          color: '#5b21b6',
+                          border: '1px solid #c4b5fd',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {template.name}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplates(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7280',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      marginTop: '0.5rem',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    or fill manually
+                  </button>
+                </div>
+              );
+            })()}
+            <form data-bill-form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.target);
               if (editingBill) {
@@ -263,6 +470,7 @@ function BillsSection({
               }
               setEditingBill(null);
               setShowAddBillDialog(false);
+              setShowTemplates(true);
             }}>
               <input name="name" placeholder="Bill name (e.g., Electric Bill)" aria-label="Bill name" defaultValue={editingBill?.name || ''} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
               <select name="category" defaultValue={editingBill?.category || activeCats[0]} required style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
@@ -420,7 +628,7 @@ function BillsSection({
                 <button type="submit" style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>
                   {editingBill ? 'Update Bill' : 'Add Bill'}
                 </button>
-                <button type="button" onClick={() => { setEditingBill(null); setShowAddBillDialog(false); }} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
+                <button type="button" onClick={() => { setEditingBill(null); setShowAddBillDialog(false); setShowTemplates(true); }} style={{ padding: '0.5rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Cancel</button>
               </div>
             </form>
           </div>
