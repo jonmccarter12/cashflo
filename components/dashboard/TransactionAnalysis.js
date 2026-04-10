@@ -1033,13 +1033,18 @@ const TransactionAnalysis = ({
       'one_time_cost_payment',
       'recurring_income_received',
       'credit_received',
-      'account_balance_adjustment',
     ]);
 
     const enhancedTransactions = transactions
       .filter(t => {
         // Only include money movement events
         if (!moneyMovementTypes.has(t.type)) return false;
+
+        // Only show actual payments/receipts, not reversals (unmark as paid/received)
+        if (t.type === 'bill_payment' && !t.payload?.is_paid) return false;
+        if (t.type === 'one_time_cost_payment' && !t.payload?.is_paid) return false;
+        if (t.type === 'recurring_income_received' && !t.payload?.is_received) return false;
+
         const transactionDate = t.date || t.timestamp;
         return new Date(transactionDate).getFullYear() === currentYear;
       })
@@ -1048,17 +1053,10 @@ const TransactionAnalysis = ({
         let amount = transaction.amount || transaction.payload?.amount || 0;
         if (transaction.type === 'bill_payment' || transaction.type === 'one_time_cost_payment') {
           // Payments are money leaving (negative)
-          if (transaction.payload?.is_paid) {
-            amount = -(Math.abs(amount));
-          } else {
-            amount = Math.abs(amount); // Unmarking = money back
-          }
+          amount = -(Math.abs(amount));
         } else if (transaction.type === 'recurring_income_received' || transaction.type === 'credit_received') {
           // Income/credits are money coming in (positive)
           amount = Math.abs(amount);
-          if (transaction.payload?.is_received === false) {
-            amount = -amount; // Unmarking income = negative
-          }
         }
 
         return {
