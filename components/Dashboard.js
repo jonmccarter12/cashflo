@@ -4123,6 +4123,7 @@ function DashboardContent() {
           user={user}
           bills={bills}
           oneTimeCosts={oneTimeCosts}
+          dueTimeframe={dueTimeframe}
         />
 
         {/* Income & Credits */}

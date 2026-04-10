@@ -17,7 +17,8 @@ function AccountsSection({
   supabase,
   user,
   bills = [],
-  oneTimeCosts = []
+  oneTimeCosts = [],
+  dueTimeframe = 'week'
 }) {
   const selectAllOnFocus = (e) => e.target.select();
   const [editingAccountName, setEditingAccountName] = React.useState(null);
@@ -26,38 +27,35 @@ function AccountsSection({
   // Calculate upcoming expenses for the next 7 days for a specific account
   const getUpcomingExpenses = React.useCallback((accountId) => {
     const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
+    const horizon = new Date(today);
+    horizon.setDate(today.getDate() + (dueTimeframe === 'month' ? 30 : 7));
 
     let totalUpcoming = 0;
 
-    // Check bills due in the next 7 days for this account
     bills.forEach(bill => {
       if (bill.accountId === accountId && !bill.ignored) {
         const currentMonth = yyyyMm();
         const isPaid = bill.paidMonths.includes(currentMonth);
         const dueDate = getEffectiveDueDate(bill, today);
         if (!isPaid) {
-          // Include overdue bills (dueDate < today) AND bills due in the next 7 days
-          if (dueDate <= nextWeek) {
+          if (dueDate <= horizon) {
             totalUpcoming += bill.amount || 0;
           }
         }
       }
     });
 
-    // Check one-time costs due in the next 7 days for this account
     oneTimeCosts.forEach(otc => {
       if (otc.accountId === accountId && !otc.paid && !otc.ignored) {
         const dueDate = new Date(otc.dueDate);
-        if (dueDate >= today && dueDate <= nextWeek) {
+        if (dueDate >= today && dueDate <= horizon) {
           totalUpcoming += otc.amount || 0;
         }
       }
     });
 
     return totalUpcoming;
-  }, [bills, oneTimeCosts]);
+  }, [bills, oneTimeCosts, dueTimeframe]);
 
   // Determine account health color based on available funds vs upcoming expenses
   const getAccountHealthColor = (account, upcomingExpenses) => {
@@ -812,7 +810,7 @@ function AccountsSection({
                       border: `1px solid ${healthColor}30`,
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due
+                      {fmt(upcomingExpenses)} due {dueTimeframe === 'month' ? 'this month' : 'this week'}
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
@@ -1578,7 +1576,7 @@ function AccountsSection({
                       fontWeight: '500',
                       textAlign: 'center'
                     }}>
-                      {fmt(upcomingExpenses)} due
+                      {fmt(upcomingExpenses)} due {dueTimeframe === 'month' ? 'this month' : 'this week'}
                     </div>
                   )}
                   {upcomingExpenses > 0 && account.balance < upcomingExpenses && (
