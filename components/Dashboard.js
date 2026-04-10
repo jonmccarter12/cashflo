@@ -269,10 +269,12 @@ function DashboardContent() {
                 : (currentBill.paidMonths || []).filter(m => m !== month);
             bills.set(tx.item_id, {
                 ...currentBill,
-                paidMonths: [...new Set(newPaidMonths)], // Ensure unique
+                paidMonths: [...new Set(newPaidMonths)],
                 updatedAt: tx.timestamp
             });
-            if (accounts.has(tx.payload.accountId)) {
+            // Only adjust balance if auto_deducted flag is set (matches OTC behavior)
+            // This prevents double-deduction from separate account_balance_adjustment transactions
+            if (tx.payload.auto_deducted && accounts.has(tx.payload.accountId)) {
               const account = accounts.get(tx.payload.accountId);
               accounts.set(tx.payload.accountId, {
                 ...account,
@@ -786,7 +788,8 @@ function DashboardContent() {
               is_paid: true,
               accountId: bill.accountId,
               amount: bill.amount,
-              autopay: true
+              autopay: true,
+              auto_deducted: autoDeductCash || autoDeductBank
             },
             `Autopay: Marked "${bill.name}" as paid for ${currentMonth}`
           );
@@ -865,33 +868,40 @@ function DashboardContent() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMobile]);
 
-  // Calculate monthly recurring income total
-  const monthlyRecurringIncomeTotal = React.useMemo(() => {
+  // Calculate monthly recurring income totals (split by received vs pending)
+  const { monthlyRecurringIncomeTotal, pendingIncomeTotal } = React.useMemo(() => {
     try {
       const currentMonth = yyyyMm();
       let total = 0;
-      
+      let pending = 0;
+
       for (const income of recurringIncome) {
         if (income.ignored) continue;
-        
+
+        let monthlyAmount = 0;
         if (income.frequency === 'monthly') {
-          total += Number(income.amount) || 0;
+          monthlyAmount = Number(income.amount) || 0;
         } else if (income.frequency === 'biweekly') {
-          // Biweekly = 26 payments per year, so ~2.17 per month
-          total += (Number(income.amount) || 0) * 2.17;
+          monthlyAmount = (Number(income.amount) || 0) * 2.17;
         } else if (income.frequency === 'weekly') {
-          // Weekly = 52 payments per year, so ~4.33 per month
-          total += (Number(income.amount) || 0) * 4.33;
+          monthlyAmount = (Number(income.amount) || 0) * 4.33;
         } else if (income.frequency === 'yearly') {
-          // Yearly = 1 payment per year, so /12 per month
-          total += (Number(income.amount) || 0) / 12;
+          monthlyAmount = (Number(income.amount) || 0) / 12;
+        }
+
+        total += monthlyAmount;
+
+        // Only add to pending if NOT yet received this month
+        const isReceived = income.receivedMonths?.includes(currentMonth);
+        if (!isReceived) {
+          pending += monthlyAmount;
         }
       }
-      
-      return total;
+
+      return { monthlyRecurringIncomeTotal: total, pendingIncomeTotal: pending };
     } catch (error) {
       console.error('Error calculating monthly recurring income:', error);
-      return 0;
+      return { monthlyRecurringIncomeTotal: 0, pendingIncomeTotal: 0 };
     }
   }, [recurringIncome]);
 
@@ -914,10 +924,10 @@ function DashboardContent() {
     }
   }, [accounts, upcomingCredits]);
 
-  // Calculate liquid with all expected income (including recurring)
+  // Calculate liquid with expected (not yet received) income
   const projectedWithIncome = React.useMemo(() => {
-    return currentLiquidWithGuaranteed + monthlyRecurringIncomeTotal;
-  }, [currentLiquidWithGuaranteed, monthlyRecurringIncomeTotal]);
+    return currentLiquidWithGuaranteed + pendingIncomeTotal;
+  }, [currentLiquidWithGuaranteed, pendingIncomeTotal]);
 
   // Derived calculations with error handling (excluding savings and credit accounts)
   const currentLiquid = React.useMemo(()=> {
@@ -1788,42 +1798,23 @@ function DashboardContent() {
       );
 
       if (transaction) {
-        // Handle auto-deduct when marking as paid
+        // Show auto-deduct popup when marking as paid with auto-deduct
+        // Balance adjustment is handled by masterState replay via auto_deducted flag
         if (shouldAutoDeduct) {
-          const deductAccount = getDefaultAutoDeductAccount();
-          const account = accountsMap.get(deductAccount);
-
+          const account = accountsMap.get(otc.accountId);
           if (account) {
             const newBalance = Math.round((account.balance - otc.amount) * 100) / 100;
+            setAutoDeductPopup({
+              amount: otc.amount,
+              accountName: account.name,
+              newBalance: newBalance,
+              billName: otc.name
+            });
 
-            const balanceTransaction = await logTransaction(
-              supabase,
-              user.id,
-              'account_balance_adjustment',
-              account.id,
-              {
-                old_balance: account.balance,
-                new_balance: newBalance,
-                reason: `Auto-deduct for ${otc.name}`
-              },
-              `Auto-deducted ${fmt(otc.amount)} for ${otc.name} from ${account.name}`
-            );
-
-            if (balanceTransaction) {
-              setAutoDeductPopup({
-                amount: otc.amount,
-                accountName: account.name,
-                newBalance: newBalance,
-                billName: otc.name
-              });
-
-              if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
-              autoDeductPopupTimerRef.current = setTimeout(() => {
-                setAutoDeductPopup(null);
-              }, 3000);
-
-              setTransactions(prev => [...prev, balanceTransaction]);
-            }
+            if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
+            autoDeductPopupTimerRef.current = setTimeout(() => {
+              setAutoDeductPopup(null);
+            }, 3000);
           }
         }
 
@@ -2112,6 +2103,21 @@ function DashboardContent() {
       const currentMonth = yyyyMm();
       const isPaid = b.paidMonths.includes(currentMonth);
 
+      // Guard: if trying to mark as paid, check if there's already a payment transaction
+      // for this month (could have been created by autopay before UI updated)
+      if (!isPaid) {
+        const existingPayment = transactions.find(tx =>
+          tx.type === 'bill_payment' &&
+          tx.item_id === b.id &&
+          tx.payload?.month === currentMonth &&
+          tx.payload?.is_paid === true
+        );
+        if (existingPayment) {
+          notify(`${b.name} was already marked as paid for this month`, 'info');
+          return;
+        }
+      }
+
       // Smart transaction handling - check for recent opposing transaction
       const recentOpposingTransaction = transactions
         .filter(tx =>
@@ -2147,6 +2153,8 @@ function DashboardContent() {
       }
 
       async function createNewPaymentTransaction() {
+        const shouldAutoDeduct = !isPaid && (autoDeductCash || autoDeductBank);
+
         const transaction = await logTransaction(
           supabase,
           user.id,
@@ -2156,57 +2164,33 @@ function DashboardContent() {
             month: currentMonth,
             is_paid: !isPaid,
             accountId: b.accountId,
-            amount: b.amount
+            amount: b.amount,
+            auto_deducted: shouldAutoDeduct
           },
           `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
         );
 
         if (transaction) {
-          // Handle auto-deduct when marking as paid
-          if (!isPaid && (autoDeductCash || autoDeductBank)) {
-            const deductAccount = getDefaultAutoDeductAccount();
-            const account = accountsMap.get(deductAccount);
-
+          // Show auto-deduct popup when marking as paid with auto-deduct
+          if (shouldAutoDeduct) {
+            const account = accountsMap.get(b.accountId);
             if (account) {
               const newBalance = Math.round((account.balance - b.amount) * 100) / 100;
+              setAutoDeductPopup({
+                amount: b.amount,
+                accountName: account.name,
+                newBalance: newBalance,
+                billName: b.name
+              });
 
-              // Create account balance adjustment transaction
-              const balanceTransaction = await logTransaction(
-                supabase,
-                user.id,
-                'account_balance_adjustment',
-                account.id,
-                {
-                  old_balance: account.balance,
-                  new_balance: newBalance,
-                  reason: `Auto-deduct for ${b.name}`
-                },
-                `Auto-deducted ${fmt(b.amount)} for ${b.name} from ${account.name}`
-              );
-
-              if (balanceTransaction) {
-                // Show auto-deduct popup
-                setAutoDeductPopup({
-                  amount: b.amount,
-                  accountName: account.name,
-                  newBalance: newBalance,
-                  billName: b.name
-                });
-
-                // Auto-fade popup after 3 seconds (with cleanup)
-                if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
-                autoDeductPopupTimerRef.current = setTimeout(() => {
-                  setAutoDeductPopup(null);
-                }, 3000);
-
-                // Optimistic update for balance transaction
-                setTransactions(prev => [...prev, balanceTransaction]);
-              }
+              if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
+              autoDeductPopupTimerRef.current = setTimeout(() => {
+                setAutoDeductPopup(null);
+              }, 3000);
             }
           }
 
           notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
-          // Optimistic update - add transaction to local state immediately
           setTransactions(prev => [...prev, transaction]);
         }
       }

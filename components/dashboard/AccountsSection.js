@@ -59,13 +59,18 @@ function AccountsSection({
     return totalUpcoming;
   }, [bills, oneTimeCosts]);
 
-  // Determine account health color based on balance vs upcoming expenses
-  const getAccountHealthColor = (balance, upcomingExpenses) => {
+  // Determine account health color based on available funds vs upcoming expenses
+  const getAccountHealthColor = (account, upcomingExpenses) => {
+    // For credit cards, use available credit instead of balance
+    const availableFunds = account.accountType === 'credit'
+      ? Math.max(0, (account.creditLimit || 0) - account.balance)
+      : account.balance;
+
     if (upcomingExpenses === 0) {
-      return balance >= 100 ? '#22c55e' : balance >= 50 ? '#f59e0b' : '#ef4444';
+      return availableFunds >= 100 ? '#22c55e' : availableFunds >= 50 ? '#f59e0b' : '#ef4444';
     }
 
-    const ratio = balance / upcomingExpenses;
+    const ratio = availableFunds / upcomingExpenses;
     if (ratio >= 2) return '#22c55e';      // Green: 2x+ coverage
     if (ratio >= 1.2) return '#f59e0b';    // Yellow: 1.2x+ coverage
     return '#ef4444';                      // Red: insufficient coverage
@@ -675,7 +680,7 @@ function AccountsSection({
 
           // Regular debit account display for mobile
           const upcomingExpenses = getUpcomingExpenses(account.id);
-          const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
+          const healthColor = getAccountHealthColor(account, upcomingExpenses);
 
 
           return (
@@ -1395,7 +1400,7 @@ function AccountsSection({
 
           // Regular debit account display for desktop
           const upcomingExpenses = getUpcomingExpenses(account.id);
-          const healthColor = getAccountHealthColor(account.balance, upcomingExpenses);
+          const healthColor = getAccountHealthColor(account, upcomingExpenses);
 
 
           return (
