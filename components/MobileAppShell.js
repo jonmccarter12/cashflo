@@ -24,8 +24,11 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
-  // Handle PWA install prompt
+  // Handle PWA install prompt — respect user's dismissal
   useEffect(() => {
+    const dismissed = localStorage.getItem('cashflo-install-dismissed');
+    if (dismissed) return; // User previously dismissed, don't show again
+
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
@@ -46,8 +49,19 @@ const MobileAppShell = ({ children, activeTab, onTabChange, onQuickAction, onSea
       if (outcome === 'accepted') {
         setIsInstallable(false);
         setInstallPrompt(null);
+      } else {
+        // User dismissed — remember so we don't ask again
+        localStorage.setItem('cashflo-install-dismissed', 'true');
+        setIsInstallable(false);
+        setInstallPrompt(null);
       }
     }
+  };
+
+  const dismissInstallPrompt = () => {
+    localStorage.setItem('cashflo-install-dismissed', 'true');
+    setIsInstallable(false);
+    setInstallPrompt(null);
   };
 
   const tabs = [
