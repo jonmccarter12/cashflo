@@ -3484,9 +3484,12 @@ function DashboardContent() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#d97706' : '#dc2626') }}>
-              {fmt(dueNeedShortfall)}
+              {fmt(upcoming.dueTotal)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#92400e' : '#991b1b') }}>Need {timeframeLabel}</div>
+            <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#92400e' : '#991b1b') }}>
+              Need {timeframeLabel}
+              {dueNeedShortfall > 0 && <div style={{ fontSize: '0.6rem', fontWeight: '600' }}>(short {fmt(dueNeedShortfall)})</div>}
+            </div>
           </div>
           <div style={{
             background: '#f0f9ff',
@@ -4331,6 +4334,24 @@ function DashboardContent() {
                 Month
               </button>
             </div>
+          </div>
+          {/* Total summary */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: isMobile ? '0.5rem' : '0.75rem 1rem',
+            background: '#faf5ff',
+            border: '1px solid #c084fc',
+            borderRadius: '0.375rem',
+            marginBottom: isMobile ? '0.5rem' : '0.75rem'
+          }}>
+            <span style={{ fontSize: isMobile ? '0.7rem' : '0.875rem', color: '#7c3aed', fontWeight: '600' }}>
+              Total ({upcoming.items.length} {upcoming.items.length === 1 ? 'item' : 'items'})
+            </span>
+            <span style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#9333ea' }}>
+              {fmt(upcoming.dueTotal)}
+            </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '800px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
