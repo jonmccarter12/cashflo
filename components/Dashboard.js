@@ -719,6 +719,7 @@ function DashboardContent() {
   }, [accounts, autoDeductBank, autoDeductCash]);
 
   const [showIncomeHistory, setShowIncomeHistory] = React.useState(false); // Managed locally for UI toggle
+  const [dueTimeframe, setDueTimeframe] = React.useState('week'); // 'week' or 'month'
 
   const activeCats = React.useMemo(()=> categories.filter(c=>!c.ignored).sort((a,b) => (a.order || 0) - (b.order || 0)).map(c=>c.name), [categories]);
 
@@ -1055,70 +1056,96 @@ function DashboardContent() {
     return { visibleAccounts, total };
   }, [accounts]);
 
-  const upcoming = React.useMemo(()=>{
+  const upcomingData = React.useMemo(()=>{
     try {
       const now = new Date();
-      const horizon = new Date(now); 
-      horizon.setDate(now.getDate()+7);
-      const items = [];
+      const weekHorizon = new Date(now);
+      weekHorizon.setDate(now.getDate() + 7);
+      const monthHorizon = new Date(now);
+      monthHorizon.setDate(now.getDate() + 30);
+      const weekItems = [];
+      const monthItems = [];
       const currentMonth = yyyyMm();
 
-      for(const b of bills){
-        if(b.ignored) continue;
-        if(!activeCats.includes(b.category)) continue;
-        
+      for (const b of bills) {
+        if (b.ignored) continue;
+        if (!activeCats.includes(b.category)) continue;
+
         const nextDate = getEffectiveDueDate(b, now);
         const paid = b.paidMonths.includes(currentMonth) && (b.frequency === 'monthly' || b.frequency === 'yearly');
         const overdue = nextDate < now && !paid;
-        const withinWeek = nextDate <= horizon && !paid;
-        
-        if(overdue || withinWeek) {
-          items.push({ bill:b, due: nextDate, overdue });
-        }
+        const withinWeek = nextDate <= weekHorizon && !paid;
+        const withinMonth = nextDate <= monthHorizon && !paid;
+
+        if (overdue || withinWeek) weekItems.push({ bill: b, due: nextDate, overdue });
+        if (overdue || withinMonth) monthItems.push({ bill: b, due: nextDate, overdue });
       }
-      
-      for(const o of oneTimeCosts){
-        if(o.ignored) continue;
-        if(!activeCats.includes(o.category)) continue;
-        if(o.paid) continue;
+
+      for (const o of oneTimeCosts) {
+        if (o.ignored) continue;
+        if (!activeCats.includes(o.category)) continue;
+        if (o.paid) continue;
         const due = new Date(o.dueDate);
         const overdue = due < new Date();
-        const withinWeek = due <= horizon;
-        if(overdue || withinWeek) items.push({ otc:o, due, overdue });
+        const withinWeek = due <= weekHorizon;
+        const withinMonth = due <= monthHorizon;
+        if (overdue || withinWeek) weekItems.push({ otc: o, due, overdue });
+        if (overdue || withinMonth) monthItems.push({ otc: o, due, overdue });
       }
-      
-      items.sort((a,b)=> (a.overdue===b.overdue? a.due.getTime()-b.due.getTime() : a.overdue? -1: 1));
 
-      const byAcc = {};
-      const ensure = (id)=> (byAcc[id] ||= { account: accounts.find(a=>a.id===id), total:0, items:[] });
-      for(const it of items){
-        const amt = it.bill? it.bill.amount : it.otc.amount;
-        const accId = it.bill? it.bill.accountId : it.otc.accountId;
-        const g = ensure(accId); 
-        g.total += amt; 
-        g.items.push(it);
-      }
-      const byAccount = Object.values(byAcc)
-        .filter(g => g.account) // Skip entries with deleted/missing accounts
-        .map(g => ({
-          account: g.account,
-          totalDue: g.total,
-          balance: g.account.balance,
-          deficit: Math.max(0, g.total - g.account.balance),
-          items: g.items
-        }));
+      const sortFn = (a, b) => (a.overdue === b.overdue ? a.due.getTime() - b.due.getTime() : a.overdue ? -1 : 1);
+      weekItems.sort(sortFn);
+      monthItems.sort(sortFn);
 
-      return { 
-        items, 
-        byAccount, 
-        totalDeficit: byAccount.reduce((s,d)=> s+d.deficit, 0), 
-        weekDueTotal: items.reduce((s,it)=> s + (it.bill? it.bill.amount : it.otc.amount), 0) 
+      const buildByAccount = (items) => {
+        const byAcc = {};
+        const ensure = (id) => (byAcc[id] ||= { account: accounts.find(a => a.id === id), total: 0, items: [] });
+        for (const it of items) {
+          const amt = it.bill ? it.bill.amount : it.otc.amount;
+          const accId = it.bill ? it.bill.accountId : it.otc.accountId;
+          const g = ensure(accId);
+          g.total += amt;
+          g.items.push(it);
+        }
+        return Object.values(byAcc)
+          .filter(g => g.account)
+          .map(g => ({
+            account: g.account,
+            totalDue: g.total,
+            balance: g.account.balance,
+            deficit: Math.max(0, g.total - g.account.balance),
+            items: g.items
+          }));
+      };
+
+      const sumItems = (items) => items.reduce((s, it) => s + (it.bill ? it.bill.amount : it.otc.amount), 0);
+      const weekByAccount = buildByAccount(weekItems);
+      const monthByAccount = buildByAccount(monthItems);
+
+      return {
+        week: {
+          items: weekItems,
+          byAccount: weekByAccount,
+          totalDeficit: weekByAccount.reduce((s, d) => s + d.deficit, 0),
+          dueTotal: sumItems(weekItems)
+        },
+        month: {
+          items: monthItems,
+          byAccount: monthByAccount,
+          totalDeficit: monthByAccount.reduce((s, d) => s + d.deficit, 0),
+          dueTotal: sumItems(monthItems)
+        }
       };
     } catch (error) {
       console.error('Error calculating upcoming:', error);
-      return { items: [], byAccount: [], totalDeficit: 0, weekDueTotal: 0 };
+      const empty = { items: [], byAccount: [], totalDeficit: 0, dueTotal: 0 };
+      return { week: empty, month: empty };
     }
   }, [accounts, bills, oneTimeCosts, activeCats]);
+
+  // Active upcoming data based on timeframe toggle
+  const upcoming = upcomingData[dueTimeframe];
+  const timeframeLabel = dueTimeframe === 'week' ? 'This Week' : 'This Month';
 
   const monthUnpaidTotal = React.useMemo(()=>{
     try {
@@ -1141,12 +1168,12 @@ function DashboardContent() {
     }
   },[bills, oneTimeCosts, activeCats]);
 
-  const afterWeek = projectedWithIncome - upcoming.weekDueTotal;
+  const afterDue = projectedWithIncome - upcoming.dueTotal;
   const afterMonth = projectedWithIncome - monthUnpaidTotal;
-  const netWorthValue = totalNetWorth; // Include savings accounts in net worth display
+  const netWorthValue = totalNetWorth;
 
-  const weekNeedWithoutSavings = upcoming.weekDueTotal;
-  const weekNeedWithSavings = Math.max(0, upcoming.weekDueTotal - currentLiquidWithGuaranteed);
+  const dueNeedTotal = upcoming.dueTotal;
+  const dueNeedShortfall = Math.max(0, upcoming.dueTotal - currentLiquidWithGuaranteed);
 
   const selectedCats = selectedCat==='All' ? 
     [...activeCats, ...bills.map(b => b.category).filter(cat => !activeCats.includes(cat))] : 
@@ -1223,7 +1250,7 @@ function DashboardContent() {
     trend.push({
       ts: Date.now(),
       current: currentLiquid,
-      afterWeek,
+      afterDue,
       afterMonth,
       reason: 'current'
     });
@@ -1234,10 +1261,10 @@ function DashboardContent() {
       .map(snap => ({
         date: new Date(snap.ts).toLocaleDateString(),
         current: snap.current,
-        afterWeek: snap.afterWeek,
+        afterDue: snap.afterDue,
         afterMonth: snap.afterMonth
       }));
-  }, [nwHistory, currentLiquid, afterWeek, afterMonth]);
+  }, [nwHistory, currentLiquid, afterDue, afterMonth]);
 
   // Generate 30-day timeline
   const timeline = React.useMemo(() => {
@@ -3450,16 +3477,16 @@ function DashboardContent() {
             <div style={{ fontSize: '0.75rem', color: '#15803d' }}>Available Now</div>
           </div>
           <div style={{
-            background: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#f0fdf4' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fffbeb' : '#fef2f2'),
+            background: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#f0fdf4' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#fffbeb' : '#fef2f2'),
             padding: '0.75rem',
             borderRadius: '0.5rem',
-            border: `1px solid ${currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#bbf7d0' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#fed7aa' : '#fecaca')}`,
+            border: `1px solid ${currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#bbf7d0' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#fed7aa' : '#fecaca')}`,
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#d97706' : '#dc2626') }}>
-              {fmt(weekNeedWithSavings)}
+            <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#16a34a' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#d97706' : '#dc2626') }}>
+              {fmt(dueNeedShortfall)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.weekDueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.weekDueTotal - 300 ? '#92400e' : '#991b1b') }}>Need This Week</div>
+            <div style={{ fontSize: '0.75rem', color: currentLiquidWithGuaranteed >= upcoming.dueTotal ? '#15803d' : (currentLiquidWithGuaranteed >= upcoming.dueTotal - 300 ? '#92400e' : '#991b1b') }}>Need {timeframeLabel}</div>
           </div>
           <div style={{
             background: '#f0f9ff',
@@ -3469,9 +3496,9 @@ function DashboardContent() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#0284c7' }}>
-              {fmt(afterWeek)}
+              {fmt(afterDue)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>After This Week</div>
+            <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>After {timeframeLabel}</div>
           </div>
           <div style={{
             background: '#faf5ff',
@@ -3481,9 +3508,9 @@ function DashboardContent() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', fontWeight: '700', color: '#9333ea' }}>
-              {fmt(upcoming.weekDueTotal)}
+              {fmt(upcoming.dueTotal)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due This Week</div>
+            <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Due {timeframeLabel}</div>
           </div>
           <div style={{
             background: '#fffbeb',
@@ -4255,7 +4282,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Due This Week */}
+        {/* Due This Week/Month */}
         <div style={{
           background: 'white',
           padding: isMobile ? '0.25rem' : '1.5rem',
@@ -4269,7 +4296,41 @@ function DashboardContent() {
           margin: '0',
           boxSizing: 'border-box'
         }}>
-          <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', marginBottom: isMobile ? '0.25rem' : '1rem', color: '#000', margin: '0 0 1rem 0' }}>Due This Week</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 1rem 0' }}>
+            <h3 style={{ fontSize: isMobile ? '0.65rem' : '1.125rem', fontWeight: '600', color: '#000', margin: 0 }}>Due {timeframeLabel}</h3>
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '0.375rem', padding: '0.125rem' }}>
+              <button
+                onClick={() => setDueTimeframe('week')}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: dueTimeframe === 'week' ? '#8b5cf6' : 'transparent',
+                  color: dueTimeframe === 'week' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.625rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setDueTimeframe('month')}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: dueTimeframe === 'month' ? '#8b5cf6' : 'transparent',
+                  color: dueTimeframe === 'month' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.625rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Month
+              </button>
+            </div>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.125rem' : '0.75rem', maxHeight: isMobile ? '200px' : '800px', overflowY: 'auto' }}>
             {upcoming.items.map((item, index) => {
               const account = accounts.find(a => a.id === (item.bill?.accountId || item.otc?.accountId));
@@ -4320,7 +4381,7 @@ function DashboardContent() {
 
             {upcoming.items.length === 0 && (
               <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
-                Nothing due this week! 🎉
+                Nothing due {dueTimeframe === 'week' ? 'this week' : 'this month'}!
               </div>
             )}
           </div>
