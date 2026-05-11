@@ -11,6 +11,14 @@ export default async function handler(req, res) {
 
   try {
     const plaid = getPlaidClient();
+
+    // OAuth-required institutions (Chase, Wells Fargo, BofA, Capital One, etc.)
+    // need a registered redirect_uri in Production. In Sandbox they don't.
+    const isProduction = (process.env.PLAID_ENV || 'sandbox') === 'production';
+    const redirectUri = isProduction
+      ? (process.env.PLAID_REDIRECT_URI || 'https://www.cashfl0.io/')
+      : undefined;
+
     const response = await plaid.linkTokenCreate({
       user: { client_user_id: user.id },
       client_name: 'Cashflo',
@@ -18,6 +26,7 @@ export default async function handler(req, res) {
       country_codes: ['US'],
       language: 'en',
       webhook: process.env.PLAID_WEBHOOK_URL || undefined,
+      redirect_uri: redirectUri,
     });
 
     return res.status(200).json({ link_token: response.data.link_token });

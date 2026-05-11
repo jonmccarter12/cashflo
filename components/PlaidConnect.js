@@ -23,15 +23,49 @@ async function apiCall(path, supabase, { method = 'POST', body } = {}) {
   return json;
 }
 
-function PlaidLinkButton({ linkToken, onSuccess, disabled }) {
+const LINK_TOKEN_STORAGE_KEY = 'plaid:active_link_token';
+
+function PlaidLinkButton({ linkToken, onSuccess, disabled, autoOpen }) {
+  // If returning from an OAuth redirect, Plaid Link must be re-initialized
+  // with receivedRedirectUri = the current URL so it can pick up where it left off.
+  const isOAuthReturn = typeof window !== 'undefined' &&
+    /[?#&]oauth_state_id=/.test(window.location.href);
+
   const { open, ready } = usePlaidLink({
     token: linkToken,
-    onSuccess: (public_token, metadata) => onSuccess(public_token, metadata),
+    onSuccess: (public_token, metadata) => {
+      try { window.sessionStorage.removeItem(LINK_TOKEN_STORAGE_KEY); } catch {}
+      onSuccess(public_token, metadata);
+    },
+    onExit: () => {
+      try { window.sessionStorage.removeItem(LINK_TOKEN_STORAGE_KEY); } catch {}
+    },
+    receivedRedirectUri: isOAuthReturn ? window.location.href : undefined,
   });
+
+  // Auto-open after redirect so user doesn't have to click again
+  React.useEffect(() => {
+    if (autoOpen && ready) {
+      open();
+      // Clear the oauth params from the URL so a refresh doesn't loop
+      try {
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.hash = '';
+        window.history.replaceState({}, '', url.toString());
+      } catch {}
+    }
+  }, [autoOpen, ready, open]);
+
+  const handleClick = () => {
+    // Persist the token so we can resume after OAuth redirect
+    try { window.sessionStorage.setItem(LINK_TOKEN_STORAGE_KEY, linkToken); } catch {}
+    open();
+  };
 
   return (
     <button
-      onClick={() => open()}
+      onClick={handleClick}
       disabled={!ready || disabled}
       style={{
         padding: '0.625rem 1.25rem',
@@ -55,6 +89,7 @@ export default function PlaidConnect({ user, supabase }) {
   const [items, setItems] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [syncing, setSyncing] = React.useState(false);
+  const [oauthResuming, setOauthResuming] = React.useState(false);
 
   const refreshItems = React.useCallback(async () => {
     if (!user?.id || !supabase) return;
@@ -73,6 +108,22 @@ export default function PlaidConnect({ user, supabase }) {
   React.useEffect(() => {
     if (!user?.id || !supabase) return;
     let cancelled = false;
+
+    // OAuth return: reuse the stored token instead of minting a new one,
+    // so Plaid Link can resume the in-progress flow.
+    const isOAuthReturn = typeof window !== 'undefined' &&
+      /[?#&]oauth_state_id=/.test(window.location.href);
+    const stored = (() => {
+      try { return window.sessionStorage.getItem(LINK_TOKEN_STORAGE_KEY); } catch { return null; }
+    })();
+
+    if (isOAuthReturn && stored) {
+      setLinkToken(stored);
+      setOauthResuming(true);
+      refreshItems();
+      return () => { cancelled = true; };
+    }
+
     (async () => {
       try {
         const json = await apiCall('/api/plaid/create-link-token', supabase);
@@ -158,7 +209,7 @@ export default function PlaidConnect({ user, supabase }) {
               {syncing ? 'Syncing…' : '↻ Sync Now'}
             </button>
           )}
-          {linkToken && <PlaidLinkButton linkToken={linkToken} onSuccess={handlePlaidSuccess} disabled={syncing} />}
+          {linkToken && <PlaidLinkButton linkToken={linkToken} onSuccess={handlePlaidSuccess} disabled={syncing} autoOpen={oauthResuming} />}
         </div>
       </div>
 
