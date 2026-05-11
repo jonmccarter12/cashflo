@@ -90,6 +90,29 @@ export default function PlaidConnect({ user, supabase }) {
   const [loading, setLoading] = React.useState(true);
   const [syncing, setSyncing] = React.useState(false);
   const [oauthResuming, setOauthResuming] = React.useState(false);
+  const [income, setIncome] = React.useState([]);
+
+  // Fetch recent income — Plaid uses positive amounts for money OUT of the
+  // account; deposits/income come through as negative amounts. We flip sign
+  // for display.
+  const refreshIncome = React.useCallback(async () => {
+    if (!user?.id || !supabase) return;
+    try {
+      const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from('plaid_transactions')
+        .select('plaid_transaction_id, name, merchant_name, amount, date, category, pending')
+        .eq('user_id', user.id)
+        .lt('amount', 0)
+        .gte('date', since)
+        .order('date', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setIncome(data || []);
+    } catch (err) {
+      console.error('income fetch failed:', err);
+    }
+  }, [user?.id, supabase]);
 
   const refreshItems = React.useCallback(async () => {
     if (!user?.id || !supabase) return;
@@ -97,12 +120,13 @@ export default function PlaidConnect({ user, supabase }) {
     try {
       const json = await apiCall('/api/plaid/items', supabase, { method: 'GET' });
       setItems(json.items || []);
+      refreshIncome();
     } catch (err) {
       console.error('items fetch failed:', err);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, supabase]);
+  }, [user?.id, supabase, refreshIncome]);
 
   // Fetch a link_token + the user's items on mount
   React.useEffect(() => {
@@ -297,6 +321,39 @@ export default function PlaidConnect({ user, supabase }) {
           )}
         </div>
       ))}
+
+      {items.length > 0 && (
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.75rem' }}>
+            <h4 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: '600', color: '#166534' }}>
+              💰 Recent Income (last 60 days)
+            </h4>
+            <span style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: '600' }}>
+              {income.length === 0 ? '—' : `${income.length} deposit${income.length === 1 ? '' : 's'}`}
+            </span>
+          </div>
+          {income.length === 0 ? (
+            <div style={{ fontSize: '0.8125rem', color: '#15803d', opacity: 0.75 }}>
+              No deposits yet. Sync your account if you just connected — Plaid takes a few minutes to pull initial history.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '0.25rem', maxHeight: '320px', overflowY: 'auto' }}>
+              {income.map(t => (
+                <div key={t.plaid_transaction_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0.5rem', background: 'white', borderRadius: '0.25rem', fontSize: '0.8125rem' }}>
+                  <span style={{ color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '0.5rem' }}>
+                    {t.merchant_name || t.name || 'Deposit'}
+                    {t.pending && <span style={{ color: '#9ca3af', fontSize: '0.625rem', marginLeft: '0.375rem' }}>pending</span>}
+                    <span style={{ color: '#6b7280', fontSize: '0.625rem', marginLeft: '0.5rem' }}>{new Date(t.date).toLocaleDateString()}</span>
+                  </span>
+                  <span style={{ fontWeight: '700', color: '#16a34a', flexShrink: 0 }}>
+                    +${Math.abs(t.amount).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

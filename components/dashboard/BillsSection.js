@@ -18,6 +18,7 @@ function BillsSection({
   editingBill,
   updateBill,
   addBill,
+  bulkReassignBills,
   user,
   supabase,
   transactions = []
@@ -31,6 +32,37 @@ function BillsSection({
   const [billSearch, setBillSearch] = React.useState('');
   const [billStatusFilter, setBillStatusFilter] = React.useState('all'); // all, paid, unpaid, overdue, hidden
   const [showPaymentHistory, setShowPaymentHistory] = React.useState(null); // bill id or null
+  const [bulkEditMode, setBulkEditMode] = React.useState(false);
+  const [selectedBillIds, setSelectedBillIds] = React.useState(() => new Set());
+  const [bulkTargetAccountId, setBulkTargetAccountId] = React.useState('');
+  const [applyingBulk, setApplyingBulk] = React.useState(false);
+
+  const toggleBillSelected = (id) => {
+    setSelectedBillIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleApplyBulkReassign = async () => {
+    if (!bulkTargetAccountId || selectedBillIds.size === 0 || !bulkReassignBills) return;
+    setApplyingBulk(true);
+    try {
+      await bulkReassignBills(Array.from(selectedBillIds), bulkTargetAccountId);
+      setSelectedBillIds(new Set());
+      setBulkTargetAccountId('');
+      setBulkEditMode(false);
+    } finally {
+      setApplyingBulk(false);
+    }
+  };
+
+  const exitBulkMode = () => {
+    setBulkEditMode(false);
+    setSelectedBillIds(new Set());
+    setBulkTargetAccountId('');
+  };
 
   // Update frequency when editing bill changes
   React.useEffect(() => {
@@ -93,6 +125,47 @@ function BillsSection({
                 </button>
               ))}
             </div>
+            <div style={{ marginTop: '0.5rem' }}>
+              {!bulkEditMode ? (
+                <button
+                  onClick={() => setBulkEditMode(true)}
+                  style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.625rem', cursor: 'pointer' }}
+                >
+                  ✎ Reassign payment source
+                </button>
+              ) : (
+                <div style={{ background: '#eef2ff', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #c7d2fe' }}>
+                  <div style={{ fontSize: '0.625rem', color: '#3730a3', marginBottom: '0.375rem', fontWeight: '600' }}>
+                    {selectedBillIds.size} bill{selectedBillIds.size === 1 ? '' : 's'} selected · pick a new account
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                    <select
+                      value={bulkTargetAccountId}
+                      onChange={(e) => setBulkTargetAccountId(e.target.value)}
+                      style={{ flex: 1, minWidth: '120px', padding: '0.25rem', border: '1px solid #c7d2fe', borderRadius: '0.25rem', fontSize: '0.625rem' }}
+                    >
+                      <option value="">Choose account…</option>
+                      {accounts.filter(a => !a.ignored).map(a => (
+                        <option key={a.id} value={a.id}>{a.name}{a.source === 'plaid' ? ' 🔗' : ''}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleApplyBulkReassign}
+                      disabled={!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk}
+                      style={{ padding: '0.25rem 0.5rem', background: (!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk) ? '#9ca3af' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.25rem', fontSize: '0.625rem', cursor: (!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk) ? 'not-allowed' : 'pointer' }}
+                    >
+                      {applyingBulk ? '…' : 'Apply'}
+                    </button>
+                    <button
+                      onClick={exitBulkMode}
+                      style={{ padding: '0.25rem 0.5rem', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.25rem', fontSize: '0.625rem', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '0.5rem' }}>
@@ -134,8 +207,18 @@ function BillsSection({
                   border: `2px solid ${isPaid ? '#10b981' : '#e5e7eb'}`,
                   marginBottom: '0.375rem'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#000' }}>{bill.name}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#000', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      {bulkEditMode && (
+                        <input
+                          type="checkbox"
+                          checked={selectedBillIds.has(bill.id)}
+                          onChange={() => toggleBillSelected(bill.id)}
+                          style={{ accentColor: '#8b5cf6' }}
+                        />
+                      )}
+                      {bill.name}
+                    </span>
                     <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#000' }}>{fmt(bill.amount)}</span>
                   </div>
 
@@ -280,7 +363,47 @@ function BillsSection({
                 </button>
               ))}
             </div>
+            {!bulkEditMode ? (
+              <button
+                onClick={() => setBulkEditMode(true)}
+                style={{ padding: '0.375rem 0.75rem', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.75rem', cursor: 'pointer', marginLeft: 'auto' }}
+              >
+                ✎ Reassign payment source
+              </button>
+            ) : null}
           </div>
+
+          {bulkEditMode && (
+            <div style={{ background: '#eef2ff', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #c7d2fe', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#3730a3' }}>
+                {selectedBillIds.size} selected
+              </span>
+              <span style={{ fontSize: '0.875rem', color: '#3730a3' }}>→</span>
+              <select
+                value={bulkTargetAccountId}
+                onChange={(e) => setBulkTargetAccountId(e.target.value)}
+                style={{ padding: '0.375rem 0.5rem', border: '1px solid #c7d2fe', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '180px' }}
+              >
+                <option value="">Choose new payment source…</option>
+                {accounts.filter(a => !a.ignored).map(a => (
+                  <option key={a.id} value={a.id}>{a.name}{a.source === 'plaid' ? ' 🔗' : ''}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleApplyBulkReassign}
+                disabled={!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk}
+                style={{ padding: '0.375rem 0.875rem', background: (!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk) ? '#9ca3af' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '600', cursor: (!bulkTargetAccountId || selectedBillIds.size === 0 || applyingBulk) ? 'not-allowed' : 'pointer' }}
+              >
+                {applyingBulk ? 'Applying…' : 'Apply to selected'}
+              </button>
+              <button
+                onClick={exitBulkMode}
+                style={{ padding: '0.375rem 0.875rem', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
             {bills
@@ -320,7 +443,16 @@ function BillsSection({
                     opacity: bill.ignored ? 0.6 : 1
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                      <div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        {bulkEditMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedBillIds.has(bill.id)}
+                            onChange={() => toggleBillSelected(bill.id)}
+                            style={{ accentColor: '#8b5cf6', marginTop: '0.25rem' }}
+                          />
+                        )}
+                        <div>
                         <div style={{ fontWeight: '500', fontSize: '1rem', color: '#000' }}>{bill.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                           {bill.frequency} • Due: {bill.dueDay}{bill.frequency === 'monthly' ? 'th of month' : ''} • {account?.name}
@@ -330,6 +462,7 @@ function BillsSection({
                           Next: {nextDate.toLocaleDateString()}
                         </div>
                         {bill.notes && <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.25rem' }}>{bill.notes}</div>}
+                        </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#000' }}>{fmt(bill.amount)}</div>

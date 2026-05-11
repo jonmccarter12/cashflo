@@ -2030,6 +2030,33 @@ function DashboardContent() {
     }
   }
 
+  async function bulkReassignBills(billIds, newAccountId) {
+    if (!user?.id || !billIds?.length || !newAccountId) return 0;
+    let count = 0;
+    for (const billId of billIds) {
+      const bill = bills.find(b => b.id === billId);
+      if (!bill || bill.accountId === newAccountId) continue;
+      try {
+        const tx = await logTransaction(
+          supabase,
+          user.id,
+          'bill_modification',
+          billId,
+          { changes: { accountId: newAccountId } },
+          `Bill "${bill.name}" payment source reassigned`
+        );
+        if (tx) {
+          setTransactions(prev => [...prev, tx]);
+          count++;
+        }
+      } catch (err) {
+        console.error('bulk reassign failed for', billId, err);
+      }
+    }
+    if (count > 0) notify(`Reassigned ${count} bill${count === 1 ? '' : 's'} to new payment source`, 'success');
+    return count;
+  }
+
   async function updateBill(billId, formData) {
     try {
       if (!user?.id) {
@@ -4465,6 +4492,7 @@ function DashboardContent() {
               editingBill={editingBill}
               updateBill={updateBill}
               addBill={addBill}
+              bulkReassignBills={bulkReassignBills}
               user={user}
               supabase={supabase}
               transactions={transactions}
