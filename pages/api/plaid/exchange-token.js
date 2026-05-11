@@ -35,9 +35,10 @@ export default async function handler(req, res) {
 
     if (upsertError) throw upsertError;
 
-    // Pull initial account snapshot so user sees something immediately
+    // Pull initial account snapshot with LIVE balances (forces fresh fetch from bank,
+    // vs accountsGet which can return cached data).
     try {
-      const accountsResp = await plaid.accountsGet({ access_token });
+      const accountsResp = await plaid.accountsBalanceGet({ access_token });
       const accountRows = accountsResp.data.accounts.map(a => ({
         user_id: user.id,
         plaid_item_id: item_id,

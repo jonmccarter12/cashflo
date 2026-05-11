@@ -84,6 +84,31 @@ export default async function handler(req, res) {
         if (delErr) throw delErr;
       }
 
+      // Refresh balances (live fetch) — keeps the displayed balance accurate
+      try {
+        const balResp = await plaid.accountsBalanceGet({ access_token: item.access_token });
+        const balanceRows = balResp.data.accounts.map(a => ({
+          user_id: user.id,
+          plaid_item_id: item.plaid_item_id,
+          plaid_account_id: a.account_id,
+          name: a.name,
+          official_name: a.official_name,
+          type: a.type,
+          subtype: a.subtype,
+          mask: a.mask,
+          current_balance: a.balances?.current ?? null,
+          available_balance: a.balances?.available ?? null,
+          iso_currency_code: a.balances?.iso_currency_code || null,
+          last_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        if (balanceRows.length) {
+          await supabase.from('plaid_accounts').upsert(balanceRows, { onConflict: 'plaid_account_id' });
+        }
+      } catch (balErr) {
+        console.error('balance refresh failed (non-fatal):', balErr?.response?.data || balErr);
+      }
+
       // Persist cursor
       await supabase
         .from('plaid_items')

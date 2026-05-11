@@ -266,17 +266,33 @@ export default function PlaidConnect({ user, supabase }) {
           </div>
           {item.accounts?.length > 0 && (
             <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.25rem' }}>
-              {item.accounts.map(a => (
-                <div key={a.plaid_account_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0.5rem', background: 'white', borderRadius: '0.25rem', fontSize: '0.875rem' }}>
-                  <span style={{ color: '#000' }}>
-                    {a.name} {a.mask && <span style={{ color: '#6b7280' }}>···{a.mask}</span>}
-                    <span style={{ color: '#9ca3af', fontSize: '0.75rem', marginLeft: '0.5rem' }}>{a.subtype || a.type}</span>
-                  </span>
-                  <span style={{ fontWeight: '600', color: '#000' }}>
-                    {typeof a.current_balance === 'number' ? `$${a.current_balance.toFixed(2)}` : '—'}
-                  </span>
-                </div>
-              ))}
+              {item.accounts.map(a => {
+                // For credit cards, "current" is the debt owed. For everything
+                // else, "available" is what's actually spendable. Plaid's "current"
+                // on a checking account includes pending transactions.
+                const isCredit = a.type === 'credit' || a.subtype === 'credit card';
+                const primaryBalance = isCredit ? a.current_balance : (a.available_balance ?? a.current_balance);
+                const showSecondary = !isCredit && typeof a.available_balance === 'number' &&
+                  typeof a.current_balance === 'number' && a.available_balance !== a.current_balance;
+                return (
+                  <div key={a.plaid_account_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0.5rem', background: 'white', borderRadius: '0.25rem', fontSize: '0.875rem' }}>
+                    <span style={{ color: '#000' }}>
+                      {a.name} {a.mask && <span style={{ color: '#6b7280' }}>···{a.mask}</span>}
+                      <span style={{ color: '#9ca3af', fontSize: '0.75rem', marginLeft: '0.5rem' }}>{a.subtype || a.type}</span>
+                    </span>
+                    <span style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: '600', color: '#000' }}>
+                        {typeof primaryBalance === 'number' ? `$${primaryBalance.toFixed(2)}` : '—'}
+                      </div>
+                      {showSecondary && (
+                        <div style={{ fontSize: '0.625rem', color: '#9ca3af' }}>
+                          current ${a.current_balance.toFixed(2)}
+                        </div>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
