@@ -25,6 +25,7 @@ import TransactionImport from './TransactionImport';
 import TransactionAnalysis from './dashboard/TransactionAnalysis';
 import MobileAppShell from './MobileAppShell';
 import { useTheme } from '../hooks/useTheme';
+import PlaidConnect from './PlaidConnect';
 // Lazy load for performance
 
 // ===================== MAIN DASHBOARD COMPONENT =====================
@@ -3576,8 +3577,30 @@ function DashboardContent() {
           >
 📋 Transaction History
           </button>
+          <button
+            onClick={() => setCurrentView('connections')}
+            style={{
+              flex: 1,
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem',
+              background: currentView === 'connections' ? '#8b5cf6' : 'transparent',
+              color: currentView === 'connections' ? 'white' : '#6b7280',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+🔗 Connections
+          </button>
         </div>
       </div>
+
+      {currentView === 'connections' && (
+        <div style={{ background: 'white', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '1.5rem' }}>
+          <PlaidConnect user={user} supabase={supabase} />
+        </div>
+      )}
 
       {/* Summary Charts Section */}
       {true && (
