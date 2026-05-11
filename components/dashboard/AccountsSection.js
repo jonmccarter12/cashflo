@@ -249,26 +249,39 @@ function AccountsSection({
                         {account.name}
                       </div>
                     )}
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem', fontWeight: '500' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                       {account.type}
+                      {account.source === 'plaid' && (
+                        <span style={{
+                          fontSize: '0.625rem',
+                          background: 'rgba(139, 92, 246, 0.25)',
+                          color: '#c4b5fd',
+                          padding: '0.0625rem 0.375rem',
+                          borderRadius: '0.5rem',
+                          fontWeight: '600',
+                          letterSpacing: '0.025em',
+                        }}>🔗 PLAID</span>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => setEditingAccount(account)}
-                      style={{
-                        padding: '0.25rem 0.375rem',
-                        background: '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.625rem',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Edit
-                    </button>
+                    {account.source !== 'plaid' && (
+                      <button
+                        onClick={() => setEditingAccount(account)}
+                        style={{
+                          padding: '0.25rem 0.375rem',
+                          background: '#2563eb',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          cursor: 'pointer',
+                          fontSize: '0.625rem',
+                          fontWeight: '600'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
                     <button
                       onClick={() => toggleAccountIgnored(account)}
                       style={{
@@ -284,29 +297,45 @@ function AccountsSection({
                     >
                       {account.ignored ? 'Show' : 'Hide'}
                     </button>
-                    <button
-                      onClick={() => deleteAccount(account.id)}
-                      style={{
-                        padding: '0.25rem 0.375rem',
-                        background: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.625rem',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Delete
-                    </button>
+                    {account.source !== 'plaid' && (
+                      <button
+                        onClick={() => deleteAccount(account.id)}
+                        style={{
+                          padding: '0.25rem 0.375rem',
+                          background: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          cursor: 'pointer',
+                          fontSize: '0.625rem',
+                          fontWeight: '600'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Balance section */}
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>Current Balance</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.125rem', fontWeight: '500' }}>
+                    {account.source === 'plaid' ? 'Live Balance (from bank)' : 'Current Balance'}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '1rem', fontWeight: '700', color: 'white' }}>$</span>
+                    {account.source === 'plaid' ? (
+                      <span style={{
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        color: 'white',
+                        padding: '0.375rem 0.5rem',
+                        minWidth: '80px',
+                        textAlign: 'right',
+                      }}>
+                        {account.balance.toFixed(2)}
+                      </span>
+                    ) : (
                     <input
                       type="number"
                       step="0.01"
@@ -338,6 +367,7 @@ function AccountsSection({
                         MozAppearance: 'textfield'
                       }}
                     />
+                    )}
                   </div>
                 </div>
 

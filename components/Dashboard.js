@@ -13,6 +13,7 @@ import ErrorBoundary from './ErrorBoundary';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useCloudState } from '../hooks/useCloudState';
 import { useCloudTransactions } from '../hooks/useCloudTransactions';
+import { usePlaidAccounts } from '../hooks/usePlaidAccounts';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 // Lazy loaded for performance
 import { useAuth } from '../hooks/useAuth'; // NEW
@@ -625,8 +626,17 @@ function DashboardContent() {
     return result;
   }, [transactions, initialLoadDone]); // Depend on transactions and initial load state
 
-  // OLD: Master state -> NOW derived from transactions
-  const { accounts, accountsMap, bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, savingsGoals, incomeHistory } = masterState;
+  // Plaid-managed accounts (live from connected institutions)
+  const { plaidAccounts } = usePlaidAccounts(user?.id, supabase);
+
+  // OLD: Master state -> NOW derived from transactions; merge Plaid accounts in
+  const { bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, savingsGoals, incomeHistory } = masterState;
+  const { accounts, accountsMap } = React.useMemo(() => {
+    const merged = [...masterState.accounts, ...plaidAccounts];
+    const map = new Map();
+    merged.forEach(a => map.set(a.id, a));
+    return { accounts: merged, accountsMap: map };
+  }, [masterState.accounts, plaidAccounts]);
 
   // Sync initial dummy data to transactions if no transactions exist and old local storage has data
   // This is a one-time migration for existing users.
@@ -688,8 +698,6 @@ function DashboardContent() {
   }, [user?.id, supabase]); // Removed transactions.length dependency to prevent repeated attempts
 
   // Settings/UI with cloud sync - still use useCloudState for UI settings
-  const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
-  const [autoDeductBank, setAutoDeductBank] = useCloudState('autoDeductBank', false, user?.id, supabase);
   const [includeGuaranteedInNetWorth, setIncludeGuaranteedInNetWorth] = useCloudState('includeGuaranteedInNetWorth', false, user?.id, supabase);
   const [selectedCat, setSelectedCat] = useCloudState('selectedCat', 'All', user?.id, supabase);
 
@@ -701,23 +709,6 @@ function DashboardContent() {
     }
   }, [user?.id, accounts.length, bills.length, oneTimeCosts.length, selectedCat, setSelectedCat]);
 
-  // Helper function to get the default account for auto-deduct
-  const getDefaultAutoDeductAccount = React.useCallback(() => {
-    if (autoDeductBank) {
-      // Find first bank account
-      const bankAccount = accounts.find(a => a.type === 'Bank' && !a.ignored);
-      if (bankAccount) return bankAccount.id;
-    }
-    if (autoDeductCash) {
-      // Find cash account
-      const cashAccount = accounts.find(a => a.type === 'Cash' && !a.ignored);
-      if (cashAccount) return cashAccount.id;
-    }
-    // Fallback to first non-ignored account
-    const fallbackAccount = accounts.find(a => !a.ignored);
-    return fallbackAccount?.id || accounts[0]?.id;
-  }, [accounts, autoDeductBank, autoDeductCash]);
-
   const [showIncomeHistory, setShowIncomeHistory] = React.useState(false); // Managed locally for UI toggle
   const [dueTimeframe, setDueTimeframe] = React.useState('week'); // 'week' or 'month'
 
@@ -727,7 +718,6 @@ function DashboardContent() {
   const [editingCategoryName, setEditingCategoryName] = React.useState(null);
   const [tempCategoryName, setTempCategoryName] = React.useState('');
   const [confirmDialog, setConfirmDialog] = React.useState(null); // { title, message, onConfirm, onCancel }
-  const [autoDeductPopup, setAutoDeductPopup] = React.useState(null); // { amount, accountName, newBalance, billName }
   const [editingCategoryBusiness, setEditingCategoryBusiness] = React.useState(null);
   const [categoryBusinessTypes, setCategoryBusinessTypes] = React.useState({})
   const [billsOtcView, setBillsOtcView] = useCloudState('billsOtcView', 'bills', user?.id, supabase); // 'bills' or 'otc'
@@ -762,7 +752,6 @@ function DashboardContent() {
     borderRadius: '0.375rem'
   };
   const billsSectionRef = React.useRef(null);
-  const autoDeductPopupTimerRef = React.useRef(null);
 
   // One-time cost form state - these states are kept in DashboardContent
   // because they are used for calculations (e.g., upcoming.items, timeline)
@@ -779,7 +768,6 @@ function DashboardContent() {
   const [otcNotes, setOtcNotes] = React.useState("");
   const [otcTaxCategory, setOtcTaxCategory] = React.useState('None/Personal');
   const [otcMarkAsPaid, setOtcMarkAsPaid] = React.useState(false);
-  const [otcAutoDeduct, setOtcAutoDeduct] = React.useState(false);
 
   // Autopay processing with guard to prevent double-fire
   const autopayProcessingRef = React.useRef(new Set());
@@ -819,7 +807,6 @@ function DashboardContent() {
               accountId: bill.accountId,
               amount: bill.amount,
               autopay: true,
-              auto_deducted: autoDeductCash || autoDeductBank
             },
             `Autopay: Marked "${bill.name}" as paid for ${currentMonth}`
           );
@@ -1871,9 +1858,6 @@ function DashboardContent() {
         return;
       }
 
-      // Check if auto-deduct is enabled (same logic as bills)
-      const shouldAutoDeduct = !otc.paid && (autoDeductCash || autoDeductBank);
-
       const transaction = await logTransaction(
         supabase,
         user.id,
@@ -1883,32 +1867,11 @@ function DashboardContent() {
           is_paid: !otc.paid,
           accountId: otc.accountId,
           amount: otc.amount,
-          auto_deducted: shouldAutoDeduct
         },
-        `One-time cost "${otc.name}" marked as ${!otc.paid ? 'paid' : 'unpaid'}${shouldAutoDeduct ? ' (auto-deducted)' : ''}`
+        `One-time cost "${otc.name}" marked as ${!otc.paid ? 'paid' : 'unpaid'}`
       );
 
       if (transaction) {
-        // Show auto-deduct popup when marking as paid with auto-deduct
-        // Balance adjustment is handled by masterState replay via auto_deducted flag
-        if (shouldAutoDeduct) {
-          const account = accountsMap.get(otc.accountId);
-          if (account) {
-            const newBalance = Math.round((account.balance - otc.amount) * 100) / 100;
-            setAutoDeductPopup({
-              amount: otc.amount,
-              accountName: account.name,
-              newBalance: newBalance,
-              billName: otc.name
-            });
-
-            if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
-            autoDeductPopupTimerRef.current = setTimeout(() => {
-              setAutoDeductPopup(null);
-            }, 3000);
-          }
-        }
-
         notify(`${otc.name} marked as ${!otc.paid ? 'paid' : 'unpaid'}`, 'success');
         setTransactions(prev => [...prev, transaction]);
       }
@@ -2244,8 +2207,6 @@ function DashboardContent() {
       }
 
       async function createNewPaymentTransaction() {
-        const shouldAutoDeduct = !isPaid && (autoDeductCash || autoDeductBank);
-
         const transaction = await logTransaction(
           supabase,
           user.id,
@@ -2256,31 +2217,11 @@ function DashboardContent() {
             is_paid: !isPaid,
             accountId: b.accountId,
             amount: b.amount,
-            auto_deducted: shouldAutoDeduct
           },
           `Bill "${b.name}" marked as ${!isPaid ? 'paid' : 'unpaid'} for ${currentMonth}`
         );
 
         if (transaction) {
-          // Show auto-deduct popup when marking as paid with auto-deduct
-          if (shouldAutoDeduct) {
-            const account = accountsMap.get(b.accountId);
-            if (account) {
-              const newBalance = Math.round((account.balance - b.amount) * 100) / 100;
-              setAutoDeductPopup({
-                amount: b.amount,
-                accountName: account.name,
-                newBalance: newBalance,
-                billName: b.name
-              });
-
-              if (autoDeductPopupTimerRef.current) clearTimeout(autoDeductPopupTimerRef.current);
-              autoDeductPopupTimerRef.current = setTimeout(() => {
-                setAutoDeductPopup(null);
-              }, 3000);
-            }
-          }
-
           notify(`${b.name} marked as ${!isPaid ? 'paid' : 'not paid'}`, 'success');
           setTransactions(prev => [...prev, transaction]);
         }
@@ -4524,7 +4465,6 @@ function DashboardContent() {
               editingBill={editingBill}
               updateBill={updateBill}
               addBill={addBill}
-              getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
               user={user}
               supabase={supabase}
               transactions={transactions}
@@ -4553,8 +4493,6 @@ function DashboardContent() {
               setOtcTaxCategory={setOtcTaxCategory}
               otcMarkAsPaid={otcMarkAsPaid}
               setOtcMarkAsPaid={setOtcMarkAsPaid}
-              otcAutoDeduct={otcAutoDeduct}
-              setOtcAutoDeduct={setOtcAutoDeduct}
               selectedCats={selectedCats}
               editingOTC={editingOTC}
               setEditingOTC={setEditingOTC}
@@ -4562,9 +4500,6 @@ function DashboardContent() {
               selectAllOnFocus={selectAllOnFocus}
               deleteOneTimeCost={deleteOneTimeCost}
               updateOTC={updateOTC}
-              autoDeductCash={autoDeductCash}
-              autoDeductBank={autoDeductBank}
-              getDefaultAutoDeductAccount={getDefaultAutoDeductAccount}
               setTransactions={setTransactions}
             />
           )}
@@ -4613,48 +4548,6 @@ function DashboardContent() {
             gap: '1rem',
             marginBottom: '1rem'
           }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#374151',
-              fontSize: '0.875rem',
-              background: '#f9fafb',
-              padding: '0.75rem',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              border: '1px solid #e5e7eb'
-            }}>
-              <input
-                type="checkbox"
-                checked={autoDeductCash}
-                onChange={(e) => setAutoDeductCash(e.target.checked)}
-                style={{ accentColor: '#8b5cf6' }}
-              />
-              💰 Auto-deduct from cash
-            </label>
-
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#374151',
-              fontSize: '0.875rem',
-              background: '#f9fafb',
-              padding: '0.75rem',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              border: '1px solid #e5e7eb'
-            }}>
-              <input
-                type="checkbox"
-                checked={autoDeductBank}
-                onChange={(e) => setAutoDeductBank(e.target.checked)}
-                style={{ accentColor: '#8b5cf6' }}
-              />
-              🏦 Auto-deduct from bank account
-            </label>
-
             <label style={{
               display: 'flex',
               alignItems: 'center',
@@ -6109,88 +6002,6 @@ function DashboardContent() {
                 Confirm
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Auto-Deduct Popup */}
-      {autoDeductPopup && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          color: 'white',
-          padding: '1.5rem',
-          borderRadius: '0.75rem',
-          boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
-          zIndex: 1100,
-          minWidth: '320px',
-          maxWidth: '400px',
-          transition: 'all 0.4s ease-out',
-          transform: 'translateX(0) scale(1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            marginBottom: '1rem'
-          }}>
-            <div style={{
-              fontSize: '1.5rem',
-              background: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              💳
-            </div>
-            <div>
-              <div style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.25rem' }}>
-                Auto-Deducted
-              </div>
-              <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
-                {autoDeductPopup.billName} payment processed
-              </div>
-            </div>
-          </div>
-
-          <div style={{ fontSize: '0.9rem', lineHeight: '1.5', opacity: 0.95 }}>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <strong>{fmt(autoDeductPopup.amount)}</strong> deducted from <strong>{autoDeductPopup.accountName}</strong>
-            </div>
-            <div>
-              New balance: <strong>{fmt(autoDeductPopup.newBalance)}</strong>
-            </div>
-          </div>
-
-          <div style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px'
-          }}>
-            <button
-              onClick={() => setAutoDeductPopup(null)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: 'none',
-                color: 'white',
-                borderRadius: '50%',
-                width: '24px',
-                height: '24px',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              ✕
-            </button>
           </div>
         </div>
       )}

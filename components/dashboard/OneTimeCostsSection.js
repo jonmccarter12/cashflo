@@ -26,8 +26,6 @@ function OneTimeCostsSection({
   setOtcTaxCategory,
   otcMarkAsPaid,
   setOtcMarkAsPaid,
-  otcAutoDeduct,
-  setOtcAutoDeduct,
   selectedCats,
   editingOTC,
   setEditingOTC,
@@ -35,9 +33,6 @@ function OneTimeCostsSection({
   selectAllOnFocus,
   deleteOneTimeCost, // This function is passed from Dashboard.js
   updateOTC, // This function is passed from Dashboard.js
-  autoDeductCash,
-  autoDeductBank,
-  getDefaultAutoDeductAccount,
   setTransactions,
 }) {
   const [isCreating, setIsCreating] = React.useState(false);
@@ -103,7 +98,7 @@ function OneTimeCostsSection({
         // Optimistic update - add transaction to local state immediately
         setTransactions(prev => [...prev, transaction]);
 
-        // If mark as paid is checked, immediately mark it as paid
+        // If mark as paid is checked, immediately mark it as paid (no balance side-effect)
         if (otcMarkAsPaid) {
           const paidTransaction = await logTransaction(
             supabase,
@@ -115,53 +110,7 @@ function OneTimeCostsSection({
           );
 
           if (paidTransaction) {
-            // Optimistic update for paid transaction
             setTransactions(prev => [...prev, paidTransaction]);
-          }
-
-          // If auto-deduct is enabled (cash or bank), automatically deduct from appropriate account
-          if (autoDeductCash || autoDeductBank) {
-            const autoDeductAccountId = getDefaultAutoDeductAccount();
-            if (autoDeductAccountId) {
-              const account = accounts.find(a => a.id === autoDeductAccountId);
-              if (account) {
-                const newBalance = account.balance - Number(otcAmount);
-                const balanceTransaction = await logTransaction(
-                  supabase,
-                  user.id,
-                  'account_balance_adjustment',
-                  autoDeductAccountId,
-                  { new_balance: newBalance },
-                  `Auto deducted ${fmt(Number(otcAmount))} for "${otcName}"`
-                );
-
-                if (balanceTransaction) {
-                  // Optimistic update for balance adjustment
-                  setTransactions(prev => [...prev, balanceTransaction]);
-                }
-              }
-            }
-          }
-        }
-
-        // If auto deduct is checked (legacy checkbox), deduct from selected account
-        if (otcAutoDeduct) {
-          const account = accounts.find(a => a.id === otcAccountId);
-          if (account) {
-            const newBalance = account.balance - Number(otcAmount);
-            const balanceTransaction = await logTransaction(
-              supabase,
-              user.id,
-              'account_balance_adjustment',
-              otcAccountId,
-              { new_balance: newBalance },
-              `Auto deducted ${fmt(Number(otcAmount))} from account for "${otcName}"`
-            );
-
-            if (balanceTransaction) {
-              // Optimistic update for balance adjustment
-              setTransactions(prev => [...prev, balanceTransaction]);
-            }
           }
         }
 
@@ -169,19 +118,8 @@ function OneTimeCostsSection({
         setOtcAmount(0);
         setOtcNotes("");
         setOtcMarkAsPaid(false);
-        setOtcAutoDeduct(false);
 
-        let message = 'One-time cost added';
-        if (otcMarkAsPaid) {
-          message += ' and marked as paid';
-          if (autoDeductCash || autoDeductBank) {
-            message += ' and auto-deducted';
-          }
-        }
-        if (otcAutoDeduct && !otcMarkAsPaid) {
-          message += ' and deducted from account';
-        }
-        notify(message);
+        notify(otcMarkAsPaid ? 'One-time cost added and marked as paid' : 'One-time cost added');
       }
     } catch (error) {
       console.error('Error adding one-time cost:', error);
@@ -304,14 +242,6 @@ function OneTimeCostsSection({
                   onChange={(e) => setOtcMarkAsPaid(e.target.checked)}
                 />
                 Mark as paid
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#000' }}>
-                <input
-                  type="checkbox"
-                  checked={otcAutoDeduct}
-                  onChange={(e) => setOtcAutoDeduct(e.target.checked)}
-                />
-                Auto deduct
               </label>
             </div>
             <button
@@ -470,14 +400,6 @@ function OneTimeCostsSection({
                       onChange={(e) => setOtcMarkAsPaid(e.target.checked)}
                     />
                     Mark as paid
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#000' }}>
-                    <input
-                      type="checkbox"
-                      checked={otcAutoDeduct}
-                      onChange={(e) => setOtcAutoDeduct(e.target.checked)}
-                    />
-                    Auto deduct from account
                   </label>
                 </div>
                 <button
