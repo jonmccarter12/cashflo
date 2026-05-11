@@ -9,7 +9,6 @@ function BillsSection({
   bills,
   accounts,
   activeCats,
-  showIgnored,
   selectedCats,
   totalBillsForSelectedCategory,
   togglePaid,
@@ -31,7 +30,7 @@ function BillsSection({
   const [selectedFrequency, setSelectedFrequency] = React.useState('monthly');
   const [showTemplates, setShowTemplates] = React.useState(true);
   const [billSearch, setBillSearch] = React.useState('');
-  const [billStatusFilter, setBillStatusFilter] = React.useState('all'); // all, paid, unpaid, overdue
+  const [billStatusFilter, setBillStatusFilter] = React.useState('all'); // all, paid, unpaid, overdue, hidden
   const [showPaymentHistory, setShowPaymentHistory] = React.useState(null); // bill id or null
 
   // Update frequency when editing bill changes
@@ -76,7 +75,7 @@ function BillsSection({
               style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.75rem', marginBottom: '0.375rem', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-              {['all', 'paid', 'unpaid', 'overdue'].map(status => (
+              {['all', 'paid', 'unpaid', 'overdue', 'hidden'].map(status => (
                 <button
                   key={status}
                   onClick={() => setBillStatusFilter(status)}
@@ -101,7 +100,12 @@ function BillsSection({
           {bills
             .filter(b => {
               if (!selectedCats.includes(b.category)) return false;
-              if (!showIgnored && b.ignored) return false;
+              // Hidden bills only show under the "Hidden" filter
+              if (billStatusFilter === 'hidden') {
+                if (!b.ignored) return false;
+              } else {
+                if (b.ignored) return false;
+              }
               // Search filter
               if (billSearch && !b.name.toLowerCase().includes(billSearch.toLowerCase())) return false;
               // Status filter
@@ -258,7 +262,7 @@ function BillsSection({
               style={{ padding: '0.375rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '200px' }}
             />
             <div style={{ display: 'flex', gap: '0.375rem' }}>
-              {['all', 'paid', 'unpaid', 'overdue'].map(status => (
+              {['all', 'paid', 'unpaid', 'overdue', 'hidden'].map(status => (
                 <button
                   key={status}
                   onClick={() => setBillStatusFilter(status)}
@@ -283,7 +287,12 @@ function BillsSection({
             {bills
               .filter(b => {
                 if (!selectedCats.includes(b.category)) return false;
-                if (!showIgnored && b.ignored) return false;
+                // Hidden bills only show under the "Hidden" filter
+                if (billStatusFilter === 'hidden') {
+                  if (!b.ignored) return false;
+                } else {
+                  if (b.ignored) return false;
+                }
                 if (billSearch && !b.name.toLowerCase().includes(billSearch.toLowerCase())) return false;
                 const isPaidNow = b.paidMonths.includes(yyyyMm());
                 const nextDate = getEffectiveDueDate(b);
@@ -368,7 +377,7 @@ function BillsSection({
               })}
           </div>
           
-          {bills.filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true)).length === 0 && (
+          {bills.filter(b => selectedCats.includes(b.category) && (billStatusFilter === 'hidden' ? b.ignored : !b.ignored)).length === 0 && (
             <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
               No bills found. Add your first bill to get started!
             </div>

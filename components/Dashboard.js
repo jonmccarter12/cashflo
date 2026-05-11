@@ -690,7 +690,6 @@ function DashboardContent() {
   const [autoDeductCash, setAutoDeductCash] = useCloudState('autoDeductCash', true, user?.id, supabase);
   const [autoDeductBank, setAutoDeductBank] = useCloudState('autoDeductBank', false, user?.id, supabase);
   const [includeGuaranteedInNetWorth, setIncludeGuaranteedInNetWorth] = useCloudState('includeGuaranteedInNetWorth', false, user?.id, supabase);
-  const [showIgnored, setShowIgnored] = useCloudState('showIgnored', false, user?.id, supabase);
   const [selectedCat, setSelectedCat] = useCloudState('selectedCat', 'All', user?.id, supabase);
 
   // Ensure first-time users or users without data start with "All" category
@@ -1182,12 +1181,12 @@ function DashboardContent() {
   const totalBillsForSelectedCategory = React.useMemo(() => {
     let total = 0;
     bills
-      .filter(b => selectedCats.includes(b.category) && (!showIgnored ? !b.ignored : true))
+      .filter(b => selectedCats.includes(b.category) && !b.ignored)
       .forEach(bill => {
         total += Number(bill.amount) || 0;
       });
     return total;
-  }, [bills, selectedCats, showIgnored]);
+  }, [bills, selectedCats]);
 
   // Category spending calculations for budgets
   const categorySpending = React.useMemo(() => {
@@ -4068,24 +4067,6 @@ function DashboardContent() {
               );
             })}
 
-            {/* Show Ignored Button */}
-            <button
-              onClick={() => setShowIgnored(!showIgnored)}
-              style={{
-                padding: '0.5rem 0.75rem',
-                background: showIgnored ? '#f59e0b' : '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.75rem',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              {showIgnored ? '👁️ Hide Ignored Bills' : '👁️‍🗨️ Show Ignored Bills'}
-            </button>
           </div>
         </div>
       )}
@@ -4511,7 +4492,6 @@ function DashboardContent() {
               bills={bills}
               accounts={accounts}
               activeCats={activeCats}
-              showIgnored={showIgnored}
               selectedCats={selectedCats}
               totalBillsForSelectedCategory={totalBillsForSelectedCategory}
               togglePaid={togglePaid}
@@ -4553,7 +4533,6 @@ function DashboardContent() {
               otcAutoDeduct={otcAutoDeduct}
               setOtcAutoDeduct={setOtcAutoDeduct}
               selectedCats={selectedCats}
-              showIgnored={showIgnored}
               editingOTC={editingOTC}
               setEditingOTC={setEditingOTC}
               toggleOneTimePaid={toggleOneTimePaid}

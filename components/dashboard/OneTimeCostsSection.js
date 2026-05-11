@@ -29,7 +29,6 @@ function OneTimeCostsSection({
   otcAutoDeduct,
   setOtcAutoDeduct,
   selectedCats,
-  showIgnored,
   editingOTC,
   setEditingOTC,
   toggleOneTimePaid, // This function is passed from Dashboard.js
@@ -42,6 +41,7 @@ function OneTimeCostsSection({
   setTransactions,
 }) {
   const [isCreating, setIsCreating] = React.useState(false);
+  const [otcShowHidden, setOtcShowHidden] = React.useState(false);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !isCreating) {
@@ -220,7 +220,24 @@ function OneTimeCostsSection({
       {/* Mobile One-Time Costs Section */}
       {isMobile && (
         <div style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#000' }}>One-Time Costs</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#000' }}>One-Time Costs</h3>
+            <button
+              onClick={() => setOtcShowHidden(!otcShowHidden)}
+              style={{
+                padding: '0.125rem 0.5rem',
+                background: otcShowHidden ? '#8b5cf6' : '#f3f4f6',
+                color: otcShowHidden ? 'white' : '#6b7280',
+                border: 'none',
+                borderRadius: '1rem',
+                fontSize: '0.625rem',
+                cursor: 'pointer',
+                fontWeight: otcShowHidden ? '600' : '400'
+              }}
+            >
+              Hidden
+            </button>
+          </div>
 
           <div style={{ marginBottom: '0.75rem' }}>
             <input
@@ -317,7 +334,7 @@ function OneTimeCostsSection({
           </div>
 
           {oneTimeCosts
-            .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true) && !o.paid)
+            .filter(o => selectedCats.includes(o.category) && (otcShowHidden ? o.ignored : !o.ignored) && !o.paid)
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
             .map(otc => {
               const account = accounts.find(a => a.id === otc.accountId);
@@ -374,7 +391,24 @@ function OneTimeCostsSection({
       {/* Desktop One-Time Costs Section */}
       {!isMobile && (
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#000' }}>One-Time Costs</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#000' }}>One-Time Costs</h3>
+            <button
+              onClick={() => setOtcShowHidden(!otcShowHidden)}
+              style={{
+                padding: '0.25rem 0.75rem',
+                background: otcShowHidden ? '#8b5cf6' : '#f3f4f6',
+                color: otcShowHidden ? 'white' : '#6b7280',
+                border: 'none',
+                borderRadius: '1rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: otcShowHidden ? '600' : '400'
+              }}
+            >
+              Hidden
+            </button>
+          </div>
 
           {/* Add One-Time Cost Form */}
           <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
@@ -467,7 +501,7 @@ function OneTimeCostsSection({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
             {oneTimeCosts
-              .filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true) && !o.paid)
+              .filter(o => selectedCats.includes(o.category) && (otcShowHidden ? o.ignored : !o.ignored) && !o.paid)
               .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
               .map(otc => {
                 const account = accounts.find(a => a.id === otc.accountId);
@@ -529,7 +563,7 @@ function OneTimeCostsSection({
               })}
           </div>
 
-          {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (!showIgnored ? !o.ignored : true)).length === 0 && (
+          {oneTimeCosts.filter(o => selectedCats.includes(o.category) && (otcShowHidden ? o.ignored : !o.ignored)).length === 0 && (
             <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.875rem' }}>
               No one-time costs found. Add costs above to track them!
             </div>
