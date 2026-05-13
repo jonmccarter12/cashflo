@@ -5,6 +5,8 @@ function AccountsSection({
   isMobile,
   accounts,
   setShowAddAccount,
+  onSyncPlaid,
+  plaidSyncing,
   deleteAccount,
   updateAccountBalance,
   currentLiquidWithGuaranteed,
@@ -101,23 +103,44 @@ function AccountsSection({
         margin: '0 0 0.5rem 0',
         boxSizing: 'border-box'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', gap: '0.25rem', flexWrap: 'wrap' }}>
           <h3 style={{ fontSize: '0.75rem', fontWeight: '600', color: '#1f2937' }}>Accounts</h3>
-          <button
-            onClick={() => setShowAddAccount(true)}
-            style={{
-              padding: '0.25rem 0.5rem',
-              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
-            }}
-          >
-            + Account
-          </button>
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            {onSyncPlaid && (
+              <button
+                onClick={onSyncPlaid}
+                disabled={plaidSyncing}
+                title="Refresh balances from connected institutions"
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: plaidSyncing ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.75rem',
+                  cursor: plaidSyncing ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                }}
+              >
+                {plaidSyncing ? '↻ Syncing…' : '↻ Sync'}
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddAccount(true)}
+              style={{
+                padding: '0.25rem 0.5rem',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+              }}
+            >
+              + Account
+            </button>
+          </div>
         </div>
 
         {/* Toggle between Debit and Credit views */}
@@ -924,12 +947,24 @@ function AccountsSection({
     <div style={{ background: 'white', padding: '0.75rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>Accounts</h3>
-        <button
-          onClick={() => setShowAddAccount(true)}
-          style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-        >
-          + Add
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {onSyncPlaid && (
+            <button
+              onClick={onSyncPlaid}
+              disabled={plaidSyncing}
+              title="Refresh balances from connected institutions"
+              style={{ padding: '0.5rem 1rem', background: plaidSyncing ? '#9ca3af' : '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: plaidSyncing ? 'not-allowed' : 'pointer' }}
+            >
+              {plaidSyncing ? '↻ Syncing…' : '↻ Sync'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddAccount(true)}
+            style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+          >
+            + Add
+          </button>
+        </div>
       </div>
 
       {/* Toggle between Debit and Credit views */}

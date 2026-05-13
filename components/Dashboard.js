@@ -14,6 +14,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { useCloudState } from '../hooks/useCloudState';
 import { useCloudTransactions } from '../hooks/useCloudTransactions';
 import { usePlaidAccounts } from '../hooks/usePlaidAccounts';
+import { usePlaidSync } from '../hooks/usePlaidSync';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 // Lazy loaded for performance
 import { useAuth } from '../hooks/useAuth'; // NEW
@@ -627,7 +628,10 @@ function DashboardContent() {
   }, [transactions, initialLoadDone]); // Depend on transactions and initial load state
 
   // Plaid-managed accounts (live from connected institutions)
-  const { plaidAccounts } = usePlaidAccounts(user?.id, supabase);
+  const { plaidAccounts, refetchPlaidAccounts } = usePlaidAccounts(user?.id, supabase);
+  const { sync: syncPlaid, syncing: plaidSyncing } = usePlaidSync(user?.id, supabase, {
+    onSynced: () => refetchPlaidAccounts(),
+  });
 
   // OLD: Master state -> NOW derived from transactions; merge Plaid accounts in
   const { bills, oneTimeCosts, categories, upcomingCredits, recurringIncome, savingsGoals, incomeHistory } = masterState;
@@ -4099,6 +4103,8 @@ function DashboardContent() {
           bills={bills}
           oneTimeCosts={oneTimeCosts}
           dueTimeframe={dueTimeframe}
+          onSyncPlaid={plaidAccounts.length > 0 ? () => syncPlaid({ force: true }).then(r => notify(`Synced ${r?.added || 0} new transactions; balances refreshed`, 'success')).catch(e => notify(`Sync failed: ${e.message}`, 'error')) : null}
+          plaidSyncing={plaidSyncing}
         />
 
         {/* Income & Credits */}

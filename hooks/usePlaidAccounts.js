@@ -34,6 +34,24 @@ function mapPlaidRow(row) {
 export function usePlaidAccounts(userId, supabase) {
   const [accounts, setAccounts] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const cancelledRef = React.useRef(false);
+
+  const fetchAccounts = React.useCallback(async () => {
+    if (!userId || !supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('plaid_accounts')
+        .select('*')
+        .eq('user_id', userId);
+      if (error) throw error;
+      if (!cancelledRef.current) {
+        setAccounts((data || []).map(mapPlaidRow));
+      }
+    } catch (err) {
+      console.error('Failed to load plaid_accounts:', err);
+      if (!cancelledRef.current) setAccounts([]);
+    }
+  }, [userId, supabase]);
 
   React.useEffect(() => {
     if (!userId || !supabase) {
@@ -42,42 +60,27 @@ export function usePlaidAccounts(userId, supabase) {
       return;
     }
 
-    let cancelled = false;
+    cancelledRef.current = false;
+    setLoading(true);
+    fetchAccounts().finally(() => {
+      if (!cancelledRef.current) setLoading(false);
+    });
 
-    async function fetchAccounts() {
-      try {
-        const { data, error } = await supabase
-          .from('plaid_accounts')
-          .select('*')
-          .eq('user_id', userId);
-        if (error) throw error;
-        if (!cancelled) {
-          setAccounts((data || []).map(mapPlaidRow));
-        }
-      } catch (err) {
-        console.error('Failed to load plaid_accounts:', err);
-        if (!cancelled) setAccounts([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetchAccounts();
-
-    // Realtime subscription — auto-refresh when sync updates balances
+    // Realtime subscription — auto-refresh when sync updates balances.
+    // Requires plaid_accounts to be in the supabase_realtime publication.
     const channel = supabase
       .channel(`plaid-accounts-${userId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'plaid_accounts', filter: `user_id=eq.${userId}` },
-        () => { if (!cancelled) fetchAccounts(); }
+        () => { fetchAccounts(); }
       )
       .subscribe();
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       supabase.removeChannel(channel);
     };
-  }, [userId, supabase]);
+  }, [userId, supabase, fetchAccounts]);
 
-  return { plaidAccounts: accounts, plaidAccountsLoading: loading };
+  return { plaidAccounts: accounts, plaidAccountsLoading: loading, refetchPlaidAccounts: fetchAccounts };
 }

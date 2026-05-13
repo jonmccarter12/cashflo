@@ -1,7 +1,10 @@
 import { getPlaidClient, getAdminSupabase, getUserFromRequest } from '../../../lib/plaidServer';
 
 // POST /api/plaid/sync-transactions
-// Body (optional): { plaid_item_id?: string } — if omitted, syncs all of the user's items.
+// Body (optional):
+//   - plaid_item_id?: string — if set, only sync that item
+//   - min_age_hours?: number — if set, skip items synced more recently than this
+//                              (used by auto-sync to avoid hammering Plaid)
 //
 // Uses Plaid's /transactions/sync (cursor-based). Idempotent and safe to call repeatedly.
 
@@ -20,9 +23,19 @@ export default async function handler(req, res) {
   // Fetch the items to sync
   let itemsQuery = supabase.from('plaid_items').select('*').eq('user_id', user.id);
   if (req.body?.plaid_item_id) itemsQuery = itemsQuery.eq('plaid_item_id', req.body.plaid_item_id);
-  const { data: items, error: itemsError } = await itemsQuery;
+  const { data: itemsRaw, error: itemsError } = await itemsQuery;
   if (itemsError) return res.status(500).json({ error: itemsError.message });
-  if (!items?.length) return res.status(200).json({ ok: true, items: 0, added: 0, modified: 0, removed: 0 });
+
+  // Optional staleness gate — skip items synced more recently than min_age_hours
+  const minAgeHours = Number(req.body?.min_age_hours) || 0;
+  const items = (itemsRaw || []).filter(it => {
+    if (!minAgeHours) return true;
+    if (!it.last_synced_at) return true; // never synced → always sync
+    const ageMs = Date.now() - new Date(it.last_synced_at).getTime();
+    return ageMs >= minAgeHours * 60 * 60 * 1000;
+  });
+
+  if (!items?.length) return res.status(200).json({ ok: true, items: 0, added: 0, modified: 0, removed: 0, skipped_fresh: (itemsRaw || []).length });
 
   const summary = { items: items.length, added: 0, modified: 0, removed: 0, errors: [] };
 

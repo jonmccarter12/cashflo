@@ -98,3 +98,9 @@ DO $$ BEGIN
     CREATE POLICY "Users can view their own plaid accounts" ON public.plaid_accounts
         FOR SELECT USING (auth.uid() = user_id);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Add plaid_accounts to the realtime publication so balance updates broadcast
+-- to all open tabs without a page refresh.
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.plaid_accounts;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END $$;
